@@ -29,6 +29,7 @@
 
 package org.firstinspires.ftc.teamcode.colorsensor;
 
+import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -72,12 +73,16 @@ public class colorSensor extends LinearOpMode {
     double gain = 15;
     double alpha = 1.0;
 
+
+
     public void runOpMode() {
 
         // Get a reference to our sensor object. It's recommended to use NormalizedColorSensor over
         // ColorSensor, because NormalizedColorSensor consistently gives values between 0 and 1, while
         // the values you get from ColorSensor are dependent on the specific sensor you're using.
-        colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensor_color");
+        colorSensor = hardwareMap.get(RevColorSensorV3.class, "sensor_color");
+
+
 
         // If necessary, turn ON the white LED (if there is no LED switch on the sensor)
         if (colorSensor instanceof SwitchableLight) {
@@ -87,35 +92,27 @@ public class colorSensor extends LinearOpMode {
         // Some sensors allow you to set your light sensor gain for optimal sensitivity...
         // See the SensorColor sample in this folder for how to determine the optimal gain.
         // A gain of 15 causes a Rev Color Sensor V2 to produce an Alpha value of 1.0 at about 1.5" above the floor.
-
-
-        // Wait for driver to press START)
-        // Abort this loop is started or stopped.
-        while (opModeInInit()) {
-
-            // Send telemetry message to signify robot waiting;
-            telemetry.addData("Status", "Ready to drive to white line.");    //
-
-            // Display the light level while we are waiting to start
-        }
-
+        waitForStart();
         while (opModeIsActive()) {
-            sensorValues(gamepad1.left_stick_y);
-            telemetry.addData("Blue", colorSensor.getNormalizedColors().blue);
-            telemetry.addData("Red", colorSensor.getNormalizedColors().red);
-            telemetry.addData("Green", colorSensor.getNormalizedColors().green);
-            telemetry.addData("Gain", colorSensor.getGain());
-            telemetry.addData("Alpha", colorSensor.getNormalizedColors().alpha);
+
+            float blue = colorSensor.getNormalizedColors().blue * 255;
+            float red = colorSensor.getNormalizedColors().red * 255;
+            float green = colorSensor.getNormalizedColors().green * 255;
+
+            telemetry.addData("Blue", blue);
+            telemetry.addData("Red", red);
+            telemetry.addData("Green", green);
+
+            if(blue > red) {
+                telemetry.addData("Color!", "Purple");
+            } else if (green > 30){
+                telemetry.addData("Color!", "Green");
+            } else {
+                telemetry.addData("Color!", "No Color");
+            }
 
             telemetry.update();
         }
-
-
-
-    }
-    public void sensorValues(double gainadjust) {
-        gain += gainadjust;
-        colorSensor.setGain((float) gain);
 
     }
 }
