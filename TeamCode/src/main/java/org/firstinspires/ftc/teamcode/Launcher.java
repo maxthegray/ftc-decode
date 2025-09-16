@@ -1,21 +1,25 @@
 package org.firstinspires.ftc.teamcode;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
 public class Launcher {
 
     public Integer[] LtargetSequence;       // shooting order
-    public ArrayList<Integer> LcarouselBalls; // current balls in carousel, slots 0, 1, 2
+    public Integer[] LcarouselBalls; // current balls in carousel, slots 0, 1, 2
     public int LcarouselPosition = 0;       // current angle of carousel
 
-    public void initBurst(Integer[] initTargetSequence, Integer[] initCarouselBallsArray) {
-        this.LtargetSequence = initTargetSequence;
-        this.LcarouselBalls = new ArrayList<>(Arrays.asList(initCarouselBallsArray));
+    public void initLauncher(Integer[] initTargetSequence, Integer[] initCarouselBallsArray) {
+        LtargetSequence = initTargetSequence;
+        LcarouselBalls = initCarouselBallsArray;
 
-        while (!this.LcarouselBalls.isEmpty()) {
-            getNextBall(initTargetSequence[0]);
-            rotateTargetSequence();
+        //init motors, servos, sensors
+    }
+
+    public void doBurst() {
+
+        while (!(LcarouselBalls.length == 0)) {
+            getNextBall(LtargetSequence[0], LcarouselBalls);
+
+            rotateTargetSequence(LtargetSequence);
+
             shootBall();
 
         }
@@ -24,19 +28,22 @@ public class Launcher {
         //flicker & motor
     }
 
-    public void getNextBall(int targetColor) {
+    public void getNextBall() {
+        int targetColor = LtargetSequence[0];
+
         boolean colorFound = false;
         int slotIndex = -1;
 
-        for (int i = 0; i < LcarouselBalls.size(); i++) {
-            if (LcarouselBalls.get(i).equals(targetColor)) {
+        for (int i = 0; i < LcarouselBalls.length; i++) {
+            if (LcarouselBalls[i].equals(targetColor)) {
                 colorFound = true;
                 slotIndex = i;
                 int rotationAngle = slotIndex * 120; // 0->0°, 1->120°, 2->240°
                 rotateCarouselTo(rotationAngle);
 
                 // Remove the ball from the carousel after positioning
-                LcarouselBalls.remove(i);
+                LcarouselBalls[slotIndex] = 0;
+
                 break;
             }
         }
@@ -51,12 +58,12 @@ public class Launcher {
         //servo smth
     }
 
-    private void rotateTargetSequence() {
-        Integer first = LtargetSequence[0];
-        for (int i = 0; i < LtargetSequence.length - 1; i++) {
-            LtargetSequence[i] = LtargetSequence[i + 1];
+    private void rotateTargetSequence(Integer[] trgtsequence) {
+        Integer first = trgtsequence[0];
+        for (int i = 0; i < trgtsequence.length - 1; i++) {
+            trgtsequence[i] = trgtsequence[i + 1];
         }
-        LtargetSequence[LtargetSequence.length - 1] = first;
+        trgtsequence[trgtsequence.length - 1] = first;
 
     }
 }
