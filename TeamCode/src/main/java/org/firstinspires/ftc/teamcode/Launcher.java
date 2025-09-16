@@ -16,7 +16,7 @@ public class Launcher {
     public void doBurst() {
 
         while (!(LcarouselBalls.length == 0)) {
-            getNextBall(LtargetSequence[0], LcarouselBalls);
+            getNextBall();
 
             rotateTargetSequence(LtargetSequence);
 
@@ -42,7 +42,7 @@ public class Launcher {
                 rotateCarouselTo(rotationAngle);
 
                 // Remove the ball from the carousel after positioning
-                LcarouselBalls[slotIndex] = 0;
+                LcarouselBalls[slotIndex] = 0; // Assuming 0 means empty
 
                 break;
             }
