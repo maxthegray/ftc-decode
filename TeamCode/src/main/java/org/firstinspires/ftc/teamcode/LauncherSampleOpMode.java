@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import org.firstinspires.ftc.teamcode.Launcher;
 
 @TeleOp(name="LauncherTestOpMode", group="Testing")
 public class LauncherSampleOpMode extends LinearOpMode {
@@ -23,8 +22,18 @@ public class LauncherSampleOpMode extends LinearOpMode {
         waitForStart();
 
         if (opModeIsActive()) {
-           if (gamepad1.a) {
+            telemetry.addData("Carousel status", launcher.LcarouselBalls);
+            telemetry.addData("Target sequence", launcher.LtargetSequence);
+
+            if(gamepad1.b) {
+                launcher.getNextBall(targetSequence[0]);
+            }
+
+            if (gamepad1.a) {
+               telemetry.addData("Status", "busting!");
+
                launcher.initBurst(targetSequence, carouselBalls);
+
 
                telemetry.addData("Status", "bust complete");
                telemetry.update();

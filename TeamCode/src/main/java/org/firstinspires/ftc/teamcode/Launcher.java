@@ -5,44 +5,38 @@ import java.util.Arrays;
 
 public class Launcher {
 
-    private Integer[] targetSequence;       // shooting order
-    private ArrayList<Integer> carouselBalls; // current balls in carousel, slots 0, 1, 2
-    private int carouselPosition = 0;       // current angle of carousel
-
-
-
-
-
+    public Integer[] LtargetSequence;       // shooting order
+    public ArrayList<Integer> LcarouselBalls; // current balls in carousel, slots 0, 1, 2
+    public int LcarouselPosition = 0;       // current angle of carousel
 
     public void initBurst(Integer[] targetSequence, Integer[] carouselBallsArray) {
-        this.targetSequence = targetSequence;
-        this.carouselBalls = new ArrayList<>(Arrays.asList(carouselBallsArray));
+        this.LtargetSequence = targetSequence;
+        this.LcarouselBalls = new ArrayList<>(Arrays.asList(carouselBallsArray));
 
-        if (!this.carouselBalls.isEmpty()) {
+        while (!this.LcarouselBalls.isEmpty()) {
             getNextBall(targetSequence[0]);
             rotateTargetSequence();
+            shootBall();
+
         }
     }
-
     public void shootBall() {
         //flicker & motor
-
-
     }
 
     public void getNextBall(int targetColor) {
         boolean colorFound = false;
         int slotIndex = -1;
 
-        for (int i = 0; i < carouselBalls.size(); i++) {
-            if (carouselBalls.get(i).equals(targetColor)) {
+        for (int i = 0; i < LcarouselBalls.size(); i++) {
+            if (LcarouselBalls.get(i).equals(targetColor)) {
                 colorFound = true;
                 slotIndex = i;
                 int rotationAngle = slotIndex * 120; // 0->0°, 1->120°, 2->240°
                 rotateCarouselTo(rotationAngle);
 
                 // Remove the ball from the carousel after positioning
-                carouselBalls.remove(i);
+                LcarouselBalls.remove(i);
                 break;
             }
         }
@@ -53,18 +47,18 @@ public class Launcher {
     }
 
     private void rotateCarouselTo(int degrees) {
-        carouselPosition = degrees % 360;
+        LcarouselPosition = degrees % 360;
         //servo smth
     }
 
     private void rotateTargetSequence() {
-        Integer first = targetSequence[0];
-        for (int i = 0; i < targetSequence.length - 1; i++) {
-            targetSequence[i] = targetSequence[i + 1];
+        Integer first = LtargetSequence[0];
+        for (int i = 0; i < LtargetSequence.length - 1; i++) {
+            LtargetSequence[i] = LtargetSequence[i + 1];
         }
-        targetSequence[targetSequence.length - 1] = first;
+        LtargetSequence[LtargetSequence.length - 1] = first;
 
-        for (Integer color : targetSequence) {
+        for (Integer color : LtargetSequence) {
             System.out.print(color + " ");
         }
     }
