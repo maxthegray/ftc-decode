@@ -22,16 +22,23 @@ public class LauncherSampleOpMode extends LinearOpMode {
         waitForStart();
 
         if (opModeIsActive()) {
-            telemetry.addData("Carousel status", launcher.LcarouselBalls);
-            telemetry.addData("Target sequence", launcher.LtargetSequence);
+            telemetry.addData("LCarousel status", launcher.LcarouselBalls);
+            telemetry.addData("LTarget sequence", launcher.LtargetSequence);
+            telemetry.addData("Carousel main status", carouselBalls);
+            telemetry.addData("Target main sequence", targetSequence);
+            telemetry.update();
 
             if(gamepad1.b) {
                 launcher.getNextBall(targetSequence[0]);
+                telemetry.addData("Ltargetsequence", launcher.LtargetSequence);
+                telemetry.addData("LcarouselBalls", launcher.LcarouselBalls);
+                telemetry.update();
+                sleep(2000); // wait 2 seconds so you can see the telemetry
             }
 
             if (gamepad1.a) {
                telemetry.addData("Status", "busting!");
-
+                telemetry.update();
                launcher.initBurst(targetSequence, carouselBalls);
 
 
