@@ -9,12 +9,12 @@ public class Launcher {
     public ArrayList<Integer> LcarouselBalls; // current balls in carousel, slots 0, 1, 2
     public int LcarouselPosition = 0;       // current angle of carousel
 
-    public void initBurst(Integer[] targetSequence, Integer[] carouselBallsArray) {
-        this.LtargetSequence = targetSequence;
-        this.LcarouselBalls = new ArrayList<>(Arrays.asList(carouselBallsArray));
+    public void initBurst(Integer[] initTargetSequence, Integer[] initCarouselBallsArray) {
+        this.LtargetSequence = initTargetSequence;
+        this.LcarouselBalls = new ArrayList<>(Arrays.asList(initCarouselBallsArray));
 
         while (!this.LcarouselBalls.isEmpty()) {
-            getNextBall(targetSequence[0]);
+            getNextBall(initTargetSequence[0]);
             rotateTargetSequence();
             shootBall();
 
@@ -58,8 +58,5 @@ public class Launcher {
         }
         LtargetSequence[LtargetSequence.length - 1] = first;
 
-        for (Integer color : LtargetSequence) {
-            System.out.print(color + " ");
-        }
     }
 }
