@@ -13,12 +13,13 @@ public class LauncherSampleOpMode extends LinearOpMode {
 
         // Example target sequence and carousel balls
         Integer[] targetSequence = {1, 2, 1};  // 1 = purple, 2 = green, found via apriltag
-        Integer[] carouselBalls = {0, 1, 1};   // current carousel state, need to hook up color sensors to this
+        Integer[] carouselBalls = {2, 1, 1};   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
         Launcher launcher = new Launcher();
 
         telemetry.addData("Status", "initted");
+        telemetry.addData("launcher", launcher);
         telemetry.update();
 
         waitForStart();
@@ -28,9 +29,10 @@ public class LauncherSampleOpMode extends LinearOpMode {
             telemetry.addData("LTarget sequence", Arrays.toString(launcher.LtargetSequence));
             telemetry.addData("Carousel main status", Arrays.toString(carouselBalls));
             telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
+
             telemetry.update();
 
-            if(gamepad1.x) {
+            if(gamepad1.cross) {
                 launcher.initLauncher(targetSequence, carouselBalls);
                 telemetry.addData("Satus", "initted for real");
                 telemetry.update();

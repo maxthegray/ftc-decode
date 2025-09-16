@@ -13,16 +13,18 @@ public class Launcher {
         //init motors, servos, sensors
     }
 
+
+
     public void doBurst() {
 
-        while (!(LcarouselBalls.length == 0)) {
+
             getNextBall();
 
-            rotateTargetSequence(LtargetSequence);
+            rotateSequence(LtargetSequence);
 
             shootBall();
 
-        }
+
     }
     public void shootBall() {
         //flicker & motor
@@ -44,6 +46,8 @@ public class Launcher {
                 // Remove the ball from the carousel after positioning
                 LcarouselBalls[slotIndex] = 0; // Assuming 0 means empty
 
+
+
                 break;
             }
         }
@@ -58,7 +62,7 @@ public class Launcher {
         //servo smth
     }
 
-    private void rotateTargetSequence(Integer[] trgtsequence) {
+    private void rotateSequence(Integer[] trgtsequence) {
         Integer first = trgtsequence[0];
         for (int i = 0; i < trgtsequence.length - 1; i++) {
             trgtsequence[i] = trgtsequence[i + 1];
