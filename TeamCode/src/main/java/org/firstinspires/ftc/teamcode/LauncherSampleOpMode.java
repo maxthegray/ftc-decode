@@ -16,7 +16,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
         Integer[] carouselBalls = {2, 1, 1};   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
-        Launcher launcher = new Launcher();
+        Launcher launcher = new Launcher(targetSequence, carouselBalls);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
@@ -25,20 +25,11 @@ public class LauncherSampleOpMode extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            telemetry.addData("LCarousel status", Arrays.toString(launcher.LcarouselBalls));
-            telemetry.addData("LTarget sequence", Arrays.toString(launcher.LtargetSequence));
             telemetry.addData("Carousel main status", Arrays.toString(carouselBalls));
             telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
 
             telemetry.update();
 
-            if(gamepad1.cross) {
-                launcher.initLauncher(targetSequence, carouselBalls);
-                telemetry.addData("Satus", "initted for real");
-                telemetry.update();
-                sleep(2000); // wait 2 seconds so you can see the telemetry
-
-            }
 
 
             if(gamepad1.circle) {

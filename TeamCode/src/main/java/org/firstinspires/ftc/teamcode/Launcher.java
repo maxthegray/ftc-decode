@@ -1,33 +1,24 @@
 package org.firstinspires.ftc.teamcode;
 
 public class Launcher {
+    private Integer[] LtargetSequence;   // shooting order
+    private Integer[] LcarouselBalls;    // current balls in carousel, slots 0, 1, 2
+    private int LcarouselPosition;       // current angle of carousel
 
-    public Integer[] LtargetSequence;       // shooting order
-    public Integer[] LcarouselBalls; // current balls in carousel, slots 0, 1, 2
-    public int LcarouselPosition = 0;       // current angle of carousel
-
-    public void initLauncher(Integer[] initTargetSequence, Integer[] initCarouselBallsArray) {
-        LtargetSequence = initTargetSequence;
-        LcarouselBalls = initCarouselBallsArray;
-
-        //init motors, servos, sensors
+    public Launcher(Integer[] initTargetSequence, Integer[] initCarouselBallsArray) {
+        this.LtargetSequence = initTargetSequence;
+        this.LcarouselBalls = initCarouselBallsArray;
+        this.LcarouselPosition = 0;
     }
-
-
 
     public void doBurst() {
-
-
-            getNextBall();
-
-            rotateSequence(LtargetSequence);
-
-            shootBall();
-
-
+        getNextBall();
+        rotateSequence(LtargetSequence);
+        shootBall();
     }
+
     public void shootBall() {
-        //flicker & motor
+        // flicker & motor
     }
 
     public void getNextBall() {
@@ -45,21 +36,18 @@ public class Launcher {
 
                 // Remove the ball from the carousel after positioning
                 LcarouselBalls[slotIndex] = 0; // Assuming 0 means empty
-
-
-
                 break;
             }
         }
 
         if (!colorFound) {
-            //do next best thing
+            // do next best thing
         }
     }
 
     private void rotateCarouselTo(int degrees) {
         LcarouselPosition = degrees % 360;
-        //servo smth
+        // servo smth
     }
 
     private void rotateSequence(Integer[] trgtsequence) {
@@ -68,6 +56,5 @@ public class Launcher {
             trgtsequence[i] = trgtsequence[i + 1];
         }
         trgtsequence[trgtsequence.length - 1] = first;
-
     }
 }
