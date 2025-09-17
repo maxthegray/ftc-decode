@@ -16,10 +16,11 @@ public class LauncherSampleOpMode extends LinearOpMode {
         Integer[] carouselBalls = {2, 1, 1};   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
-        Launcher launcher = new Launcher(targetSequence, carouselBalls);
+        Launcher launcher = new Launcher(targetSequence, carouselBalls, hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample"));
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
+        telemetry.addData("Lcarouselposition", launcher.LcarouselPosition);
         telemetry.update();
 
         waitForStart();
@@ -27,27 +28,24 @@ public class LauncherSampleOpMode extends LinearOpMode {
         while (opModeIsActive()) {
             telemetry.addData("Carousel main status", Arrays.toString(carouselBalls));
             telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
+            telemetry.addData("servo pos", launcher.servo.getPosition());
+
 
             telemetry.update();
 
 
 
-            if(gamepad1.circle) {
-                telemetry.addData("input", targetSequence[0]);
-                telemetry.update();
-
-                launcher.getNextBall();
-                sleep(2000); // wait 2 seconds so you can see the telemetry
-            }
-
             if (gamepad1.square) {
                telemetry.addData("Status", "busting!");
+
                 telemetry.update();
                 launcher.doBurst();
+                telemetry.addData("Status", "bust complete");
+
+                telemetry.update();
 
 
-               telemetry.addData("Status", "bust complete");
-               telemetry.update();
+
                sleep(2000); // wait 2 seconds so you can see the telemetry
            }
 
