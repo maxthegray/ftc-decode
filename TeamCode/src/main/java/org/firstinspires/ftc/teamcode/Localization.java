@@ -1,36 +1,53 @@
 package org.firstinspires.ftc.teamcode;
 
-import org.firstinspires.ftc.robotcore.external.Telemetry;
+import android.util.Size;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 import java.util.List;
 
 public class Localization {
 
-    private AprilTagProcessor aprilTagProcessor;
-    private double x;   // robot X position (inches or mm, depending on setup)
-    private double y;   // robot Y position
-    private double heading; // robot heading (radians)
+    private final AprilTagProcessor aprilTag;
+    private final VisionPortal visionPortal;
 
-    public Localization(AprilTagProcessor aprilTagProcessor) {
-        this.aprilTagProcessor = aprilTagProcessor;
-        this.x = 0;
-        this.y = 0;
-        this.heading = 0;
+    private double x = 0;       // inches
+    private double y = 0;       // inches
+    private double heading = 0; // degrees
+
+    public Localization(HardwareMap hardwareMap) {
+        // aprilTag processor build
+        aprilTag = new AprilTagProcessor.Builder()
+                //.setDrawTagOutline(true)
+                //.setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
+                .build();
+
+        // Build VisionPortal with camera settings idk if this works yet
+        VisionPortal.Builder builder = new VisionPortal.Builder();
+        builder.setCamera(hardwareMap.get(WebcamName.class, "hsc")); // your webcam name
+        builder.setCameraResolution(new Size(1280, 800));
+        builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
+        builder.enableLiveView(true);
+        builder.addProcessor(aprilTag);
+
+        visionPortal = builder.build();
     }
 
     public void update() {
-        List<AprilTagDetection> detections = aprilTagProcessor.getDetections();
-
+        List<AprilTagDetection> detections = aprilTag.getDetections();
         if (detections.size() > 0) {
-            // Take the first detection for now
+            // For now: use the first detection
             AprilTagDetection tag = detections.get(0);
 
-            // get position from tag data
-            x = tag.ftcPose.x;
-            y = tag.ftcPose.y;
-            heading = tag.ftcPose.yaw; // yaw in DEGREES
+            if (tag.ftcPose != null) {
+                x = tag.ftcPose.x;       // right
+                y = tag.ftcPose.y;       // forward
+                heading = tag.ftcPose.yaw; // degrees
+            }
         }
     }
 
@@ -39,8 +56,13 @@ public class Localization {
     public double getHeading() { return heading; }
 
     public void addTelemetry(Telemetry telemetry) {
-        telemetry.addData("Loc X", x);
-        telemetry.addData("Loc Y", y);
-        telemetry.addData("Heading", heading);
+        telemetry.addData("Loc X (in)", x);
+        telemetry.addData("Loc Y (in)", y);
+        telemetry.addData("Heading (deg)", heading);
+        telemetry.addData("Visible Tags", aprilTag.getDetections().size());
+    }
+
+    public void stop() {
+        visionPortal.close();
     }
 }

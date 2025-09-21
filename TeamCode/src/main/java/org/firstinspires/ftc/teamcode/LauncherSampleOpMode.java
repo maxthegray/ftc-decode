@@ -26,11 +26,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
                 Arrays.asList(carouselBalls),
                 hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample")
         );
-        AprilTagProcessor aprilTag;
-
-        aprilTag = new AprilTagProcessor.Builder().build();
-
-        Localization localization = new Localization(aprilTag);
+        Localization localization = new Localization(hardwareMap);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
@@ -43,6 +39,11 @@ public class LauncherSampleOpMode extends LinearOpMode {
             telemetry.addData("Carousel main status", Arrays.toString(carouselBalls));
             telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
             telemetry.addData("servo pos", launcher.servo.getPosition());
+
+            telemetry.addData("Heading", localization.getHeading());
+            telemetry.addData("X", localization.getX());
+            telemetry.addData("Y", localization.getY());
+
 
 
             telemetry.update();

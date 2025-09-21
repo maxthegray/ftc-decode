@@ -22,6 +22,7 @@ public class Launcher {
         servo.setPosition(0);
     }
 
+
     // Convert string like "PPG" into LtargetSequence we need to hook up fast capture camera to do this
     public void stringToList(String input) {
         LtargetSequence = new ArrayList<>();
