@@ -13,6 +13,8 @@ public class Launcher {
 
     public Servo servo;
 
+
+
     // Constructor
     public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, Servo servo) {
         this.LtargetSequence = new ArrayList<>(initTargetSequence); // copy input
