@@ -16,7 +16,11 @@ public class LauncherSampleOpMode extends LinearOpMode {
         Integer[] carouselBalls = {2, 1, 1};   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
-        Launcher launcher = new Launcher(targetSequence, carouselBalls, hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample"));
+        Launcher launcher = new Launcher(
+                Arrays.asList(targetSequence),
+                Arrays.asList(carouselBalls),
+                hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample")
+        );
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
