@@ -22,6 +22,8 @@ public class LauncherSampleOpMode extends LinearOpMode {
                 hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample")
         );
 
+        Localization localization = new Localization();
+
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
         telemetry.addData("Lcarouselposition", launcher.LcarouselPosition);
@@ -34,6 +36,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
             telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
             telemetry.addData("servo pos", launcher.servo.getPosition());
 
+            telemetry.addData("Localization", localization.getPoseEstimate());
 
             telemetry.update();
 
