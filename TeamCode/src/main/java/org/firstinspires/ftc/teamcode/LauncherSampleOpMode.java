@@ -2,9 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
-
-import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.Arrays;
 
@@ -14,19 +11,13 @@ public class LauncherSampleOpMode extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
 
-
-
         // Example target sequence and carousel balls
         Integer[] targetSequence = {1, 2, 1};  // 1 = purple, 2 = green, found via apriltag
         Integer[] carouselBalls = {2, 1, 1};   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
-        Launcher launcher = new Launcher(
-                Arrays.asList(targetSequence),
-                Arrays.asList(carouselBalls),
-                hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample")
-        );
-        Localization localization = new Localization(hardwareMap);
+        Launcher launcher = new Launcher(targetSequence, carouselBalls, hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample"));
+        Localization apriltags = new Localization(hardwareMap);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
@@ -39,11 +30,6 @@ public class LauncherSampleOpMode extends LinearOpMode {
             telemetry.addData("Carousel main status", Arrays.toString(carouselBalls));
             telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
             telemetry.addData("servo pos", launcher.servo.getPosition());
-
-            telemetry.addData("Heading", localization.getHeading());
-            telemetry.addData("X", localization.getX());
-            telemetry.addData("Y", localization.getY());
-
 
 
             telemetry.update();

@@ -11,7 +11,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import java.util.List;
 
 public class Localization {
-    public int ID;
+    public int colorID;
     private final AprilTagProcessor aprilTag;
     private final VisionPortal visionPortal;
 
@@ -41,7 +41,7 @@ public class Localization {
         List<AprilTagDetection> detections = aprilTag.getDetections();
         for (AprilTagDetection detection : detections) {
             if (detection.id == 22 || detection.id == 20 || detection.id == 21) {
-                detection.id = ID;
+                colorID = detection.id;
             } else {
                 x = detection.ftcPose.x;       // right
                 y = detection.ftcPose.y;       // forward
