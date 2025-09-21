@@ -1,53 +1,46 @@
 package org.firstinspires.ftc.teamcode;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+import java.util.List;
 
 public class Localization {
 
-    private Pose2d odometryPose;   // odo reading
-    private Pose2d aprilTagPose;   // apriltag reading
-    private Pose2d fusedPose;      // blended estimate
+    private AprilTagProcessor aprilTagProcessor;
+    private double x;   // robot X position (inches or mm, depending on setup)
+    private double y;   // robot Y position
+    private double heading; // robot heading (radians)
 
-    private double alpha = 0.2;    // weight factor: 0.8 = trust apriltag more
-
-    GoBildaPinpointDriver.GoBildaOdometryPods pod; //idk?
-
-    public Localization() {
-        odometryPose = new Pose2d(0, 0, 0);
-        aprilTagPose = null;
-        fusedPose = new Pose2d(0, 0, 0);
+    public Localization(AprilTagProcessor aprilTagProcessor) {
+        this.aprilTagProcessor = aprilTagProcessor;
+        this.x = 0;
+        this.y = 0;
+        this.heading = 0;
     }
 
-    // update odo reading
-    public void updateOdometry(Pose2d odoPose) {
-        this.odometryPose = odoPose;
-        fusePoses();
-    }
+    public void update() {
+        List<AprilTagDetection> detections = aprilTagProcessor.getDetections();
 
-    // update apriltag (null if not visible)
-    public void updateAprilTag(Pose2d tagPose) {
-        this.aprilTagPose = tagPose;
-        fusePoses();
-    }
+        if (detections.size() > 0) {
+            // Take the first detection for now
+            AprilTagDetection tag = detections.get(0);
 
-    // blend the two poses (apriltag weighted more by alpha)
-    private void fusePoses() {
-        if (aprilTagPose != null) {
-            double x = alpha * odometryPose.x + (1 - alpha) * aprilTagPose.x;
-            double y = alpha * odometryPose.y + (1 - alpha) * aprilTagPose.y;
-
-            // heading
-            double heading = alpha * odometryPose.heading + (1 - alpha) * aprilTagPose.heading;
-
-            fusedPose = new Pose2d(x, y, heading);
-        } else {
-            fusedPose = odometryPose;
+            // get position from tag data
+            x = tag.ftcPose.x;
+            y = tag.ftcPose.y;
+            heading = tag.ftcPose.yaw; // yaw in DEGREES
         }
     }
 
-    // Get the best estimate of current position
-    public Pose2d getPoseEstimate() {
-        return fusedPose;
+    public double getX() { return x; }
+    public double getY() { return y; }
+    public double getHeading() { return heading; }
+
+    public void addTelemetry(Telemetry telemetry) {
+        telemetry.addData("Loc X", x);
+        telemetry.addData("Loc Y", y);
+        telemetry.addData("Heading", heading);
     }
 }

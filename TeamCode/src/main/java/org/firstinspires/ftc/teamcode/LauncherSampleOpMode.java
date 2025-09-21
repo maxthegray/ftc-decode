@@ -2,6 +2,9 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.Arrays;
 
@@ -10,6 +13,8 @@ public class LauncherSampleOpMode extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException {
+
+
 
         // Example target sequence and carousel balls
         Integer[] targetSequence = {1, 2, 1};  // 1 = purple, 2 = green, found via apriltag
@@ -21,8 +26,11 @@ public class LauncherSampleOpMode extends LinearOpMode {
                 Arrays.asList(carouselBalls),
                 hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample")
         );
+        AprilTagProcessor aprilTag;
 
-        Localization localization = new Localization();
+        aprilTag = new AprilTagProcessor.Builder().build();
+
+        Localization localization = new Localization(aprilTag);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
@@ -36,7 +44,6 @@ public class LauncherSampleOpMode extends LinearOpMode {
             telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
             telemetry.addData("servo pos", launcher.servo.getPosition());
 
-            telemetry.addData("Localization", localization.getPoseEstimate());
 
             telemetry.update();
 
