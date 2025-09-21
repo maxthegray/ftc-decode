@@ -43,6 +43,10 @@ public class LauncherSampleOpMode extends LinearOpMode {
             telemetry.addData("Target main sequence", targetSequence.toString());
             telemetry.addData("servo pos", launcher.servo.getPosition());
 
+            telemetry.addData("Heading", apriltags.getHeading());
+            telemetry.addData("X", apriltags.getX());
+            telemetry.addData("Y", apriltags.getY());
+            telemetry.addData("ID", apriltags.colorID);
 
             telemetry.update();
 
