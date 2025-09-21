@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+
 public class Localization {
 
     private Pose2d odometryPose;   // odo reading
@@ -8,6 +10,8 @@ public class Localization {
     private Pose2d fusedPose;      // blended estimate
 
     private double alpha = 0.2;    // weight factor: 0.8 = trust apriltag more
+
+    GoBildaPinpointDriver.GoBildaOdometryPods pod; //idk?
 
     public Localization() {
         odometryPose = new Pose2d(0, 0, 0);
