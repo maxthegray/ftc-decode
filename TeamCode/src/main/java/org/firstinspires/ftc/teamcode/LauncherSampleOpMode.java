@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import java.util.Arrays;
+import java.util.List;
 
 @TeleOp(name="LauncherTestOpMode", group="Testing")
 public class LauncherSampleOpMode extends LinearOpMode {
@@ -12,8 +13,8 @@ public class LauncherSampleOpMode extends LinearOpMode {
     public void runOpMode() throws InterruptedException {
 
         // Example target sequence and carousel balls
-        Integer[] targetSequence = {1, 2, 1};  // 1 = purple, 2 = green, found via apriltag
-        Integer[] carouselBalls = {2, 1, 1};   // current carousel state, need to hook up color sensors to this
+        List<Integer> targetSequence = Arrays.asList(0,0,0);  // 1 = purple, 2 = green, found via apriltag
+        List<Integer> carouselBalls = Arrays.asList(2,1,1);   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
         Launcher launcher = new Launcher(targetSequence, carouselBalls, hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample"));
