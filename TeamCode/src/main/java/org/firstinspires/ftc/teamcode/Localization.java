@@ -38,7 +38,6 @@ public class Localization {
 
             fusedPose = new Pose2d(x, y, heading);
         } else {
-            // No AprilTag visible → trust odometry fully
             fusedPose = odometryPose;
         }
     }
