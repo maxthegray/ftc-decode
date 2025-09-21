@@ -28,8 +28,8 @@ public class LauncherSampleOpMode extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            telemetry.addData("Carousel main status", Arrays.toString(carouselBalls));
-            telemetry.addData("Target main sequence", Arrays.toString(targetSequence));
+            telemetry.addData("Carousel main status", carouselBalls.toString());
+            telemetry.addData("Target main sequence", targetSequence.toString());
             telemetry.addData("servo pos", launcher.servo.getPosition());
 
 
