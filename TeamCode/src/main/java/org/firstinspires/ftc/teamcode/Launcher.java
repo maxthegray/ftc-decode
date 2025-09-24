@@ -25,6 +25,9 @@ public class Launcher {
     }
 
 
+    public void setLtargetSequence (List<Integer> ts) {
+        this.LtargetSequence = new ArrayList<>(ts);
+    }
     // Convert string like "PPG" into LtargetSequence we need to hook up fast capture camera to do this
     public void stringToList(String input) {
         LtargetSequence = new ArrayList<>();

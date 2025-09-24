@@ -25,20 +25,30 @@ public class LauncherSampleOpMode extends LinearOpMode {
         telemetry.addData("Lcarouselposition", launcher.LcarouselPosition);
         telemetry.update();
 
+        boolean done = false;
+
         waitForStart();
 
         while (opModeIsActive()) {
 
             apriltags.update();
+            if (!done){
+                if (apriltags.colorID == 21) {
+                    targetSequence = Arrays.asList(2, 1, 1);
+                    done = true;
+                    launcher.setLtargetSequence(targetSequence);
+                } else if (apriltags.colorID == 22) {
+                    targetSequence = Arrays.asList(1, 2, 1);
+                    done = true;
+                    launcher.setLtargetSequence(targetSequence);
 
-            if (apriltags.colorID==20) {
-                targetSequence = Arrays.asList(2,1,1);
-            } else if (apriltags.colorID==21) {
-                targetSequence = Arrays.asList(1,2,1);
-            } else if (apriltags.colorID==22) {
-                targetSequence = Arrays.asList(1,1,2);
+                } else if (apriltags.colorID == 23) {
+                    targetSequence = Arrays.asList(1, 1, 2);
+                    done = true;
+                    launcher.setLtargetSequence(targetSequence);
+
+                }
             }
-
             telemetry.addData("Carousel main status", carouselBalls.toString());
             telemetry.addData("Target main sequence", targetSequence.toString());
             telemetry.addData("servo pos", launcher.servo.getPosition());

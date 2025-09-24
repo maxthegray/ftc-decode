@@ -40,7 +40,7 @@ public class Localization {
     public void update() {
         List<AprilTagDetection> detections = aprilTag.getDetections();
         for (AprilTagDetection detection : detections) {
-            if (detection.id == 22 || detection.id == 20 || detection.id == 21) {
+            if (detection.id == 23 || detection.id == 22 || detection.id == 21) {
                 colorID = detection.id;
             } else {
                 x = detection.ftcPose.x;       // right
