@@ -23,9 +23,17 @@ public class SensorBot extends LinearOpMode {
         DcMotor frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
         DcMotor backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
 
+        frontLeftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        frontRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        backRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+
+
         waitForStart();
 
-        new odometrySensor(hardwareMap, 0.0,0.0, 0.0);
+        odometrySensor odo = new odometrySensor(hardwareMap, 0.0,0.0, 90.0);
+
+        odo.configureOtos();
 
         if (isStopRequested()) return;
 
@@ -33,14 +41,8 @@ public class SensorBot extends LinearOpMode {
 
 
 
-
-
-
-
-
-
             double y = -gamepad1.left_stick_y; // Remember, Y stick value is reversed
-            double x = gamepad1.left_stick_x * 2; // Counteract imperfect strafing
+            double x = gamepad1.left_stick_x * 1; // Counteract imperfect strafing
             double rx = gamepad1.right_stick_x;
 
             // Denominator is the largest motor power (absolute value) or 1

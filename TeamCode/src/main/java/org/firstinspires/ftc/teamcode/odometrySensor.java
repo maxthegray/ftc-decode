@@ -44,7 +44,7 @@ public class odometrySensor {
     private double startheading;
 
 
-    private void configureOtos() {
+    public void configureOtos() {
 
         // Set the desired units for linear and angular measurements. Can be either
         // meters or inches for linear, and radians or degrees for angular. If not
