@@ -1,11 +1,12 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import java.util.Arrays;
 import java.util.List;
-
+@Disabled
 @TeleOp(name="LauncherTestOpMode", group="Testing")
 public class LauncherSampleOpMode extends LinearOpMode {
 
@@ -18,7 +19,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
 
         // Create the Launcher instance
         Launcher launcher = new Launcher(targetSequence, carouselBalls, hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample"));
-        Localization apriltags = new Localization(hardwareMap);
+        ApriltagLocalization apriltags = new ApriltagLocalization(hardwareMap);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);

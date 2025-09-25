@@ -33,7 +33,7 @@ public class SensorSparkFunOTOS extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
         // Get a reference to the sensor
-        myOtos = hardwareMap.get(SparkFunOTOS.class, "sensor_otos");
+        myOtos = hardwareMap.get(SparkFunOTOS.class, "odometrySensor");
 
         // All the configuration for the OTOS is done in this helper method, check it out!
         configureOtos();

@@ -77,7 +77,7 @@ public class Launcher {
 
     // Rotate carousel servo
     private void rotateCarouselTo(double degrees) {
-        LcarouselPosition = degrees / 360.0; // normalized 0-1 for servo
+        LcarouselPosition = degrees / 355.0; // normalized 0-1 for servo
         servo.setPosition(LcarouselPosition);
     }
 

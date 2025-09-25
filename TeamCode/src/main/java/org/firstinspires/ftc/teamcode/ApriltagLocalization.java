@@ -10,7 +10,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 import java.util.List;
 
-public class Localization {
+public class ApriltagLocalization {
     public int colorID;
     private final AprilTagProcessor aprilTag;
     private final VisionPortal visionPortal;
@@ -19,7 +19,7 @@ public class Localization {
     private double y = 0;       // inches
     private double heading = 0; // degrees
 
-    public Localization(HardwareMap hardwareMap) {
+    public ApriltagLocalization(HardwareMap hardwareMap) {
         // aprilTag processor build
         aprilTag = new AprilTagProcessor.Builder()
                 //.setDrawTagOutline(true)
