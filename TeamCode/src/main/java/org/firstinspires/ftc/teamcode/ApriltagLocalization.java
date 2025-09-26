@@ -40,7 +40,7 @@ public class ApriltagLocalization {
     }
 
     public void update() {
-        List<AprilTagDetection> detections = aprilTag.getFreshDetections(); //getfresh/getdetections we have to figure out
+        List<AprilTagDetection> detections = aprilTag.getDetections(); //getfresh/getdetections we have to figure out
         for (AprilTagDetection detection : detections) {
             if (detection.id == 23 || detection.id == 22 || detection.id == 21) {
                 colorID = detection.id;
@@ -57,6 +57,8 @@ public class ApriltagLocalization {
         return aprilTag.getDetections().get(0).id;
     }
 
+
+
     public double getX() { return x; }
     public double getY() { return y; }
     public double getHeading() { return heading; }
@@ -66,6 +68,10 @@ public class ApriltagLocalization {
         telemetry.addData("Loc Y (in)", y);
         telemetry.addData("Heading (deg)", heading);
         telemetry.addData("Visible Tags", aprilTag.getDetections().size());
+    }
+
+    public boolean canSeeTag() {
+        return !aprilTag.getDetections().isEmpty();
     }
 
     public void stop() {

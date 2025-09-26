@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -8,16 +9,24 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 @TeleOp
 public class SensorBot extends LinearOpMode {
 
-    @Override
+    DcMotor frontLeftMotor = hardwareMap.dcMotor.get("frontLeftMotor");
+    DcMotor backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
+    DcMotor frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
+    DcMotor backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
+
+    OdometrySensor odo = new OdometrySensor(telemetry,hardwareMap,0.0,0.0, 0.0);
+
+    ApriltagLocalization apriltag = new ApriltagLocalization(hardwareMap);
+
+    double X;
+    double Y;
+    double H;
+
 
     public void runOpMode() throws InterruptedException {
         // Declare our motors
         // Make sure your ID's match your configuration
 
-        DcMotor frontLeftMotor = hardwareMap.dcMotor.get("frontLeftMotor");
-        DcMotor backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
-        DcMotor frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
-        DcMotor backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
 
         frontLeftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -28,17 +37,14 @@ public class SensorBot extends LinearOpMode {
 
         waitForStart();
 
-        OdometrySensor odo = new OdometrySensor(hardwareMap, 0.0,0.0, 90.0);
 
-        ApriltagLocalization apriltag = new ApriltagLocalization(hardwareMap);
-
-        odo.configureOtos();
 
         if (isStopRequested()) return;
 
         while (opModeIsActive()) {
 
             apriltag.update();
+            sync();
 
             double y = -gamepad1.left_stick_y; // Remember, Y stick value is reversed
             double x = gamepad1.left_stick_x * 1; // Counteract imperfect strafing
@@ -67,12 +73,25 @@ public class SensorBot extends LinearOpMode {
             telemetry.addData("Apriltag Y", apriltag.getY());
             telemetry.addData("Apriltag Heading", apriltag.getHeading());
 
-
+            telemetry.addData("Absolute X", X);
+            telemetry.addData("Absolute Y", Y);
+            telemetry.addData("Absolute Heading", H);
 
             telemetry.update();
         }
 
-
+    }
+    public void sync() {
+        if (apriltag.canSeeTag()) {
+            X = apriltag.getX();
+            Y = apriltag.getY();
+            H = apriltag.getHeading();
+            odo.myOtos.setPosition(new SparkFunOTOS.Pose2D(X, Y, H));
+        } else {
+            X = odo.getX();
+            Y = odo.getY();
+            H = odo.getHeading();
+        }
     }
 
 }

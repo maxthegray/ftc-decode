@@ -8,6 +8,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
@@ -25,15 +26,17 @@ public class OdometrySensor {
     // Create an instance of the sensor
     SparkFunOTOS myOtos;
 
-    public OdometrySensor(HardwareMap hardwareMap, double sx, double sy, double sh) {
+    public OdometrySensor(Telemetry telemetryy, HardwareMap hardwareMap, double sx, double sy, double sh) {
         // Get a reference to the sensor
         myOtos = hardwareMap.get(SparkFunOTOS.class, "odometrySensor");
         configureOtos();
         startx = sx;
         starty = sy;
         startheading = sh;
-
+        configureOtos();
+        telemetry = telemetryy;
     }
+    Telemetry telemetry;
     private double startx;
     private double starty;
     private double startheading;
@@ -110,7 +113,7 @@ public class OdometrySensor {
 
     }
 
-    public double getX() { return myOtos.getPosition().x; }
+    public double getX() { return myOtos.getPosition().x; } //might need to switch these
     public double getY() { return myOtos.getPosition().y; }
     public double getHeading() { return myOtos.getPosition().h; }
 }
