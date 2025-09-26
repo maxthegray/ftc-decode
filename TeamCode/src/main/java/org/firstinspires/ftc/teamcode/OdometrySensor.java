@@ -26,17 +26,14 @@ public class OdometrySensor {
     // Create an instance of the sensor
     SparkFunOTOS myOtos;
 
-    public OdometrySensor(Telemetry telemetryy, HardwareMap hardwareMap, double sx, double sy, double sh) {
+    public OdometrySensor( HardwareMap hardwareMap) {
         // Get a reference to the sensor
         myOtos = hardwareMap.get(SparkFunOTOS.class, "odometrySensor");
+        startx = 0;
+        starty = 0;
+        startheading = 0;
         configureOtos();
-        startx = sx;
-        starty = sy;
-        startheading = sh;
-        configureOtos();
-        telemetry = telemetryy;
     }
-    Telemetry telemetry;
     private double startx;
     private double starty;
     private double startheading;

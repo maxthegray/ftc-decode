@@ -9,14 +9,14 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 @TeleOp
 public class SensorBot extends LinearOpMode {
 
-    DcMotor frontLeftMotor = hardwareMap.dcMotor.get("frontLeftMotor");
-    DcMotor backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
-    DcMotor frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
-    DcMotor backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
+    DcMotor frontLeftMotor = null;
+    DcMotor backLeftMotor = null;
+    DcMotor frontRightMotor = null;
+    DcMotor backRightMotor = null;
 
-    OdometrySensor odo = new OdometrySensor(telemetry,hardwareMap,0.0,0.0, 0.0);
+    OdometrySensor odo;
 
-    ApriltagLocalization apriltag = new ApriltagLocalization(hardwareMap);
+    ApriltagLocalization apriltag;
 
     double X;
     double Y;
@@ -25,6 +25,15 @@ public class SensorBot extends LinearOpMode {
 
     public void runOpMode() throws InterruptedException {
         // Declare our motors
+
+        frontLeftMotor = hardwareMap.dcMotor.get("frontLeftMotor");
+        backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
+        frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
+        backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
+
+        apriltag = new ApriltagLocalization(hardwareMap);
+        odo = new OdometrySensor(hardwareMap);
+
         // Make sure your ID's match your configuration
 
 
@@ -72,10 +81,6 @@ public class SensorBot extends LinearOpMode {
             telemetry.addData("Apriltag X", apriltag.getX());
             telemetry.addData("Apriltag Y", apriltag.getY());
             telemetry.addData("Apriltag Heading", apriltag.getHeading());
-
-            telemetry.addData("Absolute X", X);
-            telemetry.addData("Absolute Y", Y);
-            telemetry.addData("Absolute Heading", H);
 
             telemetry.update();
         }
