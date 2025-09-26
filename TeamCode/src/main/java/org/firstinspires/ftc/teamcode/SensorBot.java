@@ -1,13 +1,9 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.Servo;
-
-import java.util.function.ObjDoubleConsumer;
 
 @TeleOp
 public class SensorBot extends LinearOpMode {
@@ -29,9 +25,12 @@ public class SensorBot extends LinearOpMode {
         backRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
 
+
         waitForStart();
 
-        odometrySensor odo = new odometrySensor(hardwareMap, 0.0,0.0, 90.0);
+        OdometrySensor odo = new OdometrySensor(hardwareMap, 0.0,0.0, 90.0);
+
+        ApriltagLocalization apriltag = new ApriltagLocalization(hardwareMap);
 
         odo.configureOtos();
 
@@ -39,7 +38,7 @@ public class SensorBot extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-
+            apriltag.update();
 
             double y = -gamepad1.left_stick_y; // Remember, Y stick value is reversed
             double x = gamepad1.left_stick_x * 1; // Counteract imperfect strafing
@@ -60,7 +59,17 @@ public class SensorBot extends LinearOpMode {
             frontRightMotor.setPower(frontRightPower);
             backRightMotor.setPower(backRightPower);
 
+            telemetry.addData("Odo X", odo.getX());
+            telemetry.addData("Odo Y", odo.getY());
+            telemetry.addData("Odo Heading", odo.getHeading());
 
+            telemetry.addData("Apriltag X", apriltag.getX());
+            telemetry.addData("Apriltag Y", apriltag.getY());
+            telemetry.addData("Apriltag Heading", apriltag.getHeading());
+
+
+
+            telemetry.update();
         }
 
 

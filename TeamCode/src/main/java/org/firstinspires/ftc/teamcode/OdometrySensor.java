@@ -5,11 +5,6 @@
 */
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.hardware.HardwareDeviceManager;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -26,11 +21,11 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
  *
  * See the sensor's product page: https://www.sparkfun.com/products/24904
  */
-public class odometrySensor {
+public class OdometrySensor {
     // Create an instance of the sensor
     SparkFunOTOS myOtos;
 
-    public odometrySensor(HardwareMap hardwareMap, double sx, double sy, double sh) {
+    public OdometrySensor(HardwareMap hardwareMap, double sx, double sy, double sh) {
         // Get a reference to the sensor
         myOtos = hardwareMap.get(SparkFunOTOS.class, "odometrySensor");
         configureOtos();

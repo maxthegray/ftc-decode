@@ -19,6 +19,8 @@ public class ApriltagLocalization {
     private double y = 0;       // inches
     private double heading = 0; // degrees
 
+
+
     public ApriltagLocalization(HardwareMap hardwareMap) {
         // aprilTag processor build
         aprilTag = new AprilTagProcessor.Builder()
@@ -38,7 +40,7 @@ public class ApriltagLocalization {
     }
 
     public void update() {
-        List<AprilTagDetection> detections = aprilTag.getDetections();
+        List<AprilTagDetection> detections = aprilTag.getFreshDetections(); //getfresh/getdetections we have to figure out
         for (AprilTagDetection detection : detections) {
             if (detection.id == 23 || detection.id == 22 || detection.id == 21) {
                 colorID = detection.id;
