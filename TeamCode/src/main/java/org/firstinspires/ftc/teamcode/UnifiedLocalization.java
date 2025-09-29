@@ -22,7 +22,7 @@ public class UnifiedLocalization {
     private double startx;
     private double starty;
     private double startheading;
-    private org.firstinspires.ftc.robotcore.external.Telemetry telemetry;
+    private Telemetry telemetry;
 // Odometry stuff -------------------
     public UnifiedLocalization(Telemetry telemetryy, HardwareMap hardwareMap, double sx, double sy, double sh) {
         myOtos = hardwareMap.get(SparkFunOTOS.class, "odometrySensor");

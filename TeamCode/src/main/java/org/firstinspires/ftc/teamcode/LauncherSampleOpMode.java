@@ -14,18 +14,19 @@ public class LauncherSampleOpMode extends LinearOpMode {
     public void runOpMode() throws InterruptedException {
 
         // Example target sequence and carousel balls
-        List<Integer> targetSequence = Arrays.asList(0,0,0);  // 1 = purple, 2 = green, found via apriltag
-        List<Integer> carouselBalls = Arrays.asList(2,1,1);   // current carousel state, need to hook up color sensors to this
+        List<Integer> exampleTargetSequence = Arrays.asList(0,0,0);  // 1 = purple, 2 = green, found via apriltag
+        List<Integer> exampleCarouselBalls = Arrays.asList(2,1,1);   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
-        Launcher launcher = new Launcher(targetSequence, carouselBalls, hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample"));
+        Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry);
 
         //unified??
         UnifiedLocalization gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
-        telemetry.addData("Lcarouselposition", launcher.LcarouselPosition);
+        launcher.addTelemetry(telemetry);
+
         telemetry.update();
 
         boolean done = false;
@@ -35,32 +36,15 @@ public class LauncherSampleOpMode extends LinearOpMode {
         while (opModeIsActive()) {
 
             gps.updateAprilTag();
-            if (!done){
-                if (gps.colorID == 21) {
-                    targetSequence = Arrays.asList(2, 1, 1);
-                    done = true;
-                    launcher.setLtargetSequence(targetSequence);
-                } else if (gps.colorID == 22) {
-                    targetSequence = Arrays.asList(1, 2, 1);
-                    done = true;
-                    launcher.setLtargetSequence(targetSequence);
 
-                } else if (gps.colorID == 23) {
-                    targetSequence = Arrays.asList(1, 1, 2);
-                    done = true;
-                    launcher.setLtargetSequence(targetSequence);
+            launcher.step();
 
-                }
-            }
-            telemetry.addData("Carousel main status", carouselBalls.toString());
-            telemetry.addData("Target main sequence", targetSequence.toString());
+            telemetry.addData("Carousel main status", exampleCarouselBalls.toString());
+            telemetry.addData("Target main sequence", exampleTargetSequence.toString());
             telemetry.addData("servo pos", launcher.servo.getPosition());
 
-            gps.addTelemetry();
-
+            gps.addTelemetry(   );
             telemetry.update();
-
-
 
             if (gamepad1.square) {
                telemetry.addData("Status", "busting!");
