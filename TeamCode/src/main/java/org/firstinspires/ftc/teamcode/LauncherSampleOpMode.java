@@ -19,7 +19,9 @@ public class LauncherSampleOpMode extends LinearOpMode {
 
         // Create the Launcher instance
         Launcher launcher = new Launcher(targetSequence, carouselBalls, hardwareMap.get(com.qualcomm.robotcore.hardware.Servo.class, "servo_sample"));
-        ApriltagLocalization apriltags = new ApriltagLocalization(hardwareMap);
+
+        //unified??
+        UnifiedLocalization gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);
@@ -32,18 +34,18 @@ public class LauncherSampleOpMode extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            apriltags.update();
+            gps.updateAprilTag();
             if (!done){
-                if (apriltags.colorID == 21) {
+                if (gps.colorID == 21) {
                     targetSequence = Arrays.asList(2, 1, 1);
                     done = true;
                     launcher.setLtargetSequence(targetSequence);
-                } else if (apriltags.colorID == 22) {
+                } else if (gps.colorID == 22) {
                     targetSequence = Arrays.asList(1, 2, 1);
                     done = true;
                     launcher.setLtargetSequence(targetSequence);
 
-                } else if (apriltags.colorID == 23) {
+                } else if (gps.colorID == 23) {
                     targetSequence = Arrays.asList(1, 1, 2);
                     done = true;
                     launcher.setLtargetSequence(targetSequence);
@@ -54,7 +56,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
             telemetry.addData("Target main sequence", targetSequence.toString());
             telemetry.addData("servo pos", launcher.servo.getPosition());
 
-            apriltags.addTelemetry(telemetry);
+            gps.addTelemetry();
 
             telemetry.update();
 
