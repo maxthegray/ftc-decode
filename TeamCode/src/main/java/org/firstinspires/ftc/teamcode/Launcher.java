@@ -100,7 +100,7 @@ public class Launcher {
                 colorFound = true;
                 double rotationAngle = i * 120; // 0->0°, 1->120°, 2->240°
                 rotateCarouselTo(rotationAngle);
-
+                rotateSequence();
                 // Remove the ball from carousel
                 ballsInCarousel.set(i, 0); // 0 means empty
                 break;
