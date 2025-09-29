@@ -15,13 +15,11 @@ public class DriveTrain {
 
     Gamepad gamepad;
 
-    UnifiedLocalization odo;
-
-    public DriveTrain(HardwareMap hardwaremp,Gamepad gp, UnifiedLocalization odometry) {
-        frontLeftMotor = hardwareMap.dcMotor.get("frontLeftMotor");
-        backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
-        frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
-        backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
+    public DriveTrain(HardwareMap hardwaremp,Gamepad gp) {
+        frontLeftMotor = hardwaremp.dcMotor.get("frontLeftMotor");
+        backLeftMotor = hardwaremp.dcMotor.get("backLeftMotor");
+        frontRightMotor = hardwaremp.dcMotor.get("frontRightMotor");
+        backRightMotor = hardwaremp.dcMotor.get("backRightMotor");
 
         frontLeftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -29,8 +27,6 @@ public class DriveTrain {
         backRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
         gamepad = gp;
-
-        odo = odometry;
     }
 
     public void drive() {
@@ -52,31 +48,5 @@ public class DriveTrain {
         backLeftMotor.setPower(backLeftPower);
         frontRightMotor.setPower(frontRightPower);
         backRightMotor.setPower(backRightPower);
-    }
-
-    //Physics based drive to some coordinates coordinate
-    //variables needed for speed:
-    double maxRPM; //max rpm of the motor
-    double wheelDiameter; //wheel diameter in inches
-    double topSpeed = (maxRPM / 60) * (Math.PI * wheelDiameter); //top speed in inches per second
-
-    public void driveToY(double targetY, double speed) {
-        double deltaY = targetY - odo.getOdoX();
-        int direction; //1 is forward, -1 is backward
-        if (deltaY < 0) {
-            direction = -1;
-        } else {
-            direction = 1;
-        }
-
-        while (odo.getOdoY() != targetY) {
-            double power = (speed / topSpeed) * direction;
-            frontLeftMotor.setPower(power);
-            backLeftMotor.setPower(power);
-            frontRightMotor.setPower(power);
-            backRightMotor.setPower(power);
-        }
-
-
     }
 }
