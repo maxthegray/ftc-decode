@@ -23,7 +23,7 @@ public class SensorBot extends LinearOpMode {
 
         gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
 
-        DriveTrain driveTrain = new DriveTrain(hardwareMap, gamepad1);
+        DriveTrain driveTrain = new DriveTrain(hardwareMap, gamepad1, gps);
 
         waitForStart();
 
