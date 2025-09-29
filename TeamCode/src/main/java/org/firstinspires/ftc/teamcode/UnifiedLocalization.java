@@ -62,8 +62,8 @@ public class UnifiedLocalization {
         myOtos.getVersionInfo(hwVersion, fwVersion);
     }
 
-    public double getOdoX() { return myOtos.getPosition().x; }
-    public double getOdoY() { return myOtos.getPosition().y; }
+    public double getOdoX() { return myOtos.getPosition().y; }
+    public double getOdoY() { return myOtos.getPosition().x; }
     public double getOdoHeading() { return myOtos.getPosition().h; }
 
     // AprilTag stuff --------------------------------------

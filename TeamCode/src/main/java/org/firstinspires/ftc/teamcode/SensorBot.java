@@ -27,6 +27,8 @@ public class SensorBot extends LinearOpMode {
 
         waitForStart();
 
+        gps.configureOtos();
+
         if (isStopRequested()) return;
 
         while (opModeIsActive()) {

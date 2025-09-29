@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
@@ -15,20 +16,24 @@ public class Launcher {
     private List<Integer> ballsInCarousel;    // current balls in carousel, slots 0, 1, 2
     public double carouselPosition;         // current angle of carousel
 
-    public Servo servo;
+    public Servo carousel;
     boolean done = false;
 
     Telemetry telemetry;
 
+    Gamepad gamepad;
+
     UnifiedLocalization Camera;
 
     // Constructor
-    public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy) {
+    public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy, Gamepad gpad) {
         this.targetSequence = new ArrayList<>(initTargetSequence); // copy input
         this.ballsInCarousel = new ArrayList<>(initCarouselBalls);   // copy input
         this.carouselPosition = 0;
-        this.servo = hardwareMap.get(Servo.class, "servo_sample");
-        servo.setPosition(0);
+        this.carousel = hardwareMap.get(Servo.class, "servo_sample");
+        this.gamepad = gpad;
+
+        carousel.setPosition(0);
 
         this.telemetry = telemetryy;
 
@@ -37,6 +42,7 @@ public class Launcher {
 
     public void step() {
         Camera.updateAprilTag();
+
         if (!done){
             if (Camera.colorID == 21) {
                 targetSequence = Arrays.asList(2, 1, 1);
@@ -50,11 +56,28 @@ public class Launcher {
             }
         }
 
+        if (ballsInCarousel.size() == 3) {
+            while (!gamepad.cross) {
+                telemetry.addData("Status", "Ready to shoot");
+                telemetry.addData("ballsInCarousel", ballsInCarousel.toString());
+                telemetry.addData("targetSequence", targetSequence.toString());
+                telemetry.update();
+            }
+            doBurst();
+            while (!gamepad.cross) {
+                telemetry.addData("Status", "Burst complete");
+                telemetry.addData("ballsInCarousel", ballsInCarousel.toString());
+                telemetry.addData("targetSequence", targetSequence.toString());
+                telemetry.update();
+            }
+
+        }
+
         addTelemetry(telemetry);
 
     }
 
-    // Perform one burst
+    // do one burst
     public void doBurst() {
         getNextBall();
         rotateSequence();
@@ -92,7 +115,7 @@ public class Launcher {
     // Rotate carousel servo
     private void rotateCarouselTo(double degrees) {
         carouselPosition = degrees / 355.0; // normalized 0-1 for servo
-        servo.setPosition(carouselPosition);
+        carousel.setPosition(carouselPosition);
     }
 
     // Rotate target sequence (shift first element to end)
@@ -111,6 +134,10 @@ public class Launcher {
     // Optional: get current carousel state for debugging
     public List<Integer> getBallsInCarousel() {
         return new ArrayList<>(ballsInCarousel);
+    }
+
+    public void setBallsInCarousel(List<Integer> newBalls) {
+        this.ballsInCarousel = new ArrayList<>(newBalls);
     }
 
     public void addTelemetry(Telemetry telemetry) {

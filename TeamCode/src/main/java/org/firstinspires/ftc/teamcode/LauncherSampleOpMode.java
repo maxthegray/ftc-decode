@@ -18,7 +18,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
         List<Integer> exampleCarouselBalls = Arrays.asList(2,1,1);   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
-        Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry);
+        Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry, gamepad1);
 
         //unified??
         UnifiedLocalization gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
@@ -30,7 +30,6 @@ public class LauncherSampleOpMode extends LinearOpMode {
         telemetry.update();
 
         boolean done = false;
-
         waitForStart();
 
         while (opModeIsActive()) {
@@ -41,23 +40,13 @@ public class LauncherSampleOpMode extends LinearOpMode {
 
             telemetry.addData("Carousel main status", exampleCarouselBalls.toString());
             telemetry.addData("Target main sequence", exampleTargetSequence.toString());
-            telemetry.addData("servo pos", launcher.servo.getPosition());
+            telemetry.addData("servo pos", launcher.carousel.getPosition());
 
-            gps.addTelemetry(   );
+            gps.addTelemetry();
             telemetry.update();
 
             if (gamepad1.square) {
-               telemetry.addData("Status", "busting!");
-
-                telemetry.update();
-                launcher.doBurst();
-                telemetry.addData("Status", "bust complete");
-
-                telemetry.update();
-
-
-
-               sleep(2000); // wait 2 seconds so you can see the telemetry
+                launcher.setBallsInCarousel(Arrays.asList(2,1,1));
            }
 
 
