@@ -14,6 +14,7 @@ import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
+
 import java.util.List;
 
 public class UnifiedLocalization {
@@ -32,18 +33,18 @@ public class UnifiedLocalization {
         telemetry = telemetryy;
         configureOtos();
 
-        aprilTag = new AprilTagProcessor.Builder().build();
+        camera = new AprilTagProcessor.Builder().build();
         VisionPortal.Builder builder = new VisionPortal.Builder();
         builder.setCamera(hardwareMap.get(WebcamName.class, "hsc"));
         builder.setCameraResolution(new Size(1280, 800));
-        builder.setStreamFormat(VisionPortal.StreamFormat.YUY2);
+        builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
         builder.enableLiveView(true);
-        builder.addProcessor(aprilTag);
+        builder.addProcessor(camera);
 
         visionPortal = builder.build();
     }
     public AprilTagDetection getDetectionById(int targetId) {
-        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        List<AprilTagDetection> currentDetections = camera.getDetections();
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == targetId) {
                 return detection;
@@ -78,7 +79,7 @@ public class UnifiedLocalization {
     // AprilTag stuff --------------------------------------
 
     public int colorID;
-    private final AprilTagProcessor aprilTag;
+    private final AprilTagProcessor camera;
     private final VisionPortal visionPortal;
 
     private double tagX;
@@ -87,12 +88,11 @@ public class UnifiedLocalization {
     private double tagHeading;
 
     public void updateAprilTag() {
-        List<AprilTagDetection> detections = aprilTag.getDetections();
+        List<AprilTagDetection> detections = camera.getDetections();
         for (AprilTagDetection detection : detections) {
             if (detection.id == 23 || detection.id == 22 || detection.id == 21) {
                 colorID = detection.id;
-            } else if (detection.id == 20 || detection.id == 24) { // Check for your specific tags
-                // Pass the entire detection object to the calculation method
+            } else if (detection.id == 20 || detection.id == 24) {
                 tagToCoords(detection);
             }
         }
@@ -122,6 +122,7 @@ public class UnifiedLocalization {
         double relX = detection.ftcPose.x;
         double relY = detection.ftcPose.y;
 
+
         // convert the tags heading to radians for math purposes
         double tagHeadingRad = Math.toRadians(tagFieldHeading);
         double sinTagHeading = Math.sin(tagHeadingRad);
@@ -132,14 +133,14 @@ public class UnifiedLocalization {
         double rotatedY = relX * sinTagHeading + relY * cosTagHeading;
 
         // rotated robo distances + tag field pos = robo field pos (still centered around cam)
-        this.tagX = tagFieldX + rotatedX;
-        this.tagY = tagFieldY + rotatedY;
+        tagX = tagFieldX - relX;
+        tagY = tagFieldY - relY; // should be  + rotated
 
         // absolute heading
-        this.tagHeading = tagFieldHeading + detection.ftcPose.yaw;
+        tagHeading = tagFieldHeading + detection.ftcPose.yaw;
     }
     public int getID() {
-        return aprilTag.getDetections().get(0).id;
+        return camera.getDetections().get(0).id;
     }
 
     public double getTagX() { return tagX; }
@@ -152,8 +153,10 @@ public class UnifiedLocalization {
 
 
     public void step() {
-        updateAprilTag();
+        getDetectionById(24);
+//        updateAprilTag();
         sync();
+
     }
 
 
@@ -163,7 +166,7 @@ public class UnifiedLocalization {
     public void addTelemetry() {
         telemetry.addData("Apr X (in)", tagX);
         telemetry.addData("Apr Y (in)", tagY);
-        telemetry.addData("Visible Tags", aprilTag.getDetections().size());
+        telemetry.addData("Visible Tags", camera.getDetections().size());
 
         telemetry.addData("Odo X (in)", getOdoX());
         telemetry.addData("Odo Y (in)", getOdoY());
@@ -187,7 +190,7 @@ public class UnifiedLocalization {
 
 
     public boolean canSeeTag() {
-        return !aprilTag.getDetections().isEmpty();
+        return !camera.getDetections().isEmpty();
     }
 
     public void stop() {

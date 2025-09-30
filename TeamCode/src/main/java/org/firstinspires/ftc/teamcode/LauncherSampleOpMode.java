@@ -18,10 +18,11 @@ public class LauncherSampleOpMode extends LinearOpMode {
         List<Integer> exampleCarouselBalls = Arrays.asList(2,1,1);   // current carousel state, need to hook up color sensors to this
 
         // Create the Launcher instance
-        Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry, gamepad1);
 
         //unified??
         UnifiedLocalization gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
+
+        Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry, gamepad1, gps);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);

@@ -26,7 +26,7 @@ public class Launcher {
     UnifiedLocalization Camera;
 
     // Constructor
-    public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy, Gamepad gpad) {
+    public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy, Gamepad gpad, UnifiedLocalization cam) {
         this.targetSequence = new ArrayList<>(initTargetSequence); // copy input
         this.ballsInCarousel = new ArrayList<>(initCarouselBalls);   // copy input
         this.carouselPosition = 0;
@@ -37,7 +37,7 @@ public class Launcher {
 
         this.telemetry = telemetryy;
 
-        Camera = new UnifiedLocalization(telemetryy, hardwareMap, 0,0,0);
+        Camera = cam;
     }
 
     public void step() {

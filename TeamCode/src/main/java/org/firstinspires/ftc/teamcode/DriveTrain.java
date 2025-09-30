@@ -4,9 +4,11 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
 public class DriveTrain {
@@ -17,6 +19,7 @@ public class DriveTrain {
     DcMotor frontRightMotor = null;
     DcMotor backRightMotor = null;
 
+    Servo highSpeedCamera;
 
     Gamepad gamepad;
 
@@ -28,12 +31,13 @@ public class DriveTrain {
     private static final double maxTurnSpeed = 0.1;
     private static final double timeoutMs = 3000;
 
+    Telemetry telemetry;
 
-    private static final double tolerance = 0.5;
+    private static final double tolerance = 0.1;
 
     UnifiedLocalization odo;
 
-    public DriveTrain(HardwareMap hardwaremp, Gamepad gp, UnifiedLocalization odometry) {
+    public DriveTrain(HardwareMap hardwaremp, Gamepad gp, UnifiedLocalization odometry, Telemetry tmtry) {
         frontLeftMotor = hardwaremp.dcMotor.get("frontLeftMotor");
         backLeftMotor = hardwaremp.dcMotor.get("backLeftMotor");
         frontRightMotor = hardwaremp.dcMotor.get("frontRightMotor");
@@ -44,10 +48,21 @@ public class DriveTrain {
         frontRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         backRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
+        frontLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        frontRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        highSpeedCamera = hardwaremp.servo.get("cameraServo");
+
         gamepad = gp;
 
         odo = odometry;
+
+        telemetry = tmtry;
     }
+    double yvalue;
+    double xvalue;
 
     public void drive() {
         // Shared power variables
@@ -60,20 +75,29 @@ public class DriveTrain {
             y_power = -gamepad.left_stick_y;
             x_power = gamepad.left_stick_x * 1.1; // Counteract imperfect strafing
             rx_power = gamepad.right_stick_x;
-
+            highSpeedCamera.setPosition(0);
         } else {
             // mode 2, field centric with tag lock
             // driver controls translation robot controls rotation.
 
-            odo.updateAprilTag();
+//            odo.updateAprilTag();
             AprilTagDetection lockedTag = odo.getDetectionById(lockedTagId);
 
             if (lockedTag != null) {
-                double error = lockedTag.ftcPose.bearing;
-                rx_power = Range.clip(error, -maxTurnSpeed, maxTurnSpeed);
+                double bearingDifference = lockedTag.ftcPose.bearing;
+                double yawDifference = highSpeedCamera.getPosition() + ((lockedTag.ftcPose.pitch*57.2958)/360)/2; //normalized 0-1
+
+                yvalue = yawDifference;
+                xvalue = bearingDifference;
+
+
+                rx_power = -Range.clip(bearingDifference, -maxTurnSpeed, maxTurnSpeed);
+
+
+                highSpeedCamera.setPosition(Math.abs(yawDifference));
+
             } else {
-                //if lost tag, hold bearing
-                rx_power = gamepad.right_stick_x;
+                rx_power = 0;
             }
 
 
@@ -88,6 +112,8 @@ public class DriveTrain {
             // rotates the field-centric stick inputs into robot-relative powers.
             x_power = field_x * Math.cos(-headingRad) - field_y * Math.sin(-headingRad);
             y_power = field_x * Math.sin(-headingRad) + field_y * Math.cos(-headingRad);
+
+
         }
 
         //same for both modes
@@ -96,6 +122,14 @@ public class DriveTrain {
         double backLeftPower = (y_power - x_power + rx_power) / denominator;
         double frontRightPower = (y_power - x_power - rx_power) / denominator;
         double backRightPower = (y_power + x_power - rx_power) / denominator;
+
+        telemetry.addData("rx power", rx_power);
+        telemetry.addData("lockedTagId", lockedTagId);
+        telemetry.addData("servopos", highSpeedCamera.getPosition());
+        telemetry.addData("centery", yvalue);
+        telemetry.addData("centerx", xvalue);
+
+
 
         frontLeftMotor.setPower(frontLeftPower);
         backLeftMotor.setPower(backLeftPower);
@@ -111,7 +145,7 @@ public class DriveTrain {
 
 
     public void lockOntoTag(int tagId) {
-        this.lockedTagId = tagId;
+        lockedTagId = tagId;
     }
 
     public void unlockFromTag() {
@@ -131,7 +165,10 @@ public class DriveTrain {
 
         double distanceToTarget = Math.hypot(deltaX, deltaY); //didnt know this func existed till now
 
-        while (distanceToTarget > tolerance) {
+        while (Math.abs(distanceToTarget) > tolerance) {
+
+            telemetry.addData("x y z", "%f, %f, %f", currentX, currentY, currentHeading);
+            telemetry.update();
             // more rotation (spamming it now) (back to robot pov)
             double headingRad = Math.toRadians(currentHeading);
             double sinHeading = Math.sin(headingRad);
@@ -144,8 +181,8 @@ public class DriveTrain {
 
             //get direction by making the vector into a vector from components
             double moveMagnitude = Math.hypot(robotRelativeX, robotRelativeY);
-            double powerY = (robotRelativeY / moveMagnitude) * speed;
-            double powerX = (robotRelativeX / moveMagnitude) * speed;
+            double powerX = (robotRelativeY / moveMagnitude) * speed;
+            double powerY = -(robotRelativeX / moveMagnitude) * speed; //switched x and y here
 
             double powerRX = 0;
 
@@ -214,10 +251,10 @@ public class DriveTrain {
 
 
             if (odo.getOdoHeading() - targetTag.ftcPose.bearing > 0) {
-                ramp(-1/2, 0, turnPower, 0.01);
+                rampSpin(0, turnPower, -0.01);
 
             } else if (odo.getOdoHeading() - targetTag.ftcPose.bearing < 0) {
-                ramp(1/2, 0, turnPower, 0.01);
+                rampSpin(0, turnPower, 0.01);
 
             }
 
@@ -243,60 +280,23 @@ public class DriveTrain {
         return true;
     }
 
-    public void ramp(int direction, double currentPower, double targetPower, double step) {
-        if (direction == 1) { // ramping up
-            for (double p = currentPower; p < targetPower; p += step) {
-                frontLeftMotor.setPower(p);
-                backLeftMotor.setPower(p);
-                frontRightMotor.setPower(p);
-                backRightMotor.setPower(p);
-                try {
-                    Thread.sleep(50); // small delay to allow power change to take effect
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+    public void rampSpin(double startingPower, double targetPower, double step) {
+        for (double p = startingPower; p < targetPower; p += step) {
+            frontLeftMotor.setPower(p);
+            backLeftMotor.setPower(p);
+            frontRightMotor.setPower(-p);
+            backRightMotor.setPower(-p);
+            try {
+                Thread.sleep(50); // small delay to allow power change to take effect
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-        }else if (direction == -1) { // ramping down
-                for (double p = currentPower; p > targetPower; p -= step) {
-                    frontLeftMotor.setPower(p);
-                    backLeftMotor.setPower(p);
-                    frontRightMotor.setPower(p);
-                    backRightMotor.setPower(p);
-                    try {
-                        Thread.sleep(50); // small delay to allow power change to take effect
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
 
-            } else if (direction == 1/2) {
-                for (double p = currentPower; p < targetPower; p += step) {
-                    frontLeftMotor.setPower(p);
-                    backLeftMotor.setPower(p);
-                    frontRightMotor.setPower(-p);
-                    backRightMotor.setPower(-p);
-                    try {
-                        Thread.sleep(50); // small delay to let power change do the thing
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            } else if (direction == -1/2) {
-                for (double p = currentPower; p > targetPower; p -= step) {
-                    frontLeftMotor.setPower(p);
-                    backLeftMotor.setPower(p);
-                    frontRightMotor.setPower(-p);
-                    backRightMotor.setPower(-p);
-                    try {
-                        Thread.sleep(50);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            }
         }
+    }
 
-    public void rampToXY(double targetX, double targetY, double topSpeedInchesPerSec) {
+
+    public void rampToXY(double targetX, double targetY, double tSpeed) {
         double startX = odo.getOdoX();
         double startY = odo.getOdoY();
 
@@ -304,34 +304,35 @@ public class DriveTrain {
         double deltaY = targetY - startY;
 
         double totalDistance = Math.hypot(deltaX, deltaY);
-        double toleranceInches = 0.5;
+        double toleranceInches = 0.1;
 
         double prevPower = 0;
 
-        while (true) {
+        double remainingDistance = totalDistance;
+
+
+        while (Math.abs(remainingDistance) >= toleranceInches) {
             double currentX = odo.getOdoX();
             double currentY = odo.getOdoY();
 
             double remainingX = targetX - currentX;
             double remainingY = targetY - currentY;
-            double remainingDistance = Math.hypot(remainingX, remainingY);
+            remainingDistance = Math.hypot(remainingX, remainingY);
 
-            if (remainingDistance <= toleranceInches) break;
-
-            // 0=start, 1=end
+            // 0=start, 1=end, a percentage of how far we need to go
             double progress = 1.0 - (remainingDistance / totalDistance);
 
             // bell curve scaling factor
             double rampFactor = 4 * progress * (1 - progress); // parabola
-            rampFactor = Math.min(Math.max(rampFactor, 0.05), 1.0); // avoid tiny powers
+//            rampFactor = Math.min(Math.max(rampFactor, 0.05), 1.0); // avoid tiny powers so it doesnt go crazy
 
             // normalize ts
-            double targetPower = rampFactor * (topSpeedInchesPerSec / topSpeed);
+            double targetPower = rampFactor * (tSpeed / topSpeed);
 
             // movement calcs
             double moveAngle = Math.atan2(remainingY, remainingX);
-            double powerX = Math.cos(moveAngle) * targetPower;
-            double powerY = Math.sin(moveAngle) * targetPower;
+            double powerY = -(Math.cos(moveAngle) * targetPower);
+            double powerX = -(Math.sin(moveAngle) * targetPower);
 
             // same as drive()ish
             double denominator = Math.max(Math.abs(powerY) + Math.abs(powerX), 1);
@@ -343,6 +344,7 @@ public class DriveTrain {
             // integrate from previous power so its smooth
             double maxMotorPower = Math.max(Math.abs(frontLeftPower), Math.max(Math.abs(backLeftPower),
                     Math.max(Math.abs(frontRightPower), Math.abs(backRightPower))));
+
             if (maxMotorPower > 0) {
                 double scale = targetPower / maxMotorPower;
                 frontLeftPower *= scale;
@@ -350,9 +352,6 @@ public class DriveTrain {
                 frontRightPower *= scale;
                 backRightPower *= scale;
             }
-
-            ramp(targetPower > prevPower ? 1 : -1, prevPower, targetPower, 0.02);
-            prevPower = targetPower;
 
             frontLeftMotor.setPower(frontLeftPower);
             backLeftMotor.setPower(backLeftPower);
