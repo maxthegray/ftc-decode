@@ -13,21 +13,15 @@ public class SensorBot extends LinearOpMode {
 
     UnifiedLocalization gps;
 
-    double X;
-    double Y;
-    double H;
-
-
-
     public void runOpMode() throws InterruptedException {
 
-//        gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
+        gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
 
         DriveTrain driveTrain = new DriveTrain(hardwareMap, gamepad1, gps);
 
         waitForStart();
 
-//        gps.configureOtos();
+        gps.configureOtos();
 
         if (isStopRequested()) return;
 
@@ -35,9 +29,14 @@ public class SensorBot extends LinearOpMode {
 
             driveTrain.drive();
 
-//            gps.step();
-//            gps.addTelemetry();
-//            telemetry.update();
+            if(gamepad1.circle) {
+                driveTrain.driveToY(-30, 0.05);
+
+            }
+
+            gps.step();
+            gps.addTelemetry();
+            telemetry.update();
         }
 
     }

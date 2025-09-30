@@ -42,6 +42,15 @@ public class UnifiedLocalization {
 
         visionPortal = builder.build();
     }
+    public AprilTagDetection getDetectionById(int targetId) {
+        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.id == targetId) {
+                return detection;
+            }
+        }
+        return null; // Return null if the tag is not found
+    }
 
 
     public void configureOtos() {
@@ -62,8 +71,8 @@ public class UnifiedLocalization {
         myOtos.getVersionInfo(hwVersion, fwVersion);
     }
 
-    public double getOdoX() { return myOtos.getPosition().y; }
-    public double getOdoY() { return myOtos.getPosition().x; }
+    public double getOdoX() { return myOtos.getPosition().x; }
+    public double getOdoY() { return myOtos.getPosition().y; }
     public double getOdoHeading() { return myOtos.getPosition().h; }
 
     // AprilTag stuff --------------------------------------
@@ -72,30 +81,71 @@ public class UnifiedLocalization {
     private final AprilTagProcessor aprilTag;
     private final VisionPortal visionPortal;
 
-    private double x = 0;
-    private double y = 0;
-    private double heading = 0;
+    private double tagX;
+    private double tagY;
+    private double tagPitch;
+    private double tagHeading;
 
     public void updateAprilTag() {
         List<AprilTagDetection> detections = aprilTag.getDetections();
         for (AprilTagDetection detection : detections) {
             if (detection.id == 23 || detection.id == 22 || detection.id == 21) {
                 colorID = detection.id;
-            } else {
-                x = detection.ftcPose.x;
-                y = detection.ftcPose.y;
-                heading = detection.ftcPose.yaw;
+            } else if (detection.id == 20 || detection.id == 24) { // Check for your specific tags
+                // Pass the entire detection object to the calculation method
+                tagToCoords(detection);
             }
         }
     }
 
+
+    //20 (Blue)	-1.482m	-1.413m	0.749m	54°
+    //24 (Red)	-1.482m	1.413m	0.749m	-54°
+
+    //20 (Blue) -58.35in    -55.63in    29.49in    54°
+    //24 (Red)  -58.35in     55.63in    29.49in   -54°
+
+    private static final double[] TAG_20_POSE = {-58.35, -55.63, 54.0};
+    private static final double[] TAG_24_POSE = {-58.35, 55.63, -54.0};
+
+    //rotate and whereami
+    public void tagToCoords(AprilTagDetection detection) {
+
+        //pos of apriltag
+        double[] tagPose = (detection.id == 20) ? TAG_20_POSE : TAG_24_POSE;
+        double tagFieldX = tagPose[0];
+        double tagFieldY = tagPose[1];
+        double tagFieldHeading = tagPose[2]; // in degrees
+
+        // robo pos relative to tag, (in tags FOR)
+        // ftcPose.x is strafe (sideways) ftcPose.y is range (forward/backward from tag) i think
+        double relX = detection.ftcPose.x;
+        double relY = detection.ftcPose.y;
+
+        // convert the tags heading to radians for math purposes
+        double tagHeadingRad = Math.toRadians(tagFieldHeading);
+        double sinTagHeading = Math.sin(tagHeadingRad);
+        double cosTagHeading = Math.cos(tagHeadingRad);
+
+        //rotate x and y from tag perspective to field perspecitve
+        double rotatedX = relX * cosTagHeading - relY * sinTagHeading;
+        double rotatedY = relX * sinTagHeading + relY * cosTagHeading;
+
+        // rotated robo distances + tag field pos = robo field pos (still centered around cam)
+        this.tagX = tagFieldX + rotatedX;
+        this.tagY = tagFieldY + rotatedY;
+
+        // absolute heading
+        this.tagHeading = tagFieldHeading + detection.ftcPose.yaw;
+    }
     public int getID() {
         return aprilTag.getDetections().get(0).id;
     }
 
-    public double getTagX() { return x; }
-    public double getTagY() { return y; }
-    public double getTagHeading() { return heading; }
+    public double getTagX() { return tagX; }
+    public double getTagY() { return tagY; }
+    public double getTagPitch() { return tagPitch; }
+    public double getTagHeading() { return tagHeading; }
 
     //both stuff -----
 
@@ -108,15 +158,17 @@ public class UnifiedLocalization {
 
 
 
+
+
     public void addTelemetry() {
-        telemetry.addData("Loc X (in)", x);
-        telemetry.addData("Loc Y (in)", y);
-        telemetry.addData("Heading (deg)", heading);
+        telemetry.addData("Apr X (in)", absX);
+        telemetry.addData("Apr Y (in)", absY);
         telemetry.addData("Visible Tags", aprilTag.getDetections().size());
 
         telemetry.addData("Odo X (in)", getOdoX());
         telemetry.addData("Odo Y (in)", getOdoY());
         telemetry.addData("Odo Heading (deg)", getOdoHeading());
+
     }
 
     double absX, absY, absH;
@@ -126,13 +178,13 @@ public class UnifiedLocalization {
             absX = getTagX();
             absY = getTagY();
             absH = getTagHeading();
-            myOtos.setPosition(new SparkFunOTOS.Pose2D(absX, absY, absH));
         } else {
             absX = getOdoX();
             absY = getOdoY();
             absH = getOdoHeading();
         }
     }
+
 
     public boolean canSeeTag() {
         return !aprilTag.getDetections().isEmpty();
@@ -141,4 +193,7 @@ public class UnifiedLocalization {
     public void stop() {
         visionPortal.close();
     }
+
+
+
 }
