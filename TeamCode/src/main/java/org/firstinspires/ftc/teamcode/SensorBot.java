@@ -2,14 +2,13 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.Gamepad;
 
 @TeleOp
 public class SensorBot extends LinearOpMode {
 
 
+
+    boolean lockedOn = false;
 
     UnifiedLocalization gps;
 
@@ -29,10 +28,23 @@ public class SensorBot extends LinearOpMode {
 
             driveTrain.drive();
 
-            if(gamepad1.circle) {
-                driveTrain.driveToY(-30, 0.05);
-
+            if(gamepad1.dpad_down) {
+                driveTrain.goTo(0,0, 0.05);
             }
+            if(gamepad1.dpad_up) {
+                driveTrain.rampToXY(0,0,0.1);
+            }
+
+
+            if (gamepad1.square && !lockedOn) {
+                driveTrain.lockOntoTag(24);
+                lockedOn = true;
+            } else if (gamepad1.square && lockedOn) {
+                driveTrain.unlockFromTag();
+                lockedOn = false;
+            }
+
+
 
             gps.step();
             gps.addTelemetry();

@@ -17,7 +17,11 @@ public class DriveTrain {
     DcMotor frontRightMotor = null;
     DcMotor backRightMotor = null;
 
+
     Gamepad gamepad;
+
+    private Integer lockedTagId = null;
+
 
     private static final double spin_speed = 0.3;
     private static final double headingTolerance = 1.0;
@@ -46,19 +50,52 @@ public class DriveTrain {
     }
 
     public void drive() {
+        // Shared power variables
+        double y_power;
+        double x_power;
+        double rx_power;
 
-        double y = -gamepad.left_stick_y; // Remember, Y stick value is reversed
-        double x = gamepad.left_stick_x * 1; // Counteract imperfect strafing
-        double rx = gamepad.right_stick_x;
+        if (lockedTagId == null) {
+            //  driver has full control.
+            y_power = -gamepad.left_stick_y;
+            x_power = gamepad.left_stick_x * 1.1; // Counteract imperfect strafing
+            rx_power = gamepad.right_stick_x;
 
-        // Denominator is the largest motor power (absolute value) or 1
-        // This ensures all the powers maintain the same ratio,
-        // but only if at least one is out of the range [-1, 1]
-        double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
-        double frontLeftPower = (y + x + rx) / denominator;
-        double backLeftPower = (y - x + rx) / denominator;
-        double frontRightPower = (y - x - rx) / denominator;
-        double backRightPower = (y + x - rx) / denominator;
+        } else {
+            // mode 2, field centric with tag lock
+            // driver controls translation robot controls rotation.
+
+            odo.updateAprilTag();
+            AprilTagDetection lockedTag = odo.getDetectionById(lockedTagId);
+
+            if (lockedTag != null) {
+                double error = lockedTag.ftcPose.bearing;
+                rx_power = Range.clip(error, -maxTurnSpeed, maxTurnSpeed);
+            } else {
+                //if lost tag, hold bearing
+                rx_power = gamepad.right_stick_x;
+            }
+
+
+            //field y and x are driver,
+            double field_y = -gamepad.left_stick_y;
+            double field_x = gamepad.left_stick_x;
+
+            // current heading in radians
+            double headingRad = Math.toRadians(odo.getOdoHeading());
+
+            // rotation logic but applied to gamepad inputs
+            // rotates the field-centric stick inputs into robot-relative powers.
+            x_power = field_x * Math.cos(-headingRad) - field_y * Math.sin(-headingRad);
+            y_power = field_x * Math.sin(-headingRad) + field_y * Math.cos(-headingRad);
+        }
+
+        //same for both modes
+        double denominator = Math.max(Math.abs(y_power) + Math.abs(x_power) + Math.abs(rx_power), 1);
+        double frontLeftPower = (y_power + x_power + rx_power) / denominator;
+        double backLeftPower = (y_power - x_power + rx_power) / denominator;
+        double frontRightPower = (y_power - x_power - rx_power) / denominator;
+        double backRightPower = (y_power + x_power - rx_power) / denominator;
 
         frontLeftMotor.setPower(frontLeftPower);
         backLeftMotor.setPower(backLeftPower);
@@ -68,9 +105,18 @@ public class DriveTrain {
 
     //Physics based drive to some coordinates coordinate
     //variables needed for speed:
-    double maxRPM; //max rpm of the motor
-    double wheelDiameter; //wheel diameter in inches
+    double maxRPM = 435; //max rpm of the motor
+    double wheelDiameter = 4.09449; //wheel diameter in inches
     double topSpeed = (maxRPM / 60) * (Math.PI * wheelDiameter); //top speed in inches per second
+
+
+    public void lockOntoTag(int tagId) {
+        this.lockedTagId = tagId;
+    }
+
+    public void unlockFromTag() {
+        this.lockedTagId = null;
+    }
 
 
 
@@ -248,7 +294,77 @@ public class DriveTrain {
                     }
                 }
             }
-
-
         }
+
+    public void rampToXY(double targetX, double targetY, double topSpeedInchesPerSec) {
+        double startX = odo.getOdoX();
+        double startY = odo.getOdoY();
+
+        double deltaX = targetX - startX;
+        double deltaY = targetY - startY;
+
+        double totalDistance = Math.hypot(deltaX, deltaY);
+        double toleranceInches = 0.5;
+
+        double prevPower = 0;
+
+        while (true) {
+            double currentX = odo.getOdoX();
+            double currentY = odo.getOdoY();
+
+            double remainingX = targetX - currentX;
+            double remainingY = targetY - currentY;
+            double remainingDistance = Math.hypot(remainingX, remainingY);
+
+            if (remainingDistance <= toleranceInches) break;
+
+            // 0=start, 1=end
+            double progress = 1.0 - (remainingDistance / totalDistance);
+
+            // bell curve scaling factor
+            double rampFactor = 4 * progress * (1 - progress); // parabola
+            rampFactor = Math.min(Math.max(rampFactor, 0.05), 1.0); // avoid tiny powers
+
+            // normalize ts
+            double targetPower = rampFactor * (topSpeedInchesPerSec / topSpeed);
+
+            // movement calcs
+            double moveAngle = Math.atan2(remainingY, remainingX);
+            double powerX = Math.cos(moveAngle) * targetPower;
+            double powerY = Math.sin(moveAngle) * targetPower;
+
+            // same as drive()ish
+            double denominator = Math.max(Math.abs(powerY) + Math.abs(powerX), 1);
+            double frontLeftPower = (powerY + powerX) / denominator;
+            double backLeftPower = (powerY - powerX) / denominator;
+            double frontRightPower = (powerY - powerX) / denominator;
+            double backRightPower = (powerY + powerX) / denominator;
+
+            // integrate from previous power so its smooth
+            double maxMotorPower = Math.max(Math.abs(frontLeftPower), Math.max(Math.abs(backLeftPower),
+                    Math.max(Math.abs(frontRightPower), Math.abs(backRightPower))));
+            if (maxMotorPower > 0) {
+                double scale = targetPower / maxMotorPower;
+                frontLeftPower *= scale;
+                backLeftPower *= scale;
+                frontRightPower *= scale;
+                backRightPower *= scale;
+            }
+
+            ramp(targetPower > prevPower ? 1 : -1, prevPower, targetPower, 0.02);
+            prevPower = targetPower;
+
+            frontLeftMotor.setPower(frontLeftPower);
+            backLeftMotor.setPower(backLeftPower);
+            frontRightMotor.setPower(frontRightPower);
+            backRightMotor.setPower(backRightPower);
+        }
+
+        frontLeftMotor.setPower(0);
+        backLeftMotor.setPower(0);
+        frontRightMotor.setPower(0);
+        backRightMotor.setPower(0);
     }
+
+}
+

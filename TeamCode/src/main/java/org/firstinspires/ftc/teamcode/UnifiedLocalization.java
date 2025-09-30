@@ -161,8 +161,8 @@ public class UnifiedLocalization {
 
 
     public void addTelemetry() {
-        telemetry.addData("Apr X (in)", absX);
-        telemetry.addData("Apr Y (in)", absY);
+        telemetry.addData("Apr X (in)", tagX);
+        telemetry.addData("Apr Y (in)", tagY);
         telemetry.addData("Visible Tags", aprilTag.getDetections().size());
 
         telemetry.addData("Odo X (in)", getOdoX());
