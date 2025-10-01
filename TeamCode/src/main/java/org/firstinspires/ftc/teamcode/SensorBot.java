@@ -30,8 +30,6 @@ public class SensorBot extends LinearOpMode {
 
             driveTrain.drive();
 
-            shooterCamera.alignCameraToTag();
-
             if(gamepad1.dpad_down) {
                 driveTrain.goTo(0,0, 0.5);
             }

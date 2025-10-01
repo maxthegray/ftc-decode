@@ -55,7 +55,7 @@ public class ShooterCamera {
         AprilTagDetection lockedTag = getBasketDetection();
 
         if (lockedTag != null) {
-            double elevationDifference = cameraMount.getPosition() + (lockedTag.ftcPose.elevation / 360) / 1.5; //normalized 0-270deg or 0-0.75deg
+            double elevationDifference = cameraMount.getPosition() + (lockedTag.ftcPose.elevation / 360) / 4; //normalized 0-90 or 0-0.75deg
 
             cameraMount.setPosition(Math.abs(elevationDifference));
         }
