@@ -24,7 +24,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
         //unified??
         UnifiedLocalization gps = new UnifiedLocalization(telemetry, hardwareMap);
 
-        Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry, gamepad1, gps);
+        Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry, gamepad1);
 
         telemetry.addData("Status", "initted");
         telemetry.addData("launcher", launcher);

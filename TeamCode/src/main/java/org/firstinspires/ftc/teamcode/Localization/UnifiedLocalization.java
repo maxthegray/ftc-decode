@@ -24,6 +24,8 @@ public class UnifiedLocalization {
     HardwareMap hardwareMap;
     Telemetry telemetry;
 
+    public int colorID = cam.colorID;
+
     private double absX;
     private double absY;
     private double absH;
@@ -36,7 +38,7 @@ public class UnifiedLocalization {
        this.telemetry = telemetryy;
     }
 
-    public void AbsoluteXYH() {
+    private void AbsoluteXYH() {
         if (cam.tagInView()) {
             absX = (cam.getX() * 0.8) + (odo.getOdoX() * 0.2);
             absY = (cam.getY() * 0.8) + (odo.getOdoY() * 0.2);
@@ -51,13 +53,21 @@ public class UnifiedLocalization {
         }
     }
 
-    public void update() {
+
+    public double getX() {
         cam.updateAprilTag();
         AbsoluteXYH();
+        return absX;
     }
-
-    public double getX() { return absX; }
-    public double getY() { return absY; }
-    public double getHeading() { return absH; }
+    public double getY() {
+        cam.updateAprilTag();
+        AbsoluteXYH();
+        return absY;
+    }
+    public double getHeading() {
+        cam.updateAprilTag();
+        AbsoluteXYH();
+        return absH;
+    }
 
 }

@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.Localization.LocalizationCamera;
 import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
 
 import java.util.ArrayList;
@@ -29,7 +30,7 @@ public class Launcher {
     UnifiedLocalization Camera;
 
     // Constructor
-    public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy, Gamepad gpad, UnifiedLocalization cam) {
+    public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy, Gamepad gpad) {
         this.targetSequence = new ArrayList<>(initTargetSequence); // copy input
         this.ballsInCarousel = new ArrayList<>(initCarouselBalls);   // copy input
         this.carouselPosition = 0;
@@ -40,44 +41,43 @@ public class Launcher {
 
         this.telemetry = telemetryy;
 
-        Camera = cam;
+        Camera = new UnifiedLocalization(telemetryy, hardwareMap);
     }
 
     public void step() {
-
-
-        if (!done){
-            if (Camera.colorID == 21) {
-                targetSequence = Arrays.asList(2, 1, 1);
-                done = true;
-            } else if (Camera.colorID == 22) {
-                targetSequence = Arrays.asList(1, 2, 1);
-                done = true;
-            } else if (Camera.colorID == 23) {
-                targetSequence = Arrays.asList(1, 1, 2);
-                done = true;
+        if (!done) {
+            switch (Camera.colorID) {
+                case 21:
+                    targetSequence = Arrays.asList(2, 1, 1);
+                    break;
+                case 22:
+                    targetSequence = Arrays.asList(1, 2, 1);
+                    break;
+                case 23:
+                    targetSequence = Arrays.asList(1, 1, 2);
+                    break;
+                default:
+                    break;
             }
+            if (targetSequence != null) done = true;
         }
 
         if (ballsInCarousel.size() == 3) {
-            while (!gamepad.cross) {
-                telemetry.addData("Status", "Ready to shoot");
-                telemetry.addData("ballsInCarousel", ballsInCarousel.toString());
-                telemetry.addData("targetSequence", targetSequence.toString());
-                telemetry.update();
-            }
+            waitForCross("Ready to shoot");
             doBurst();
-            while (!gamepad.cross) {
-                telemetry.addData("Status", "Burst complete");
-                telemetry.addData("ballsInCarousel", ballsInCarousel.toString());
-                telemetry.addData("targetSequence", targetSequence.toString());
-                telemetry.update();
-            }
-
+            waitForCross("Burst complete");
         }
 
         addTelemetry(telemetry);
+    }
 
+    private void waitForCross(String status) {
+        while (!gamepad.cross) {
+            telemetry.addData("Status", status);
+            telemetry.addData("ballsInCarousel", ballsInCarousel.toString());
+            telemetry.addData("targetSequence", targetSequence != null ? targetSequence.toString() : "[]");
+            telemetry.update();
+        }
     }
 
     // do one burst
@@ -147,7 +147,6 @@ public class Launcher {
         telemetry.addData("Target Sequence", targetSequence.toString());
         telemetry.addData("Carousel Balls", ballsInCarousel.toString());
         telemetry.addData("Carousel Position", carouselPosition);
-        telemetry.addData("Visible Tags", Camera.canSeeTag() ? "Yes" : "No");
     }
 
 

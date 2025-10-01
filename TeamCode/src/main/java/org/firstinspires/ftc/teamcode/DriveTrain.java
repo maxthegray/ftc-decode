@@ -93,17 +93,7 @@ public class DriveTrain {
             x_power = gamepad.left_stick_x * 1; // Counteract imperfect strafing
         }
 
-        //same for both modes
-        double denominator = Math.max(Math.abs(y_power) + Math.abs(x_power) + Math.abs(rx_power), 1);
-        double frontLeftPower = (y_power + x_power + rx_power) / denominator;
-        double backLeftPower = (y_power - x_power + rx_power) / denominator;
-        double frontRightPower = (y_power - x_power - rx_power) / denominator;
-        double backRightPower = (y_power + x_power - rx_power) / denominator;
-
-        frontLeftMotor.setPower(frontLeftPower);
-        backLeftMotor.setPower(backLeftPower);
-        frontRightMotor.setPower(frontRightPower);
-        backRightMotor.setPower(backRightPower);
+        setDrive(y_power, x_power, rx_power);
     }
 
     //Physics based drive to some coordinates coordinate
@@ -155,16 +145,7 @@ public class DriveTrain {
 
             double powerRX = 0;
 
-            double denominator = Math.max(Math.abs(powerY) + Math.abs(powerX) + Math.abs(powerRX), 1);
-            double frontLeftPower = (powerY + powerX + powerRX) / denominator;
-            double backLeftPower = (powerY - powerX + powerRX) / denominator;
-            double frontRightPower = (powerY - powerX - powerRX) / denominator;
-            double backRightPower = (powerY + powerX - powerRX) / denominator;
-
-            frontLeftMotor.setPower(frontLeftPower);
-            backLeftMotor.setPower(backLeftPower);
-            frontRightMotor.setPower(frontRightPower);
-            backRightMotor.setPower(backRightPower);
+            setDrive(powerY, powerX, powerRX);
 
             //update
             currentX = Location.getX();
@@ -174,11 +155,10 @@ public class DriveTrain {
             deltaY = targetY - currentY;
             distanceToTarget = Math.hypot(deltaX, deltaY);
         }
-        frontLeftMotor.setPower(0);
-        backLeftMotor.setPower(0);
-        frontRightMotor.setPower(0);
-        backRightMotor.setPower(0);
+        stopAllMotors();
     }
+
+
 
     public void rampToXYH(double targetX, double targetY, double targetHeading, double tSpeed) {
         double startX = Location.getX();
@@ -224,14 +204,12 @@ public class DriveTrain {
             double kRot = 0.02;
             double turnPower = kRot * remainingHeading;
 
-            // same as drive()ish
             double denominator = Math.max(Math.abs(powerY) + Math.abs(powerX) + Math.abs(turnPower), 1);
             double frontLeftPower = (powerY + powerX + turnPower) / denominator;
             double backLeftPower = (powerY - powerX + turnPower) / denominator;
             double frontRightPower = (powerY - powerX - turnPower) / denominator;
             double backRightPower = (powerY + powerX - turnPower) / denominator;
 
-            // integrate from previous power so its smooth
             double maxMotorPower = Math.max(Math.abs(frontLeftPower), Math.max(Math.abs(backLeftPower),
                     Math.max(Math.abs(frontRightPower), Math.abs(backRightPower))));
 
@@ -249,10 +227,7 @@ public class DriveTrain {
             backRightMotor.setPower(backRightPower);
         }
 
-        frontLeftMotor.setPower(0);
-        backLeftMotor.setPower(0);
-        frontRightMotor.setPower(0);
-        backRightMotor.setPower(0);
+        stopAllMotors();
     }
 
     private double angleSimplifierDeg(double angle) {
@@ -260,4 +235,21 @@ public class DriveTrain {
         while (angle < -180) angle += 360;
         return angle;
     }
+
+    private void setDrive(double y, double x, double rx) {
+        double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
+        double frontLeftPower = (y + x + rx) / denominator;
+        double backLeftPower = (y - x + rx) / denominator;
+        double frontRightPower = (y - x - rx) / denominator;
+        double backRightPower = (y + x - rx) / denominator;
+
+        frontLeftMotor.setPower(frontLeftPower);
+        backLeftMotor.setPower(backLeftPower);
+        frontRightMotor.setPower(frontRightPower);
+        backRightMotor.setPower(backRightPower);
+    }
+    private void stopAllMotors() {
+        setDrive(0, 0, 0);
+    }
+
 }

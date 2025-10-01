@@ -13,11 +13,10 @@ public class SensorBot extends LinearOpMode {
 
     boolean lockedOn = false;
 
-    UnifiedLocalization gps;
 
     public void runOpMode() throws InterruptedException {
 
-        gps = new UnifiedLocalization(telemetry, hardwareMap);
+        UnifiedLocalization Location = new UnifiedLocalization(telemetry, hardwareMap);
 
         DriveTrain driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
 
@@ -39,19 +38,19 @@ public class SensorBot extends LinearOpMode {
             if(gamepad1.dpad_up) {
                 driveTrain.rampToXYH(0,0,0,1);
             }
-            if (gamepad1.square && !lockedOn) {
-                driveTrain.lockOntoTag();
-                lockedOn = true;
-                sleep(100);
-            } else if (gamepad1.square && lockedOn) {
+
+            if (lockedOn) {
                 driveTrain.unlockFromTag();
                 lockedOn = false;
-                sleep(100);
+                sleep(50);
+            } else {
+                driveTrain.lockOntoTag();
+                lockedOn = true;
+                sleep(50);
             }
 
 
-            telemetry.addData("Locked On?", lockedOn);
-            shooterCamera.addTelemetry();
+
             telemetry.update();
         }
 
