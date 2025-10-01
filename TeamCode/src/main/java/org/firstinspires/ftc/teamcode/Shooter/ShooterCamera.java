@@ -39,7 +39,7 @@ public class ShooterCamera {
         builder.setCamera(hardwaremap.get(WebcamName.class, "shooterCamera"));
         builder.setCameraResolution(new Size(1280, 800));
         builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
-        builder.enableLiveView(true);
+        builder.enableLiveView(false);
         builder.addProcessor(camera);
 
         colorsAssigned = false;
