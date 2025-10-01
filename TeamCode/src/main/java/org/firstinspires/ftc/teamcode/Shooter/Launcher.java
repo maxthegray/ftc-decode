@@ -30,8 +30,7 @@ public class Launcher {
     UnifiedLocalization Camera;
 
     // Constructor
-    public Launcher(List<Integer> initTargetSequence, List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy, Gamepad gpad) {
-        this.targetSequence = new ArrayList<>(initTargetSequence); // copy input
+    public Launcher(List<Integer> initCarouselBalls, HardwareMap hardwareMap, Telemetry telemetryy, Gamepad gpad) {
         this.ballsInCarousel = new ArrayList<>(initCarouselBalls);   // copy input
         this.carouselPosition = 0;
         this.carousel = hardwareMap.get(Servo.class, "servo_sample");
