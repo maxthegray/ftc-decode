@@ -1,8 +1,10 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.Shooter;
 
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
+import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,7 +22,7 @@ public class LauncherSampleOpMode extends LinearOpMode {
         // Create the Launcher instance
 
         //unified??
-        UnifiedLocalization gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
+        UnifiedLocalization gps = new UnifiedLocalization(telemetry, hardwareMap);
 
         Launcher launcher = new Launcher(exampleTargetSequence, exampleCarouselBalls, hardwareMap, telemetry, gamepad1, gps);
 
@@ -35,15 +37,12 @@ public class LauncherSampleOpMode extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            gps.updateAprilTag();
-
             launcher.step();
 
             telemetry.addData("Carousel main status", exampleCarouselBalls.toString());
             telemetry.addData("Target main sequence", exampleTargetSequence.toString());
             telemetry.addData("servo pos", launcher.carousel.getPosition());
 
-            gps.addTelemetry();
             telemetry.update();
 
             if (gamepad1.square) {

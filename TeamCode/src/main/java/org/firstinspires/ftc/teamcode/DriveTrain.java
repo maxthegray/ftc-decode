@@ -4,12 +4,10 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
+import org.firstinspires.ftc.teamcode.Shooter.ShooterCamera;
 
 public class DriveTrain {
     HardwareMap hardwareMap;
@@ -19,11 +17,12 @@ public class DriveTrain {
     DcMotor frontRightMotor = null;
     DcMotor backRightMotor = null;
 
-    Servo highSpeedCamera;
-
     Gamepad gamepad;
 
-    private Integer lockedTagId = null;
+    ShooterCamera shooterCamera;
+    UnifiedLocalization Location;
+
+    private boolean locked = false;
 
 
     private static final double spin_speed = 0.3;
@@ -35,9 +34,9 @@ public class DriveTrain {
 
     private static final double tolerance = 0.1;
 
-    UnifiedLocalization odo;
 
-    public DriveTrain(HardwareMap hardwaremp, Gamepad gp, UnifiedLocalization odometry, Telemetry tmtry) {
+
+    public DriveTrain(HardwareMap hardwaremp, Gamepad gp, Telemetry tmtry) {
         frontLeftMotor = hardwaremp.dcMotor.get("frontLeftMotor");
         backLeftMotor = hardwaremp.dcMotor.get("backLeftMotor");
         frontRightMotor = hardwaremp.dcMotor.get("frontRightMotor");
@@ -53,11 +52,12 @@ public class DriveTrain {
         frontRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        highSpeedCamera = hardwaremp.servo.get("cameraServo");
+        shooterCamera = new ShooterCamera(tmtry, hardwaremp);
+
+        Location = new UnifiedLocalization(tmtry, hardwaremp);
 
         gamepad = gp;
 
-        odo = odometry;
 
         telemetry = tmtry;
     }
@@ -70,50 +70,27 @@ public class DriveTrain {
         double x_power;
         double rx_power;
 
-        if (lockedTagId == null) {
+        if (!locked) {
             //  driver has full control.
             y_power = -gamepad.left_stick_y;
-            x_power = gamepad.left_stick_x * 1.1; // Counteract imperfect strafing
+            x_power = gamepad.left_stick_x * 1; // Counteract imperfect strafing
             rx_power = gamepad.right_stick_x;
-            highSpeedCamera.setPosition(0);
+
         } else {
-            // mode 2, field centric with tag lock
-            // driver controls translation robot controls rotation.
-
-//            odo.updateAprilTag();
-            AprilTagDetection lockedTag = odo.getDetectionById(lockedTagId);
-
-            if (lockedTag != null) {
-                double bearingDifference = lockedTag.ftcPose.bearing;
-                double yawDifference = highSpeedCamera.getPosition() + ((lockedTag.ftcPose.pitch*57.2958)/360)/2; //normalized 0-1
-
-                yvalue = yawDifference;
-                xvalue = bearingDifference;
-
-
-                rx_power = -Range.clip(bearingDifference, -maxTurnSpeed, maxTurnSpeed);
-
-
-                highSpeedCamera.setPosition(Math.abs(yawDifference));
-
-            } else {
-                rx_power = 0;
-            }
-
-
-            //field y and x are driver,
-            double field_y = -gamepad.left_stick_y;
-            double field_x = gamepad.left_stick_x;
+            shooterCamera.alignCameraToTag();
+            rx_power = shooterCamera.alignRobotToTagPower();
 
             // current heading in radians
-            double headingRad = Math.toRadians(odo.getOdoHeading());
+//            double headingRad = Math.toRadians(odo.getOdoHeading());
 
             // rotation logic but applied to gamepad inputs
             // rotates the field-centric stick inputs into robot-relative powers.
-            x_power = field_x * Math.cos(-headingRad) - field_y * Math.sin(-headingRad);
-            y_power = field_x * Math.sin(-headingRad) + field_y * Math.cos(-headingRad);
-
-
+//            double field_y = -gamepad.left_stick_y;
+//            double field_x = gamepad.left_stick_x;
+//            x_power = field_x * Math.cos(-headingRad) - field_y * Math.sin(-headingRad);
+//            y_power = field_x * Math.sin(-headingRad) + field_y * Math.cos(-headingRad);
+            y_power = -gamepad.left_stick_y;
+            x_power = gamepad.left_stick_x * 1; // Counteract imperfect strafing
         }
 
         //same for both modes
@@ -122,14 +99,6 @@ public class DriveTrain {
         double backLeftPower = (y_power - x_power + rx_power) / denominator;
         double frontRightPower = (y_power - x_power - rx_power) / denominator;
         double backRightPower = (y_power + x_power - rx_power) / denominator;
-
-        telemetry.addData("rx power", rx_power);
-        telemetry.addData("lockedTagId", lockedTagId);
-        telemetry.addData("servopos", highSpeedCamera.getPosition());
-        telemetry.addData("centery", yvalue);
-        telemetry.addData("centerx", xvalue);
-
-
 
         frontLeftMotor.setPower(frontLeftPower);
         backLeftMotor.setPower(backLeftPower);
@@ -144,21 +113,21 @@ public class DriveTrain {
     double topSpeed = (maxRPM / 60) * (Math.PI * wheelDiameter); //top speed in inches per second
 
 
-    public void lockOntoTag(int tagId) {
-        lockedTagId = tagId;
+    public void lockOntoTag() {
+        locked = true;
     }
 
     public void unlockFromTag() {
-        this.lockedTagId = null;
+        locked = false;
     }
 
 
 
     public void goTo(double targetX, double targetY, double speed) {
 
-        double currentX = odo.getOdoX();
-        double currentY = odo.getOdoY();
-        double currentHeading = odo.getOdoHeading();
+        double currentX = Location.getX();
+        double currentY = Location.getY();
+        double currentHeading = Location.getHeading();
 
         double deltaX = targetX - currentX;
         double deltaY = targetY - currentY;
@@ -198,9 +167,9 @@ public class DriveTrain {
             backRightMotor.setPower(backRightPower);
 
             //update
-            currentX = odo.getOdoX();
-            currentY = odo.getOdoY();
-            currentHeading = odo.getOdoHeading();
+            currentX = Location.getX();
+            currentY = Location.getY();
+            currentHeading = Location.getHeading();
             deltaX = targetX - currentX;
             deltaY = targetY - currentY;
             distanceToTarget = Math.hypot(deltaX, deltaY);
@@ -211,113 +180,31 @@ public class DriveTrain {
         backRightMotor.setPower(0);
     }
 
-    public boolean findAndFaceTag(int targetId) {
-        AprilTagDetection targetTag = null;
-        ElapsedTime searchTimer = new ElapsedTime();
-        searchTimer.reset();
-
-        //search phase, just spin right
-
-        frontLeftMotor.setPower(spin_speed);
-        backLeftMotor.setPower(spin_speed);
-        frontRightMotor.setPower(-spin_speed);
-        backRightMotor.setPower(-spin_speed);
-
-        // loop until the tag is found
-        while (searchTimer.milliseconds() < timeoutMs) {
-            odo.updateAprilTag();
-            targetTag = odo.getDetectionById(targetId);
-
-            if (targetTag != null) {
-                break;
-            }
-        }
-        //stop spinning
-        frontLeftMotor.setPower(0);
-        backLeftMotor.setPower(0);
-        frontRightMotor.setPower(0);
-        backRightMotor.setPower(0);
-
-        if (targetTag == null) {
-            return false;
-        }
-
-        //alignment, use bearing to align
-        while (Math.abs(targetTag.ftcPose.bearing) > headingTolerance) {
-            // turning power, encorperating error and max turn speed
-            double error = targetTag.ftcPose.bearing;
-            double turnPower = Range.clip(error, -maxTurnSpeed, maxTurnSpeed);
-
-
-
-            if (odo.getOdoHeading() - targetTag.ftcPose.bearing > 0) {
-                rampSpin(0, turnPower, -0.01);
-
-            } else if (odo.getOdoHeading() - targetTag.ftcPose.bearing < 0) {
-                rampSpin(0, turnPower, 0.01);
-
-            }
-
-            odo.updateAprilTag();
-            targetTag = odo.getDetectionById(targetId);
-
-            // if lose the lock, return false
-            if (targetTag == null) {
-                frontLeftMotor.setPower(0);
-                backLeftMotor.setPower(0);
-                frontRightMotor.setPower(0);
-                backRightMotor.setPower(0);
-                return false;
-            }
-        }
-
-        // stop when aligned
-        frontLeftMotor.setPower(0);
-        backLeftMotor.setPower(0);
-        frontRightMotor.setPower(0);
-        backRightMotor.setPower(0);
-
-        return true;
-    }
-
-    public void rampSpin(double startingPower, double targetPower, double step) {
-        for (double p = startingPower; p < targetPower; p += step) {
-            frontLeftMotor.setPower(p);
-            backLeftMotor.setPower(p);
-            frontRightMotor.setPower(-p);
-            backRightMotor.setPower(-p);
-            try {
-                Thread.sleep(50); // small delay to allow power change to take effect
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-
-        }
-    }
-
-
-    public void rampToXY(double targetX, double targetY, double tSpeed) {
-        double startX = odo.getOdoX();
-        double startY = odo.getOdoY();
+    public void rampToXYH(double targetX, double targetY, double targetHeading, double tSpeed) {
+        double startX = Location.getX();
+        double startY = Location.getY();
+        double startHeading = Location.getHeading();
 
         double deltaX = targetX - startX;
         double deltaY = targetY - startY;
 
         double totalDistance = Math.hypot(deltaX, deltaY);
         double toleranceInches = 0.1;
-
-        double prevPower = 0;
+        double toleranceHeading = 2.0;
 
         double remainingDistance = totalDistance;
+        double remainingHeading = angleSimplifierDeg(targetHeading - startHeading);
 
-
-        while (Math.abs(remainingDistance) >= toleranceInches) {
-            double currentX = odo.getOdoX();
-            double currentY = odo.getOdoY();
+        while (Math.abs(remainingDistance) >= toleranceInches || Math.abs(remainingHeading) >= toleranceHeading) {
+            double currentX = Location.getX();
+            double currentY = Location.getY();
+            double currentHeading = Location.getHeading();
 
             double remainingX = targetX - currentX;
             double remainingY = targetY - currentY;
             remainingDistance = Math.hypot(remainingX, remainingY);
+
+            remainingHeading = angleSimplifierDeg(targetHeading - currentHeading);
 
             // 0=start, 1=end, a percentage of how far we need to go
             double progress = 1.0 - (remainingDistance / totalDistance);
@@ -334,12 +221,15 @@ public class DriveTrain {
             double powerY = -(Math.cos(moveAngle) * targetPower);
             double powerX = -(Math.sin(moveAngle) * targetPower);
 
+            double kRot = 0.02;
+            double turnPower = kRot * remainingHeading;
+
             // same as drive()ish
-            double denominator = Math.max(Math.abs(powerY) + Math.abs(powerX), 1);
-            double frontLeftPower = (powerY + powerX) / denominator;
-            double backLeftPower = (powerY - powerX) / denominator;
-            double frontRightPower = (powerY - powerX) / denominator;
-            double backRightPower = (powerY + powerX) / denominator;
+            double denominator = Math.max(Math.abs(powerY) + Math.abs(powerX) + Math.abs(turnPower), 1);
+            double frontLeftPower = (powerY + powerX + turnPower) / denominator;
+            double backLeftPower = (powerY - powerX + turnPower) / denominator;
+            double frontRightPower = (powerY - powerX - turnPower) / denominator;
+            double backRightPower = (powerY + powerX - turnPower) / denominator;
 
             // integrate from previous power so its smooth
             double maxMotorPower = Math.max(Math.abs(frontLeftPower), Math.max(Math.abs(backLeftPower),
@@ -365,5 +255,9 @@ public class DriveTrain {
         backRightMotor.setPower(0);
     }
 
+    private double angleSimplifierDeg(double angle) {
+        while (angle > 180) angle -= 360;
+        while (angle < -180) angle += 360;
+        return angle;
+    }
 }
-

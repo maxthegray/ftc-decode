@@ -3,6 +3,9 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
+import org.firstinspires.ftc.teamcode.Shooter.ShooterCamera;
+
 @TeleOp
 public class SensorBot extends LinearOpMode {
 
@@ -14,13 +17,13 @@ public class SensorBot extends LinearOpMode {
 
     public void runOpMode() throws InterruptedException {
 
-        gps = new UnifiedLocalization(telemetry, hardwareMap, 0,0,0);
+        gps = new UnifiedLocalization(telemetry, hardwareMap);
 
-        DriveTrain driveTrain = new DriveTrain(hardwareMap, gamepad1, gps, telemetry);
+        DriveTrain driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
+
+        ShooterCamera shooterCamera = new ShooterCamera(telemetry, hardwareMap);
 
         waitForStart();
-
-        gps.configureOtos();
 
         if (isStopRequested()) return;
 
@@ -28,20 +31,16 @@ public class SensorBot extends LinearOpMode {
 
             driveTrain.drive();
 
+            shooterCamera.alignCameraToTag();
 
             if(gamepad1.dpad_down) {
                 driveTrain.goTo(0,0, 0.5);
             }
             if(gamepad1.dpad_up) {
-                driveTrain.rampToXY(0,0,1);
+                driveTrain.rampToXYH(0,0,0,1);
             }
-            //reliant
-            if(gamepad1.dpad_right) {
-                driveTrain.findAndFaceTag(24);
-            }
-            //reliant
             if (gamepad1.square && !lockedOn) {
-                driveTrain.lockOntoTag(24);
+                driveTrain.lockOntoTag();
                 lockedOn = true;
                 sleep(100);
             } else if (gamepad1.square && lockedOn) {
@@ -52,8 +51,7 @@ public class SensorBot extends LinearOpMode {
 
 
             telemetry.addData("Locked On?", lockedOn);
-            gps.step();
-            gps.addTelemetry();
+            shooterCamera.addTelemetry();
             telemetry.update();
         }
 
