@@ -13,11 +13,11 @@ public class SensorBot extends LinearOpMode {
     private DriveTrain driveTrain;
     private UnifiedLocalization location;
     private ShooterCamera shooterCamera;
+    private int state = 0;
 
     @Override
     public void runOpMode() throws InterruptedException {
 
-        location = new UnifiedLocalization(telemetry, hardwareMap);
         driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
         shooterCamera = new ShooterCamera(telemetry, hardwareMap);
 
@@ -30,16 +30,41 @@ public class SensorBot extends LinearOpMode {
         }
         while (opModeIsActive() && !isStopRequested()) {
 
-
-            shooterCamera.alignCameraToTag();
-
-            telemetry.update();
-            sleep(30);
-
+//            switch(state) {
+//                case 0:
+//                    if (gamepad1.square) {
+//                        state = 1;
+//                    }
+//                    driveTrain.drive();
+//                    break;
+//                case 1:
+//                    if (gamepad1.cross) {
+//                        state = 2;
+//                    }
+//                    shooterCamera.alignCameraToTag();
+//                    break;
+//                case 2:
+//                    if (gamepad1.circle) {
+//                        state = 0;
+//                    }
+//                    telemetry.addData("TagAlignPower", shooterCamera.alignRobotToTagPower());
+//                    break;
+//            }
+            switch (state){
+                case 0:
+                    shooterCamera.alignCameraToTag();
+                    telemetry.update();
+                    state = 1;
+                case 1:
+                    if (gamepad1.cross) {
+                        state = 0;
+                    }
+                    driveTrain.drive();
+            }
 
         }
 
-        }
+    }
 
 
 

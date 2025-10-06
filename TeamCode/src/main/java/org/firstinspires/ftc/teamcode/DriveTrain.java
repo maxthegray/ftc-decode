@@ -77,7 +77,6 @@ public class DriveTrain {
             rx_power = gamepad.right_stick_x;
 
         } else {
-            shooterCamera.alignCameraToTag();
             rx_power = shooterCamera.alignRobotToTagPower();
 
             // current heading in radians

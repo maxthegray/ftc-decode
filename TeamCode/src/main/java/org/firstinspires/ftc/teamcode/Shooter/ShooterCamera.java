@@ -43,20 +43,22 @@ public class ShooterCamera {
         builder.setCameraResolution(new Size(1280, 800));
         builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
         builder.enableLiveView(false);
+        builder.setAutoStartStreamOnBuild(true);
         builder.addProcessor(camera);
-
-        colorsAssigned = false;
-
 
         visionPortal = builder.build();
 
+
         cameraMount = hardwaremap.get(Servo.class, "cameraServo");
 
+        visionPortal.resumeStreaming();
         ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
         exposureControl.setMode(ExposureControl.Mode.Manual);
         exposureControl.setExposure((long)exposureMS, TimeUnit.MILLISECONDS);
-    }
 
+        colorsAssigned = false;
+
+    }
 
 
     public void alignCameraToTag() {
@@ -65,19 +67,23 @@ public class ShooterCamera {
         double initialPos = cameraMount.getPosition();
         double targetPos;
         double FPS;
+        FPS = (double) 1000 /System.currentTimeMillis();
+        telemetry.addData("FPS", FPS);
+        telemetry.addData("Exposure Time", System.currentTimeMillis());
+
 
         if (lockedTag != null) {
 
-            targetPos = Range.clip(initialPos + lockedTag.ftcPose.elevation/6.28318530718, 0, 1);
-            FPS = (double) 1000 /System.currentTimeMillis();
-            telemetry.addData("Elevation", lockedTag.ftcPose.elevation);
-            telemetry.addData("Exposure Time", System.currentTimeMillis());
-            telemetry.addData("FPS", FPS);
+            targetPos = Range.clip((initialPos + lockedTag.ftcPose.elevation/6.28318530718)/4, 0, .25);
+            telemetry.addData("Elevation (degrees?)", (lockedTag.ftcPose.elevation*57.2958));
+            telemetry.addData("Elevation (radians?)", (lockedTag.ftcPose.elevation));
+
             telemetry.addData("Target Pos", targetPos);
 
-
-            cameraMount.setPosition(targetPos);
-    }
+//            if (Math.abs(lockedTag.ftcPose.elevation/6.28318530718)/4 > 0.05) {
+//                cameraMount.setPosition(targetPos);
+//            }
+        }
 
     }
     public double getServoPos() {
@@ -86,20 +92,14 @@ public class ShooterCamera {
     public double alignRobotToTagPower() {
         AprilTagDetection lockedTag = getBasketDetection();
         double tolerance = 20; // degrees
-        if (lockedTag != null) {
-            double bearingDifference = lockedTag.ftcPose.bearing;
-            if (bearingDifference > 0) {
-                if (bearingDifference > tolerance) {
-                    return .2;
-                }
 
-            } else if (bearingDifference < 0) {
-                if (bearingDifference < -tolerance) {
-                    return -.2;
-                }
+        if (lockedTag == null) return 0;
 
-            }
-        }
+        double bearingDifference = lockedTag.ftcPose.bearing;
+
+        if (bearingDifference > tolerance) return 0.2;
+        if (bearingDifference < -tolerance) return -0.2;
+
         return 0;
     }
 
@@ -109,9 +109,10 @@ public class ShooterCamera {
             if (detection.id == 24 || detection.id == 20) {
                 return detection;
             }
-//            if (detection.id == 21 || detection.id == 22 || detection.id == 23) {
-//                orderID = detection.id;
-//            }
+            if (detection.id == 21 || detection.id == 22 || detection.id == 23) {
+                orderID = detection.id;
+
+            }
             return null; // Return null if the tag is not found
         }
         return null; // Return null if the tag is not found
@@ -123,7 +124,7 @@ public class ShooterCamera {
     //24 (Red)	-1.482m	1.413m	0.749m	-54°
 
     //20 (Blue) -58.35in    -55.63in    29.49in    54°
-    //24 (Red)  -58.35in     55.63in    29.49in   -54°
+    //24 (Red)  -58.35in     55.63in    29.49n   -54°
 
     private static final double[] TAG_20_POSE = {-58.35, -55.63, 54.0};
     private static final double[] TAG_24_POSE = {-58.35, 55.63, -54.0};
