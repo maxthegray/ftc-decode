@@ -237,7 +237,7 @@ public class DriveTrain {
 
 
 
-    private void setDrive(double y, double x, double rx) {
+    public void setDrive(double y, double x, double rx) {
         double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
         double frontLeftPower = (y + x + rx) / denominator;
         double backLeftPower = (y - x + rx) / denominator;

@@ -40,7 +40,7 @@ public class ShooterCamera {
         camera = new AprilTagProcessor.Builder().build();
         VisionPortal.Builder builder = new VisionPortal.Builder();
         builder.setCamera(hardwaremap.get(WebcamName.class, "hsc"));
-        builder.setCameraResolution(new Size(1600, 1200));
+        builder.setCameraResolution(new Size(1280, 800));
         builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
         builder.enableLiveView(false);
         builder.setAutoStartStreamOnBuild(true);
@@ -49,7 +49,10 @@ public class ShooterCamera {
         visionPortal = builder.build();
 
 
+
         cameraMount = hardwaremap.get(Servo.class, "cameraServo");
+        cameraMount.setPosition(.15);
+
 
         visionPortal.resumeStreaming();
         ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
@@ -69,32 +72,28 @@ public class ShooterCamera {
 
         if (lockedTag != null) {
 
-            targetPos = Range.clip((initialPos + (lockedTag.ftcPose.elevation/360)/4), 0, .25);
-            telemetry.addData("Elevation (degrees?)", (lockedTag.ftcPose.elevation/360));
-
-            telemetry.addData("Target Pos", targetPos);
+            targetPos = Range.clip((initialPos + (lockedTag.ftcPose.elevation/360)/4), 0, .5);
 
             cameraMount.setPosition(targetPos);
 
         }
 
     }
-    public double getServoPos() {
-        return cameraMount.getPosition();
-    }
     public double alignRobotToTagPower() {
         AprilTagDetection lockedTag = getBasketDetection();
-        double tolerance = 20; // degrees
+        double tolerance = 1; // degrees
 
         if (lockedTag == null) return 0;
 
         double bearingDifference = lockedTag.ftcPose.bearing;
 
-        if (bearingDifference > tolerance) return 0.2;
-        if (bearingDifference < -tolerance) return -0.2;
+        if (bearingDifference > tolerance) return 0.085;
+        if (bearingDifference < -tolerance) return -0.085;
 
         return 0;
     }
+
+
 
     public AprilTagDetection getBasketDetection() {
         List<AprilTagDetection> currentDetections = camera.getDetections();
@@ -104,7 +103,7 @@ public class ShooterCamera {
             }
             if (detection.id == 21 || detection.id == 22 || detection.id == 23) {
                 orderID = detection.id;
-
+                return null;
             }
             return null; // Return null if the tag is not found
         }
@@ -131,6 +130,11 @@ public class ShooterCamera {
     public int getOrderID() { return orderID; }
     public double getTagElevation() { return tagElevation; }
     public double getFromTagDistance() { return distanceToTag; }
+
+    public boolean canSeeRedTag() {
+        return (getBasketDetection() != null && getBasketDetection().id == 24);
+    }
+
 
     public void addTelemetry() {
         telemetry.addData("Distance to apriltag", distanceToTag);

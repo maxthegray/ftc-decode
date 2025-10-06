@@ -7,42 +7,39 @@ import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
 import org.firstinspires.ftc.teamcode.Shooter.ShooterCamera;
 
 @TeleOp
-public class SensorBot extends LinearOpMode {
-
-    private boolean lockedOn = false;
+public class Autonomous extends LinearOpMode {
     private DriveTrain driveTrain;
-    private UnifiedLocalization location;
     private ShooterCamera shooterCamera;
-    private int state = 0;
-
+   public int switchState = 0;
     @Override
     public void runOpMode() throws InterruptedException {
 
         driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
         shooterCamera = new ShooterCamera(telemetry, hardwareMap);
 
+        while(opModeIsActive() && !isStopRequested()) {
 
-        waitForStart();
-
-
-        if (isStopRequested()) {
-            return;
-        }
-        while (opModeIsActive() && !isStopRequested()) {
-
-            driveTrain.drive();
-
-            if (gamepad1.square) {
-                shootPrime();
+            switch(switchState) {
+                default:
+                    driveTrain.drive();
+                    if (gamepad1.triangle) {
+                        switchState = 1;
+                    }
+                    break;
+                case 1:
+                    shootPrime();
+                    switchState = 2;
+                    break;
+                case 2:
+                    driveTrain.goTo(-4,3,0.2);
+                    switchState = 0;
+                    break;
             }
-
-            telemetry.update();
 
 
         }
 
     }
-
     private void shootPrime() {
         while (!shooterCamera.canSeeRedTag() && opModeIsActive() && !isStopRequested()) {
             driveTrain.setDrive(0,0,-.2);
@@ -54,21 +51,6 @@ public class SensorBot extends LinearOpMode {
             shooterCamera.alignCameraToTag();
             sleep(50);
         }
-    }
-
-
-
-    private void handleControls() throws InterruptedException {
-        if (gamepad1.dpad_down) {
-            driveTrain.goTo(0, 0, 0.1);
-        }
-
-        if (gamepad1.dpad_up) {
-            driveTrain.rampToXYH(0, 0, 0, 1);
-        }
-
-        // toggle lock
-
     }
 
 
