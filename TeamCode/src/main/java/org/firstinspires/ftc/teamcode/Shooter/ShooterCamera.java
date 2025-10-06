@@ -40,7 +40,7 @@ public class ShooterCamera {
         camera = new AprilTagProcessor.Builder().build();
         VisionPortal.Builder builder = new VisionPortal.Builder();
         builder.setCamera(hardwaremap.get(WebcamName.class, "hsc"));
-        builder.setCameraResolution(new Size(1280, 800));
+        builder.setCameraResolution(new Size(1600, 1200));
         builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
         builder.enableLiveView(false);
         builder.setAutoStartStreamOnBuild(true);
