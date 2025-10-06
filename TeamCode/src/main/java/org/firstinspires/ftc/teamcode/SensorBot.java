@@ -21,14 +21,31 @@ public class SensorBot extends LinearOpMode {
         driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
         shooterCamera = new ShooterCamera(telemetry, hardwareMap);
 
-        while (opModeIsActive()) {
-            driveTrain.drive();
-            handleControls();}
+
+        waitForStart();
+
+
+        if (isStopRequested()) {
+            return;
         }
+        while (opModeIsActive() && !isStopRequested()) {
+
+
+            shooterCamera.alignCameraToTag();
+
+            telemetry.update();
+            sleep(30);
+
+
+        }
+
+        }
+
+
 
     private void handleControls() throws InterruptedException {
         if (gamepad1.dpad_down) {
-            driveTrain.goTo(0, 0, 0.5);
+            driveTrain.goTo(0, 0, 0.1);
         }
 
         if (gamepad1.dpad_up) {
@@ -36,15 +53,7 @@ public class SensorBot extends LinearOpMode {
         }
 
         // toggle lock
-        if (gamepad1.a) {
-            if (lockedOn) {
-                driveTrain.unlockFromTag();
-            } else {
-                driveTrain.lockOntoTag();
-            }
-            lockedOn = !lockedOn;
-            sleep(50); // debounce
-        }
+
     }
 
 

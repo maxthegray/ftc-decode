@@ -9,12 +9,14 @@ import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class ShooterCamera {
 
@@ -27,16 +29,17 @@ public class ShooterCamera {
     private double tagElevation;
     boolean colorsAssigned;
     private int orderID;
+    private int exposureMS = 100;
 
     Servo cameraMount;
 
     public ShooterCamera(Telemetry telemetryy, HardwareMap hardwaremap) {
 
-        telemetry = telemetryy;
 
+        telemetry = telemetryy;
         camera = new AprilTagProcessor.Builder().build();
         VisionPortal.Builder builder = new VisionPortal.Builder();
-        builder.setCamera(hardwaremap.get(WebcamName.class, "shooterCamera"));
+        builder.setCamera(hardwaremap.get(WebcamName.class, "hsc"));
         builder.setCameraResolution(new Size(1280, 800));
         builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
         builder.enableLiveView(false);
@@ -44,23 +47,42 @@ public class ShooterCamera {
 
         colorsAssigned = false;
 
+
         visionPortal = builder.build();
 
         cameraMount = hardwaremap.get(Servo.class, "cameraServo");
+
+        ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
+        exposureControl.setMode(ExposureControl.Mode.Manual);
+        exposureControl.setExposure((long)exposureMS, TimeUnit.MILLISECONDS);
     }
 
 
 
     public void alignCameraToTag() {
+
         AprilTagDetection lockedTag = getBasketDetection();
+        double initialPos = cameraMount.getPosition();
+        double targetPos;
+        double FPS;
 
         if (lockedTag != null) {
-            double elevationDifference = cameraMount.getPosition() + (lockedTag.ftcPose.elevation / 360) / 4; //normalized 0-90 or 0-0.75deg
 
-            cameraMount.setPosition(Math.abs(elevationDifference));
-        }
+            targetPos = Range.clip(initialPos + lockedTag.ftcPose.elevation/6.28318530718, 0, 1);
+            FPS = (double) 1000 /System.currentTimeMillis();
+            telemetry.addData("Elevation", lockedTag.ftcPose.elevation);
+            telemetry.addData("Exposure Time", System.currentTimeMillis());
+            telemetry.addData("FPS", FPS);
+            telemetry.addData("Target Pos", targetPos);
+
+
+            cameraMount.setPosition(targetPos);
     }
 
+    }
+    public double getServoPos() {
+        return cameraMount.getPosition();
+    }
     public double alignRobotToTagPower() {
         AprilTagDetection lockedTag = getBasketDetection();
         double tolerance = 20; // degrees
@@ -81,16 +103,15 @@ public class ShooterCamera {
         return 0;
     }
 
-
     public AprilTagDetection getBasketDetection() {
         List<AprilTagDetection> currentDetections = camera.getDetections();
         for (AprilTagDetection detection : currentDetections) {
             if (detection.id == 24 || detection.id == 20) {
                 return detection;
             }
-            if (detection.id == 21 || detection.id == 22 || detection.id == 23) {
-                orderID = detection.id;
-            }
+//            if (detection.id == 21 || detection.id == 22 || detection.id == 23) {
+//                orderID = detection.id;
+//            }
             return null; // Return null if the tag is not found
         }
         return null; // Return null if the tag is not found

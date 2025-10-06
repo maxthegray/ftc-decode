@@ -20,7 +20,7 @@ public class LocalizationCamera {
 
         camera = new AprilTagProcessor.Builder().build();
         VisionPortal.Builder builder = new VisionPortal.Builder();
-        builder.setCamera(hardwaremap.get(WebcamName.class, "locationCamera"));
+        builder.setCamera(hardwaremap.get(WebcamName.class, "hsc"));
         builder.setCameraResolution(new Size(1280, 800));
         builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
         builder.enableLiveView(true);
