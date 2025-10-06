@@ -29,7 +29,7 @@ public class ShooterCamera {
     private double tagElevation;
     boolean colorsAssigned;
     private int orderID;
-    private int exposureMS = 100;
+    private int exposureMS = 10;
 
     Servo cameraMount;
 
@@ -66,23 +66,16 @@ public class ShooterCamera {
         AprilTagDetection lockedTag = getBasketDetection();
         double initialPos = cameraMount.getPosition();
         double targetPos;
-        double FPS;
-        FPS = (double) 1000 /System.currentTimeMillis();
-        telemetry.addData("FPS", FPS);
-        telemetry.addData("Exposure Time", System.currentTimeMillis());
-
 
         if (lockedTag != null) {
 
-            targetPos = Range.clip((initialPos + lockedTag.ftcPose.elevation/6.28318530718)/4, 0, .25);
-            telemetry.addData("Elevation (degrees?)", (lockedTag.ftcPose.elevation*57.2958));
-            telemetry.addData("Elevation (radians?)", (lockedTag.ftcPose.elevation));
+            targetPos = Range.clip((initialPos + (lockedTag.ftcPose.elevation/360)/4), 0, .25);
+            telemetry.addData("Elevation (degrees?)", (lockedTag.ftcPose.elevation/360));
 
             telemetry.addData("Target Pos", targetPos);
 
-//            if (Math.abs(lockedTag.ftcPose.elevation/6.28318530718)/4 > 0.05) {
-//                cameraMount.setPosition(targetPos);
-//            }
+            cameraMount.setPosition(targetPos);
+
         }
 
     }

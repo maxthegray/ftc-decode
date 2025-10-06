@@ -29,6 +29,8 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import android.util.Size;
+
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -164,6 +166,9 @@ public class FindOptimalExposure extends LinearOpMode
         visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "hsc"))
                 .addProcessor(aprilTag)
+                .setCameraResolution(new Size(1280, 800))
+                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
+
                 .build();
     }
 

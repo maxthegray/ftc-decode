@@ -50,17 +50,11 @@ public class SensorBot extends LinearOpMode {
 //                    telemetry.addData("TagAlignPower", shooterCamera.alignRobotToTagPower());
 //                    break;
 //            }
-            switch (state){
-                case 0:
-                    shooterCamera.alignCameraToTag();
-                    telemetry.update();
-                    state = 1;
-                case 1:
-                    if (gamepad1.cross) {
-                        state = 0;
-                    }
-                    driveTrain.drive();
-            }
+            driveTrain.drive();
+            shooterCamera.alignCameraToTag();
+            telemetry.update();
+            sleep(10);
+
 
         }
 
