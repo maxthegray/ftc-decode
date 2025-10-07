@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
+//import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
 import org.firstinspires.ftc.teamcode.Shooter.ShooterCamera;
 
 @TeleOp
@@ -11,7 +11,6 @@ public class SensorBot extends LinearOpMode {
 
     private boolean lockedOn = false;
     private DriveTrain driveTrain;
-    private UnifiedLocalization location;
     private ShooterCamera shooterCamera;
     private int state = 0;
 
@@ -58,18 +57,6 @@ public class SensorBot extends LinearOpMode {
 
 
 
-    private void handleControls() throws InterruptedException {
-        if (gamepad1.dpad_down) {
-            driveTrain.goTo(0, 0, 0.1);
-        }
-
-        if (gamepad1.dpad_up) {
-            driveTrain.rampToXYH(0, 0, 0, 1);
-        }
-
-        // toggle lock
-
-    }
 
 
 }
