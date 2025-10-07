@@ -30,6 +30,6 @@ android {
 
 dependencies {
     implementation project(':FtcRobotController')
-    implementation "com.bylazar:<PRESET>:<VERSION>"
+    implementation "com.bylazar:fullpanels:1.0.3"
 
 }
