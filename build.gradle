@@ -8,10 +8,15 @@ buildscript {
     repositories {
         mavenCentral()
         google()
+        maven {
+            url = "https://mymaven.bylazar.com/releases"
+        }
     }
     dependencies {
         // Note for FTC Teams: Do not modify this yourself.
         classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.0"
+
     }
 }
 
@@ -21,6 +26,9 @@ allprojects {
     repositories {
         mavenCentral()
         google()
+        maven {
+            url = "https://mymaven.bylazar.com/releases"
+        }
     }
 }
 
