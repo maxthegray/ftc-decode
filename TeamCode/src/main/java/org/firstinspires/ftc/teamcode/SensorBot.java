@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -13,13 +14,14 @@ public class SensorBot extends LinearOpMode {
     private DriveTrain driveTrain;
     private ShooterCamera shooterCamera;
     private int state = 0;
+    SparkFunOTOS odo;
 
     @Override
     public void runOpMode() throws InterruptedException {
 
         driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
         shooterCamera = new ShooterCamera(telemetry, hardwareMap);
-
+        odo = hardwareMap.get(SparkFunOTOS.class, "odo");
 
         waitForStart();
 
@@ -30,6 +32,10 @@ public class SensorBot extends LinearOpMode {
         while (opModeIsActive() && !isStopRequested()) {
 
             driveTrain.drive();
+            telemetry.addData("x", odo.getPosition().x);
+            telemetry.addData("y", odo.getPosition().y);
+
+
 
             if (gamepad1.square) {
                 shootPrime();
