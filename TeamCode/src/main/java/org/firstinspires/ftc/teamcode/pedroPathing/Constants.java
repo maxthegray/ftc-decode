@@ -6,6 +6,7 @@ import com.pedropathing.ftc.FollowerBuilder;
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
 import com.pedropathing.ftc.localization.constants.OTOSConstants;
 import com.pedropathing.paths.PathConstraints;
+import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -32,6 +33,8 @@ public class Constants {
     public static OTOSConstants localizerConstants = new OTOSConstants()
             .hardwareMapName("odo")
             .linearUnit(DistanceUnit.INCH)
+            .offset(new SparkFunOTOS.Pose2D(0,0,0))
+
             .angleUnit(AngleUnit.RADIANS);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
