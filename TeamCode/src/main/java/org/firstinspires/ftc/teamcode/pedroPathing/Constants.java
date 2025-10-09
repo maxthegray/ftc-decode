@@ -24,8 +24,8 @@ public class Constants {
             .rightFrontMotorName("frontRightMotor")
             .rightRearMotorName("backRightMotor")
             .leftRearMotorName("backLeftMotor")
-            .leftFrontMotorName("backRightMotor")
-            .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
+            .leftFrontMotorName("frontLeftMotor")
+            .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
@@ -34,8 +34,9 @@ public class Constants {
             .hardwareMapName("odo")
             .linearUnit(DistanceUnit.INCH)
             .offset(new SparkFunOTOS.Pose2D(0,0,0))
-
-            .angleUnit(AngleUnit.RADIANS);
+            .linearScalar(-1.0)
+            .angularScalar(.997)
+            .angleUnit(AngleUnit.DEGREES);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)

@@ -272,7 +272,7 @@ class LateralTuner extends OpMode {
  * @version 1.0, 5/6/2024
  */
 class TurnTuner extends OpMode {
-    public static double ANGLE = 2 * Math.PI;
+    public static double ANGLE = 360.00;
 
     @Override
     public void init() {
@@ -283,7 +283,7 @@ class TurnTuner extends OpMode {
     /** This initializes the PoseUpdater as well as the Panels telemetry. */
     @Override
     public void init_loop() {
-        telemetryM.debug("Turn your robot " + ANGLE + " radians. Your turn ticks to inches will be shown on the telemetry.");
+        telemetryM.debug("Turn your robot " + ANGLE + " degrees. Your turn ticks to inches will be shown on the telemetry.");
         telemetryM.update(telemetry);
 
         drawOnlyCurrent();
