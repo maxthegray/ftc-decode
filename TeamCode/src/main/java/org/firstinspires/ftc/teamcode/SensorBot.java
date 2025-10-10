@@ -18,7 +18,7 @@ public class SensorBot extends LinearOpMode {
     public void runOpMode() throws InterruptedException {
 
         driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
-        shooterCamera = new ShooterCamera(telemetry, hardwareMap);
+        //shooterCamera = new ShooterCamera(telemetry, hardwareMap);
 
 
         waitForStart();
@@ -32,7 +32,7 @@ public class SensorBot extends LinearOpMode {
             driveTrain.drive();
 
             if (gamepad1.square) {
-                shootPrime();
+               // shootPrime();
             }
 
             telemetry.update();
@@ -42,18 +42,18 @@ public class SensorBot extends LinearOpMode {
 
     }
 
-    private void shootPrime() {
-        while (!shooterCamera.canSeeRedTag() && opModeIsActive() && !isStopRequested()) {
-            driveTrain.setDrive(0,0,-.2);
-        }
-        while (Math.abs(shooterCamera.alignRobotToTagPower()) > 0) {
-            driveTrain.setDrive(0,0,-shooterCamera.alignRobotToTagPower());
-        }
-        for (int i = 0; i < 5; i++) {
-            shooterCamera.alignCameraToTag();
-            sleep(50);
-        }
-    }
+//    private void shootPrime() {
+//        while (!shooterCamera.canSeeRedTag() && opModeIsActive() && !isStopRequested()) {
+//            driveTrain.setDrive(0,0,-.2);
+//        }
+//        while (Math.abs(shooterCamera.alignRobotToTagPower()) > 0) {
+//            driveTrain.setDrive(0,0,-shooterCamera.alignRobotToTagPower());
+//        }
+//        for (int i = 0; i < 5; i++) {
+//            shooterCamera.alignCameraToTag();
+//            sleep(50);
+//        }
+//    }
 
 
 

@@ -21,6 +21,8 @@ public class Constants {
 
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
+            .xVelocity(98.1398454801304)
+            .yVelocity(78.54551780880907)
             .rightFrontMotorName("frontRightMotor")
             .rightRearMotorName("backRightMotor")
             .leftRearMotorName("backLeftMotor")
@@ -34,15 +36,15 @@ public class Constants {
             .hardwareMapName("odo")
             .linearUnit(DistanceUnit.INCH)
             .offset(new SparkFunOTOS.Pose2D(0,0,0))
-            .linearScalar(-1.0)
             .angularScalar(.997)
+            .linearScalar(-1.0)
             .angleUnit(AngleUnit.DEGREES);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)
+                .OTOSLocalizer(localizerConstants)
                 .pathConstraints(pathConstraints)
                 .mecanumDrivetrain(driveConstants)
-                .OTOSLocalizer(localizerConstants)
                 .build();
     }
 
