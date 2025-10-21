@@ -16,6 +16,8 @@ public class DriveTrain {
     DcMotor frontRightMotor = null;
     DcMotor backRightMotor = null;
 
+    DcMotor launcherMotor = null;
+
     Gamepad gamepad;
 
     ShooterCamera shooterCamera;
@@ -40,6 +42,7 @@ public class DriveTrain {
         backLeftMotor = hardwaremp.dcMotor.get("backLeftMotor");
         frontRightMotor = hardwaremp.dcMotor.get("frontRightMotor");
         backRightMotor = hardwaremp.dcMotor.get("backRightMotor");
+        launcherMotor = hardwaremp.dcMotor.get("launcherMotor");
 
         frontLeftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
         backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);

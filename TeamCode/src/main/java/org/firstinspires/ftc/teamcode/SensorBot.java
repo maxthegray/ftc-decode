@@ -27,14 +27,32 @@ public class SensorBot extends LinearOpMode {
         if (isStopRequested()) {
             return;
         }
+        boolean launcherOn = false;
+        double motorPower = 0.5;
+
         while (opModeIsActive() && !isStopRequested()) {
 
+            if (launcherOn==true) {
+                driveTrain.launcherMotor.setPower(motorPower);
+            } else {
+                driveTrain.launcherMotor.setPower(0);
+            }
+
+            if (gamepad1.dpad_up) {
+                motorPower += 0.05;
+            }
+            if (gamepad1.dpad_down){
+                motorPower -= 0.05;
+            }
             driveTrain.drive();
 
             if (gamepad1.square) {
                // shootPrime();
+               launcherOn = !launcherOn;
             }
-
+            telemetry.addData("Up on Dpad to increase power, down on Dpad to decrease power", "");
+            telemetry.addData("Power", motorPower);
+            telemetry.addData("Press square to turn on/off motor", "");
             telemetry.update();
 
 
