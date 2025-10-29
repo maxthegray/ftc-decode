@@ -15,14 +15,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
-        .mass(1);
-
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1, 1);
+    .mass(5);
 
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
-            .xVelocity(98.1398454801304)
-            .yVelocity(78.54551780880907)
             .rightFrontMotorName("frontRightMotor")
             .rightRearMotorName("backRightMotor")
             .leftRearMotorName("backLeftMotor")
@@ -30,16 +26,19 @@ public class Constants {
             .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD);
+            .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .xVelocity(86.7)
+            .yVelocity(68.62);
 
     public static OTOSConstants localizerConstants = new OTOSConstants()
             .hardwareMapName("odo")
             .linearUnit(DistanceUnit.INCH)
             .offset(new SparkFunOTOS.Pose2D(0,0,0))
-            .angularScalar(.997)
-            .linearScalar(-1.0)
-            .angleUnit(AngleUnit.DEGREES);
+            .linearScalar(-.995)
+            .angleUnit(AngleUnit.RADIANS)
+            .angularScalar(.997);
 
+    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1, 1);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)
@@ -48,5 +47,4 @@ public class Constants {
                 .mecanumDrivetrain(driveConstants)
                 .build();
     }
-
 }
