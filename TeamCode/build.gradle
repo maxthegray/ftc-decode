@@ -33,5 +33,5 @@ dependencies {
     implementation "com.bylazar:fullpanels:1.0.8"
     implementation 'dev.nextftc:ftc:1.0.1'
     implementation 'dev.nextftc:hardware:1.0.1' // If you would like to use the hardware module
-
+    implementation 'org.ftclib.ftclib:core:2.1.1' // core
 }
