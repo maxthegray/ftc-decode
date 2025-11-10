@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -19,7 +20,6 @@ public class SensorBot extends LinearOpMode {
 
         driveTrain = new DriveTrain(hardwareMap, gamepad1, telemetry);
         //shooterCamera = new ShooterCamera(telemetry, hardwareMap);
-
 
         waitForStart();
 

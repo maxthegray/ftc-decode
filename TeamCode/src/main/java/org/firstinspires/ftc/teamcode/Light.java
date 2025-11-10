@@ -23,15 +23,20 @@ public class Light extends OpMode {
         light.setPosition(position);
         telemetry.addData("Light Position", light.getPosition());
 
+        light.setPosition(.480);
+        sleep(1000);
+        light.setPosition(.722);
+        sleep(1000);
 
-        if (gamepad1.dpad_up) {
-            position +=.05;
-            sleep(100);
-        }
-        if (gamepad1.dpad_down) {
-            position -=.05;
-            sleep(100);
-        }
+//        if (gamepad1.dpad_up) {
+//            position += .05;
+//            sleep(100);
+//        }
+//        if (gamepad1.dpad_down) {
+//            position -=.05;
+//            sleep(100);
+//        }
+        telemetry.update();
 
 
     }
