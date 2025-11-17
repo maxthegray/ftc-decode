@@ -4,16 +4,14 @@ import static android.os.SystemClock.sleep;
 
 import com.pedropathing.follower.Follower;
 import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 
 @TeleOp(name = "detector", group = "Testing")
@@ -23,13 +21,26 @@ public class Detector extends OpMode {
     Limelight3A limelight;
     LLResult result = limelight.getLatestResult();
     private Follower follower;
-    private double adjustmentCoeficcient;
+    private double adjustment = 0;
 
     int greenPurple = 0; //0 is green 1 is purple
 
+    DcMotor frontLeftMotor = null;
+    DcMotor backLeftMotor = null;
+    DcMotor frontRightMotor = null;
+    DcMotor backRightMotor = null;
+
     @Override
     public void init() {
-        follower = Constants.createFollower(hardwareMap);
+        frontLeftMotor = hardwareMap.dcMotor.get("frontLeftMotor");
+        backLeftMotor = hardwareMap.dcMotor.get("backLeftMotor");
+        frontRightMotor = hardwareMap.dcMotor.get("frontRightMotor");
+        backRightMotor = hardwareMap.dcMotor.get("backRightMotor");
+        frontLeftMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        backLeftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        frontRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        backRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+
 
         light = hardwareMap.get(Servo.class, "light");
         position = 0;
@@ -43,26 +54,25 @@ public class Detector extends OpMode {
         if (greenPurple == 0) {
             if (result.isValid()) {
                 light.setPosition(.475);
-                adjustmentCoeficcient = result.getTx()/360;
-                telemetry.addData("adjustment", adjustmentCoeficcient);
+                adjustment = result.getTx()/360;
+                telemetry.addData("adjustment", adjustment);
                 telemetry.addData("x diff", result.getTx());
-            } else {adjustmentCoeficcient = 0;}
+            } else {adjustment = 0;}
 
-
-    } else if (greenPurple == 1) {
+        } else if (greenPurple == 1) {
             if (result.isValid()) {
                 light.setPosition(.722);
-                adjustmentCoeficcient = result.getTx()/360;
-                telemetry.addData("adjustment", adjustmentCoeficcient);
+                adjustment = result.getTx()/360;
+                telemetry.addData("adjustment", adjustment);
                 telemetry.addData("x diff", result.getTx());
-            } else {adjustmentCoeficcient = 0;}
+            } else {
+                adjustment = 0;}
         }
-        follower.setTeleOpDrive(
-                -gamepad1.left_stick_y,
-                -gamepad1.left_stick_x,
-                -gamepad1.right_stick_x + adjustmentCoeficcient,
-                true // Robot Centric
-        );
+        frontLeftMotor.setPower(-adjustment);
+        backLeftMotor.setPower(-adjustment);
+        frontRightMotor.setPower(adjustment);
+        backRightMotor.setPower(adjustment);
+
 
         telemetry.update();
 
