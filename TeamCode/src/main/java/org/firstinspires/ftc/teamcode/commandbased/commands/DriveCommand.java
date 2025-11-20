@@ -19,13 +19,12 @@ public class DriveCommand extends CommandBase {
 
     @Override
     public void execute() {
-        // Get gamepad inputs
-        double strafeSpeed = -gamepad.getLeftX();
         double forwardSpeed = -gamepad.getLeftY();
+        double strafeSpeed = -gamepad.getLeftX();
         double rotationSpeed = -gamepad.getRightX();
 
-        // Drive the robot
-        driveSubsystem.drive(strafeSpeed, forwardSpeed, rotationSpeed);
+        // drive w pedro
+        driveSubsystem.drive(forwardSpeed, strafeSpeed, rotationSpeed);
     }
 
     @Override
