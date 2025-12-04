@@ -4,19 +4,20 @@ import static android.os.SystemClock.sleep;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 
-@TeleOp(name = "Light", group = "Testing")
-public class motor extends OpMode {
+@TeleOp(name = "Flicker", group = "Testing")
+public class FlickerTest extends OpMode {
     Servo servo;
     double position;
 
+    double down = 0;
+    double up = 1;
+
     @Override
     public void init() {
-        servo = hardwareMap.get(Servo.class, "servo");
-        position = 0;
+        servo = hardwareMap.get(Servo.class, "flickerServo");
+        position = down;
     }
 
     @Override
@@ -25,11 +26,11 @@ public class motor extends OpMode {
         telemetry.addData("servo position:", position);
 
         if (gamepad1.dpad_up) {
-            position = 1;
+            position = up;
             sleep(100);
         }
         if (gamepad1.dpad_down) {
-            position = 0;
+            position = down;
             sleep(100);
         }
         telemetry.update();
