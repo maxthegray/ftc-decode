@@ -9,6 +9,9 @@ public class Fins extends LinearOpMode {
 
     private DigitalChannel leftFinLimit;
     private DigitalChannel rightFinLimit;
+    private boolean clockwise = true;
+    private boolean betweenFins = false;
+
 
 
     @Override
@@ -31,6 +34,24 @@ public class Fins extends LinearOpMode {
 
             telemetry.update();
 
+        }
+
+    }
+    private void IsAtPos() {
+        boolean leftTriggered = !leftFinLimit.getState();
+        boolean rightTriggered = !rightFinLimit.getState();
+        if (clockwise) {
+            if (!rightTriggered) {
+                betweenFins = false;
+            } else if (leftTriggered) {
+                betweenFins = true;
+            }
+        } else {
+            if (leftTriggered) {
+                betweenFins = false;
+            } else if (rightTriggered) {
+                betweenFins = true;
+            }
         }
     }
 }
