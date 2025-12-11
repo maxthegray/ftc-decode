@@ -14,6 +14,11 @@ import org.firstinspires.ftc.teamcode.R;
 public class CarouselTests extends OpMode {
     DcMotor carouselMotor;
     double motorPosition;
+    int targetPosition = 0;
+    int ticksPerRevolution = 6700/4;
+    int position1 = 0;
+    int position2 = ticksPerRevolution / 3;
+    int position3 = (ticksPerRevolution / 3) * 2;
 
     private DigitalChannel leftFinLimit;
     private DigitalChannel rightFinLimit;
@@ -23,7 +28,6 @@ public class CarouselTests extends OpMode {
        carouselMotor = hardwareMap.dcMotor.get("carouselMotor");
        carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
        carouselMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-       carouselMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
        leftFinLimit = hardwareMap.get(DigitalChannel.class, "leftFin");
        leftFinLimit.setMode(DigitalChannel.Mode.INPUT);
@@ -35,16 +39,20 @@ public class CarouselTests extends OpMode {
     @Override
     public void loop() {
         motorPosition = carouselMotor.getCurrentPosition();
-        carouselMotor.setPower(gamepad1.left_stick_x);
+        if (gamepad1.square) {
+            targetPosition = position1;
+        }
+        if (gamepad1.triangle) {
+            targetPosition = position2;
+        }
+        if (gamepad1.circle) {
+            targetPosition = position3;
+        }
+        carouselMotor.setTargetPosition(targetPosition);
 
-        if (gamepad1.dpad_left) {
-            rotate(-1);
-            sleep(500);
-        }
-        if (gamepad1.dpad_right) {
-            rotate(1);
-            sleep(500);
-        }
+        carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        carouselMotor.setPower(0.6);
+//          carouselMotor.setPower(gamepad1.left_stick_x);
 
         telemetry.addData("Carousel Motor Power", carouselMotor.getPower());
         telemetry.addData("Carousel Motor Position", carouselMotor.getCurrentPosition());
@@ -55,12 +63,5 @@ public class CarouselTests extends OpMode {
         telemetry.update();
     }
 
-    public void rotate(int LR) {
-        carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        carouselMotor.setTargetPosition(carouselMotor.getCurrentPosition() + LR * 2000);
-
-
-
-    }
 }
 
