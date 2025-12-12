@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.commandbased;
 import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.teamcode.commandbased.commands.DriveCommand;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
@@ -11,24 +12,21 @@ import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
 public class DriveOpMode extends CommandOpMode {
 
     private DriveSubsystem driveSubsystem;
-    private GamepadEx driverGamepad;
     private DriveCommand driveCommand;
 
     @Override
     public void initialize() {
         driveSubsystem = new DriveSubsystem(hardwareMap);
 
-        driverGamepad = new GamepadEx(gamepad1);
-
-        driveCommand = new DriveCommand(driveSubsystem, driverGamepad);
+        driveCommand = new DriveCommand(driveSubsystem, gamepad1);
 
         // drive command as default (continuously)
         driveSubsystem.setDefaultCommand(driveCommand);
+
     }
 
     @Override
     public void run() {
-        driverGamepad.readButtons();
 
         com.pedropathing.geometry.Pose currentPose = driveSubsystem.getPose();
         telemetry.addData("X Position", "%.2f inches", currentPose.getX());

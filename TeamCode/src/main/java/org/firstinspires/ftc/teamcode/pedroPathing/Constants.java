@@ -24,12 +24,13 @@ public class Constants {
             .rightRearMotorName("backRightMotor")
             .leftRearMotorName("backLeftMotor")
             .leftFrontMotorName("frontLeftMotor")
-            .leftFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
+            .leftFrontMotorDirection(DcMotorSimple.Direction.REVERSE)
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(86.7)
-            .yVelocity(68.62);
+            .xVelocity(1)
+            .yVelocity(1);
+
 
     public static OTOSConstants localizerConstants = new OTOSConstants()
             .hardwareMapName("sensor_otos")

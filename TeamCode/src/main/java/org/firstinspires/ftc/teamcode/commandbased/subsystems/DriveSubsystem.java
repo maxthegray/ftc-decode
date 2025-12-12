@@ -5,10 +5,8 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
-import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 public class DriveSubsystem extends SubsystemBase {
@@ -24,12 +22,13 @@ public class DriveSubsystem extends SubsystemBase {
         // Start with arbitrary pose - will be corrected by AprilTag
         follower.setStartingPose(new Pose(0, 0, 0));
         poseInitialized = false;
+        follower.startTeleOpDrive();
     }
 
     @Override
     public void periodic() {
         // Update follower every cycle
-        follower.update();
+//        follower.update();
     }
 
     /**
@@ -41,7 +40,7 @@ public class DriveSubsystem extends SubsystemBase {
      * @param rotationSpeed Rotation speed (-1 to 1)
      */
     public void drive(double forwardSpeed, double strafeSpeed, double rotationSpeed) {
-        follower.setTeleOpDrive(forwardSpeed, strafeSpeed, rotationSpeed);
+        follower.setTeleOpDrive(0, 0, 0);
         isFollowingPath = false;
     }
 
