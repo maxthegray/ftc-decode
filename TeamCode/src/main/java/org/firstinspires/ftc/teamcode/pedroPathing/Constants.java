@@ -32,7 +32,7 @@ public class Constants {
             .yVelocity(68.62);
 
     public static OTOSConstants localizerConstants = new OTOSConstants()
-            .hardwareMapName("odo")
+            .hardwareMapName("sensor_otos")
             .linearUnit(DistanceUnit.INCH)
             .offset(new SparkFunOTOS.Pose2D(0,0,0))
             .linearScalar(-.995)
