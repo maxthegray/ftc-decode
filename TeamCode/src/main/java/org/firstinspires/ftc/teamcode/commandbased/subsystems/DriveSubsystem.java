@@ -44,6 +44,12 @@ public class DriveSubsystem extends SubsystemBase {
         isFollowingPath = false;
     }
 
+    public void initializeTeleOpDrive() {
+        follower.startTeleOpDrive();
+    }
+
+
+
     public void stop() {
         follower.setTeleOpDrive(0, 0, 0);
         isFollowingPath = false;
