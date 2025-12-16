@@ -84,7 +84,7 @@ public class justDrive extends OpMode {
         updateTelemetry();
     }
 
-    // ==================== DRIVE ====================
+    // Drive
 
     private void handleDrive() {
         double forward = -gamepad1.left_stick_y;
@@ -95,7 +95,7 @@ public class justDrive extends OpMode {
         follower.update();
     }
 
-    // ==================== CAROUSEL ====================
+    // Carousel
 
     private void handleCarouselInput() {
         if (gamepad2.square) {
@@ -118,7 +118,7 @@ public class justDrive extends OpMode {
         return error <= POSITION_TOLERANCE;
     }
 
-    // ==================== FLICKER ====================
+    // Flicker
 
     private void handleFlickerInput() {
         if (!isCarouselSettled()) {
@@ -136,7 +136,7 @@ public class justDrive extends OpMode {
         flickerServo.setPosition(flickerPosition);
     }
 
-    // ==================== TELEMETRY ====================
+    // Telemtry
 
     private void updateTelemetry() {
         //drive info

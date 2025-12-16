@@ -24,8 +24,6 @@ public class DriveOpMode extends CommandOpMode {
         driveSubsystem.setDefaultCommand(driveCommand);
 
         driveSubsystem.initializeTeleOpDrive();
-
-
     }
 
     @Override

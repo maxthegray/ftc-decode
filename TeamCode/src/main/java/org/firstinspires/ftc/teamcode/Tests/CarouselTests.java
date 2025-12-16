@@ -31,6 +31,7 @@ public class CarouselTests extends OpMode {
     // limit switches
     private DigitalChannel leftFinLimit;
     private DigitalChannel rightFinLimit;
+    private int gapsPassed = 0;
 
     @Override
     public void init() {
@@ -129,8 +130,18 @@ public class CarouselTests extends OpMode {
         telemetry.addData("Right Fin", getLimitSwitchStatus(rightFinLimit));
         telemetry.update();
     }
+    // limit switch
+    private void updateLimitSwitches() {
 
+    }
+    private void checkLimitSwitches() {
+        if (leftFinLimit.getState() == false || rightFinLimit.getState() == false) {
+            gapsPassed++;
+        }
+    }
     private String getLimitSwitchStatus(DigitalChannel limitSwitch) {
         return limitSwitch.getState() ? "P" : "NP";
     }
+
+
 }
