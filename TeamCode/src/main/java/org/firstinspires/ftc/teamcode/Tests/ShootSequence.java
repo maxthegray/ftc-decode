@@ -7,8 +7,12 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.teamcode.Robot;
+
 @TeleOp(name = "flickyy", group = "Testing")
 public class ShootSequence extends OpMode {
+
+    private Robot r;
 
     private enum BallColor { GREEN, PURPLE, EMPTY }
 
@@ -26,13 +30,9 @@ public class ShootSequence extends OpMode {
     private State state = State.MOVING;
 
     // Carousel
-    private DcMotor carouselMotor;
-    private static final double POWER = 0.4;
+    private static final double POWER = 0.1;
     private static final int NUM_POSITIONS = 3;
 
-    // Limit switches (fins)
-    private DigitalChannel leftFinLimit;
-    private DigitalChannel rightFinLimit;
 
     // Hole tracking
     private boolean wasInHole = false;
@@ -44,7 +44,6 @@ public class ShootSequence extends OpMode {
     private int direction = 0;
 
     // Flicker
-    private Servo flickerServo;
     private static final double DOWN = 0;
     private static final double UP = 0.4;
     private static final double FLICK_DURATION = 1.0;
@@ -52,10 +51,10 @@ public class ShootSequence extends OpMode {
 
     @Override
     public void init() {
-        initCarousel();
-        initLimitSwitches();
+        r = new Robot(hardwareMap);
+        r.init();
+
         initHoleTracking();
-        initFlicker();
         queueNextShot();
     }
 
@@ -71,7 +70,7 @@ public class ShootSequence extends OpMode {
                 updateFlicker();
                 break;
             case DONE:
-                carouselMotor.setPower(0);
+                r.carouselMotor.setPower(0);
                 break;
         }
 
@@ -80,27 +79,10 @@ public class ShootSequence extends OpMode {
 
     // Init methods
 
-    private void initCarousel() {
-        carouselMotor = hardwareMap.dcMotor.get("carouselMotor");
-        carouselMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-    }
-
-    private void initLimitSwitches() {
-        leftFinLimit = hardwareMap.get(DigitalChannel.class, "leftFin");
-        leftFinLimit.setMode(DigitalChannel.Mode.INPUT);
-
-        rightFinLimit = hardwareMap.get(DigitalChannel.class, "rightFin");
-        rightFinLimit.setMode(DigitalChannel.Mode.INPUT);
-    }
 
     private void initHoleTracking() {
         wasInHole = isFinInHole();
         holeCount = 0;
-    }
-
-    private void initFlicker() {
-        flickerServo = hardwareMap.get(Servo.class, "flickServo");
-        flickerServo.setPosition(DOWN);
     }
 
     // Fin/hole methods
@@ -120,7 +102,7 @@ public class ShootSequence extends OpMode {
     }
 
     private boolean isFinInHole() {
-        return leftFinLimit.getState() || rightFinLimit.getState();
+        return !r.leftLim.getState() || !r.rightLim.getState();
     }
 
     private boolean isAlignmentHole() {
@@ -188,12 +170,12 @@ public class ShootSequence extends OpMode {
 
     private void updateCarousel() {
         if (isCarouselSettled()) {
-            carouselMotor.setPower(0);
+            r.carouselMotor.setPower(0);
             direction = 0;
             state = State.FLICKING;
             flickTimer.reset();
         } else {
-            carouselMotor.setPower(POWER * direction);
+            r.carouselMotor.setPower(POWER * direction);
         }
     }
 
@@ -205,9 +187,9 @@ public class ShootSequence extends OpMode {
 
     private void updateFlicker() {
         if (flickTimer.seconds() < FLICK_DURATION) {
-            flickerServo.setPosition(UP);
+            r.kicker.setPosition(UP);
         } else {
-            flickerServo.setPosition(DOWN);
+            r.kicker.setPosition(DOWN);
             shootBall();
             queueNextShot();
         }

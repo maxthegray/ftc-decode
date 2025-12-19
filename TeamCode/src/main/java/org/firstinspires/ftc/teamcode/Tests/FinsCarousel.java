@@ -15,7 +15,19 @@ public class FinsCarousel extends OpMode {
 
     private Robot r;
     // Carousel
-    private static final double POWER = 0.5;
+
+    private int threshold = 1800;
+
+    private enum BallColor { GREEN, PURPLE, EMPTY }
+
+    private BallColor[] slots = { BallColor.EMPTY, BallColor.EMPTY, BallColor.EMPTY };
+
+    // target sequence
+    private BallColor[] targetSequence = { BallColor.GREEN, BallColor.PURPLE, BallColor.PURPLE };
+
+
+
+    private static final double POWER = 0.6;
     private static final double SLOW_POWER = 0.05;
     private static final int NUM_POSITIONS = 3;
 
@@ -44,10 +56,12 @@ public class FinsCarousel extends OpMode {
     public void init() {
         r = new Robot(hardwareMap);
         r.init();
+        updateTelemetry();
     }
 
     @Override
     public void loop() {
+
         trackHoles();
         handleCarouselInput();
         updateCarousel();
@@ -126,8 +140,8 @@ public class FinsCarousel extends OpMode {
             return 0;
         }
 
-        int forwardDist = (targetPosition - currentPosition + NUM_POSITIONS) % NUM_POSITIONS;
-        int backwardDist = (currentPosition - targetPosition + NUM_POSITIONS) % NUM_POSITIONS;
+        int forwardDist = (targetPosition - currentPosition + 3) % 3;
+        int backwardDist = (currentPosition - targetPosition + 3) % 3;
 
         return (forwardDist <= backwardDist) ? 1 : -1;
     }
@@ -188,6 +202,9 @@ public class FinsCarousel extends OpMode {
         telemetry.addData("Approaching Alignment", approachingAlignment ? "Y" : "N");
 
         telemetry.addData("Flicking", isFlicking ? "Y" : "N");
+
+        telemetry.addData("Left", "%d, %d, %d", r.blColor.red(), r.blColor.green(), r.blColor.blue());
+        telemetry.addData("Right", "%d, %d, %d", r.brColor.red(), r.brColor.green(), r.brColor.blue());
 
         telemetry.update();
     }
