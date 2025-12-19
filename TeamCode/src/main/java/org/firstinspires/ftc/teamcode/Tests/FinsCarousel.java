@@ -15,7 +15,8 @@ public class FinsCarousel extends OpMode {
 
     private Robot r;
     // Carousel
-    private static final double POWER = 0.1;
+    private static final double POWER = 0.5;
+    private static final double SLOW_POWER = 0.05;
     private static final int NUM_POSITIONS = 3;
 
 
@@ -28,6 +29,9 @@ public class FinsCarousel extends OpMode {
     private int currentPosition = 0;
     private int targetPosition = 0;
     private int direction = 0; // 1 = forward, -1 = backward, 0 = stopped
+
+    // Slowdown tracking
+    private boolean approachingAlignment = false;
 
     // Flicker
     private static final double DOWN = 0;
@@ -60,11 +64,21 @@ public class FinsCarousel extends OpMode {
     private void trackHoles() {
         boolean inHole = isFinInHole();
 
+        // Entering a hole
         if (inHole && !wasInHole) {
             holeCount++;
 
             if (isAlignmentHole()) {
                 currentPosition = (currentPosition + direction + NUM_POSITIONS) % NUM_POSITIONS;
+                approachingAlignment = false; // We've arrived, reset flag
+            }
+        }
+
+        // Exiting a hole - check if we just left a non-alignment hole
+        if (!inHole && wasInHole) {
+            if (holeCount % 2 == 1) {
+                // Just exited a non-alignment hole, alignment hole is next
+                approachingAlignment = true;
             }
         }
 
@@ -104,6 +118,7 @@ public class FinsCarousel extends OpMode {
         direction = calculateDirection();
         holeCount = 0;
         wasInHole = isFinInHole();
+        approachingAlignment = false; // Reset when starting new movement
     }
 
     private int calculateDirection() {
@@ -122,7 +137,8 @@ public class FinsCarousel extends OpMode {
             r.carouselMotor.setPower(0);
             direction = 0;
         } else {
-            r.carouselMotor.setPower(POWER * direction);
+            double power = approachingAlignment ? SLOW_POWER : POWER;
+            r.carouselMotor.setPower(power * direction);
         }
     }
 
@@ -169,6 +185,7 @@ public class FinsCarousel extends OpMode {
         telemetry.addData("Right", r.getState(r.rightLim) ? "Y" : "N");
 
         telemetry.addData("Hole Count", holeCount);
+        telemetry.addData("Approaching Alignment", approachingAlignment ? "Y" : "N");
 
         telemetry.addData("Flicking", isFlicking ? "Y" : "N");
 
