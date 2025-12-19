@@ -1,29 +1,25 @@
 package org.firstinspires.ftc.teamcode.commandbased;
 
 import com.arcrobotics.ftclib.command.CommandOpMode;
-import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.Gamepad;
 
-import org.firstinspires.ftc.teamcode.commandbased.commands.DriveCommand;
+import org.firstinspires.ftc.teamcode.commandbased.commands.TeleOpDriveCommand;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
 
 @TeleOp(name = "Drive (commandbased, with pedro)")
 public class DriveOpMode extends CommandOpMode {
 
     private DriveSubsystem driveSubsystem;
-    private DriveCommand driveCommand;
+    private TeleOpDriveCommand driveCommand;
 
     @Override
     public void initialize() {
         driveSubsystem = new DriveSubsystem(hardwareMap);
 
-        driveCommand = new DriveCommand(driveSubsystem, gamepad1);
+        driveCommand = new TeleOpDriveCommand(driveSubsystem, gamepad1);
 
-        // drive command as default (continuously)
         driveSubsystem.setDefaultCommand(driveCommand);
 
-        driveSubsystem.initializeTeleOpDrive();
     }
 
     @Override

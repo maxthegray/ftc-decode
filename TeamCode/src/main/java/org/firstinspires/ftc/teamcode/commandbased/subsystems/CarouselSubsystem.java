@@ -1,3 +1,7 @@
+// ============================================
+// CarouselSubsystem.java
+// ============================================
+
 package org.firstinspires.ftc.teamcode.commandbased.subsystems;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
@@ -8,140 +12,193 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 public class CarouselSubsystem extends SubsystemBase {
 
+    public enum BallColor { GREEN, PURPLE, EMPTY }
+
     // Hardware
     private final DcMotor carouselMotor;
-    private final Servo flickerServo;
-    private final DigitalChannel leftFinLimit;
-    private final DigitalChannel rightFinLimit;
+    private final DigitalChannel leftFin;
+    private final DigitalChannel rightFin;
+    private final Servo kickerServo;
 
-    // Carousel constants
-    private static final int TICKS_PER_REV = 6700 / 4;
-    public static final int POSITION_1 = 0;
-    public static final int POSITION_2 = TICKS_PER_REV / 3;
-    public static final int POSITION_3 = (TICKS_PER_REV / 3) * 2;
-    private static final double MOTOR_POWER = 0.6;
-    private static final int POSITION_TOLERANCE = 5;
+    // Constants
+    private static final double CAROUSEL_POWER = 0.4;
+    private static final int NUM_POSITIONS = 3;
+    private static final double KICKER_DOWN = 0.0;
+    private static final double KICKER_UP = 0.4;
 
-    // Flicker constants
-    public static final double FLICKER_DOWN = 0.0;
-    public static final double FLICKER_UP = 0.4;
-
-    // State
+    // Position tracking
+    private int currentPosition = 0;
     private int targetPosition = 0;
-    private double flickerPosition = FLICKER_DOWN;
+    private int direction = 0;
+
+    // Hole tracking
+    private boolean wasInHole = false;
+    private int holeCount = 0;
+
+    // Slot contents
+    private BallColor[] slots = { BallColor.EMPTY, BallColor.EMPTY, BallColor.EMPTY };
 
     public CarouselSubsystem(HardwareMap hardwareMap) {
-        // initialize carousel motor
-        carouselMotor = hardwareMap.dcMotor.get("carouselMotor");
-        carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        carouselMotor = hardwareMap.dcMotor.get("carousel_motor");
         carouselMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        // initialize flicker servo
-        flickerServo = hardwareMap.get(Servo.class, "flickServo");
+        leftFin = hardwareMap.get(DigitalChannel.class, "leftFin");
+        leftFin.setMode(DigitalChannel.Mode.INPUT);
 
-        // initialize limit switches
-        leftFinLimit = hardwareMap.get(DigitalChannel.class, "leftFin");
-        leftFinLimit.setMode(DigitalChannel.Mode.INPUT);
+        rightFin = hardwareMap.get(DigitalChannel.class, "rightFin");
+        rightFin.setMode(DigitalChannel.Mode.INPUT);
 
-        rightFinLimit = hardwareMap.get(DigitalChannel.class, "rightFin");
-        rightFinLimit.setMode(DigitalChannel.Mode.INPUT);
+        kickerServo = hardwareMap.get(Servo.class, "flicker_servo");
+        kickerServo.setPosition(KICKER_DOWN);
+
+        // Initialize hole tracking
+        wasInHole = isFinInHole();
     }
 
     @Override
     public void periodic() {
-        // update carousel motor
-        carouselMotor.setTargetPosition(targetPosition);
-        carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        carouselMotor.setPower(MOTOR_POWER);
-
-        // update flicker servo
-        flickerServo.setPosition(flickerPosition);
+        trackHoles();
+        updateMotor();
     }
 
-// Carousel Methods
-    public void setTargetPosition(int position) {
+
+
+    public void goToPosition(int position) {
+        if (position < 0 || position >= NUM_POSITIONS) {
+            return;
+        }
+
         targetPosition = position;
-    }
-
-    public void goToPosition1() {
-        targetPosition = POSITION_1;
-    }
-
-    public void goToPosition2() {
-        targetPosition = POSITION_2;
-    }
-
-    public void goToPosition3() {
-        targetPosition = POSITION_3;
-    }
-
-    public boolean isSettled() {
-        int error = Math.abs(carouselMotor.getCurrentPosition() - targetPosition);
-        return error <= POSITION_TOLERANCE;
+        direction = calculateDirection();
+        holeCount = 0;
+        wasInHole = isFinInHole();
     }
 
     public int getCurrentPosition() {
-        return carouselMotor.getCurrentPosition();
+        return currentPosition;
     }
 
     public int getTargetPosition() {
         return targetPosition;
     }
 
-    public double getMotorPower() {
-        return carouselMotor.getPower();
+    public boolean isSettled() {
+        return currentPosition == targetPosition && isInAlignmentHole();
     }
 
-    //Flicker Methods
+    public void stop() {
+        targetPosition = currentPosition;
+        direction = 0;
+        carouselMotor.setPower(0);
+    }
 
-    public boolean flickUp() {
-        if (isSettled()) {
-            flickerPosition = FLICKER_UP;
-            return true;
+
+
+    public void setKickerUp() {
+        kickerServo.setPosition(KICKER_UP);
+    }
+
+    public void setKickerDown() {
+        kickerServo.setPosition(KICKER_DOWN);
+    }
+
+
+
+    public BallColor getSlotContents(int slot) {
+        if (slot < 0 || slot >= NUM_POSITIONS) {
+            return BallColor.EMPTY;
         }
-        return false;
+        return slots[slot];
     }
 
-    public boolean flickDown() {
-        if (isSettled()) {
-            flickerPosition = FLICKER_DOWN;
-            return true;
+    public void setSlotContents(int slot, BallColor color) {
+        if (slot >= 0 && slot < NUM_POSITIONS) {
+            slots[slot] = color;
         }
-        return false;
+    }
+
+    public void setSlotEmpty(int slot) {
+        setSlotContents(slot, BallColor.EMPTY);
+    }
+
+    public int findSlotWithColor(BallColor color) {
+        for (int i = 0; i < slots.length; i++) {
+            if (slots[i] == color) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public void setAllSlots(BallColor slot0, BallColor slot1, BallColor slot2) {
+        slots[0] = slot0;
+        slots[1] = slot1;
+        slots[2] = slot2;
     }
 
 
-    public void setFlickerPosition(double position) {
-        flickerPosition = position;
+
+
+    private void trackHoles() {
+        boolean inHole = isFinInHole();
+
+        if (inHole && !wasInHole) {
+            holeCount++;
+
+            if (isAlignmentHole()) {
+                currentPosition = (currentPosition + direction + NUM_POSITIONS) % NUM_POSITIONS;
+            }
+        }
+
+        wasInHole = inHole;
     }
 
-    public double getFlickerPosition() {
-        return flickerPosition;
+    private void updateMotor() {
+        if (isSettled()) {
+            carouselMotor.setPower(0);
+            direction = 0;
+        } else {
+            carouselMotor.setPower(CAROUSEL_POWER * direction);
+        }
     }
 
-    public boolean isFlickerUp() {
-        return flickerPosition == FLICKER_UP;
+    private int calculateDirection() {
+        if (currentPosition == targetPosition) {
+            return 0;
+        }
+
+        int forwardDist = (targetPosition - currentPosition + NUM_POSITIONS) % NUM_POSITIONS;
+        int backwardDist = (currentPosition - targetPosition + NUM_POSITIONS) % NUM_POSITIONS;
+
+        return (forwardDist <= backwardDist) ? 1 : -1;
     }
 
-    public boolean isFlickerDown() {
-        return flickerPosition == FLICKER_DOWN;
+    private boolean isFinInHole() {
+        return leftFin.getState() || rightFin.getState();
     }
 
-    // Limit Switch
-
-    public boolean isLeftFinPressed() {
-        return !leftFinLimit.getState();
+    private boolean isAlignmentHole() {
+        return holeCount % 2 == 0;
     }
 
-    public boolean isRightFinPressed() {
-        return !rightFinLimit.getState();
+    private boolean isInAlignmentHole() {
+        return isFinInHole() && isAlignmentHole();
     }
 
-    public String getLeftFinStatus() {
-        return leftFinLimit.getState() ? "P" : "NP";
+// telemetry stuff
+    public int getDirection() {
+        return direction;
     }
 
-    public String getRightFinStatus() {
-        return rightFinLimit.getState() ? "P" : "NP";
+    public int getHoleCount() {
+        return holeCount;
+    }
+
+    public boolean getLeftFinState() {
+        return leftFin.getState();
+    }
+
+    public boolean getRightFinState() {
+        return rightFin.getState();
     }
 }

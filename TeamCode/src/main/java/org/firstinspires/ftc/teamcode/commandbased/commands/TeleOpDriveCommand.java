@@ -1,19 +1,20 @@
 package org.firstinspires.ftc.teamcode.commandbased.commands;
 
 import com.arcrobotics.ftclib.command.CommandBase;
-import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
 
-public class DriveCommand extends CommandBase {
+public class TeleOpDriveCommand extends CommandBase {
 
     private final DriveSubsystem driveSubsystem;
     private Gamepad gamepad;
 
-    public DriveCommand(DriveSubsystem driveSubsystem, Gamepad gamepad) {
+    public TeleOpDriveCommand(DriveSubsystem driveSubsystem, Gamepad gamepad) {
         this.driveSubsystem = driveSubsystem;
         this.gamepad = gamepad;
+
+        driveSubsystem.initializeTeleOpDrive();
 
         addRequirements(driveSubsystem);
     }

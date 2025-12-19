@@ -7,21 +7,22 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name = "CarouselTest", group = "Testing")
+import org.firstinspires.ftc.teamcode.Robot;
+
+@TeleOp(name = "Carousel fins localization", group = "Testing")
 public class FinsCarousel extends OpMode {
 
+
+    private Robot r;
     // Carousel
-    private DcMotor carouselMotor;
-    private static final double POWER = 0.4;
+    private static final double POWER = 0.1;
     private static final int NUM_POSITIONS = 3;
 
-    // Limit switches (fins)
-    private DigitalChannel leftFinLimit;
-    private DigitalChannel rightFinLimit;
+
 
     // Hole tracking
     private boolean wasInHole = false;
-    private int holeCount = 0;
+    private int holeCount = 1;
 
     // Position tracking
     private int currentPosition = 0;
@@ -29,19 +30,16 @@ public class FinsCarousel extends OpMode {
     private int direction = 0; // 1 = forward, -1 = backward, 0 = stopped
 
     // Flicker
-    private Servo flickerServo;
     private static final double DOWN = 0;
     private static final double UP = 0.4;
-    private static final double FLICK_DURATION = 1.0;
+    private static final double FLICK_DURATION = 0.2;
     private ElapsedTime flickTimer = new ElapsedTime();
     private boolean isFlicking = false;
 
     @Override
     public void init() {
-        initCarousel();
-        initLimitSwitches();
-        initHoleTracking();
-        initFlicker();
+        r = new Robot(hardwareMap);
+        r.init();
     }
 
     @Override
@@ -56,28 +54,6 @@ public class FinsCarousel extends OpMode {
 
     // Init methods
 
-    private void initCarousel() {
-        carouselMotor = hardwareMap.dcMotor.get("carouselMotor");
-        carouselMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-    }
-
-    private void initLimitSwitches() {
-        leftFinLimit = hardwareMap.get(DigitalChannel.class, "leftFin");
-        leftFinLimit.setMode(DigitalChannel.Mode.INPUT);
-
-        rightFinLimit = hardwareMap.get(DigitalChannel.class, "rightFin");
-        rightFinLimit.setMode(DigitalChannel.Mode.INPUT);
-    }
-
-    private void initHoleTracking() {
-        wasInHole = isFinInHole();
-        holeCount = 0;
-    }
-
-    private void initFlicker() {
-        flickerServo = hardwareMap.get(Servo.class, "flickServo");
-        flickerServo.setPosition(DOWN);
-    }
 
     // Fin/hole methods
 
@@ -96,7 +72,7 @@ public class FinsCarousel extends OpMode {
     }
 
     private boolean isFinInHole() {
-        return leftFinLimit.getState() || rightFinLimit.getState();
+        return !r.leftLim.getState() || !r.rightLim.getState();
     }
 
     private boolean isAlignmentHole() {
@@ -142,16 +118,17 @@ public class FinsCarousel extends OpMode {
     }
 
     private void updateCarousel() {
-        if (isCarouselSettled()) {
-            carouselMotor.setPower(0);
+        if (isCarouselSettled() && targetPosition == currentPosition) {
+            r.carouselMotor.setPower(0);
             direction = 0;
         } else {
-            carouselMotor.setPower(POWER * direction);
+            r.carouselMotor.setPower(POWER * direction);
         }
     }
 
     private boolean isCarouselSettled() {
         return currentPosition == targetPosition && isInAlignmentHole();
+//        return true;
     }
 
     // Flicker methods
@@ -170,13 +147,13 @@ public class FinsCarousel extends OpMode {
     private void updateFlicker() {
         if (isFlicking) {
             if (flickTimer.seconds() < FLICK_DURATION) {
-                flickerServo.setPosition(UP);
+                r.kicker.setPosition(UP);
             } else {
-                flickerServo.setPosition(DOWN);
+                r.kicker.setPosition(DOWN);
                 isFlicking = false;
             }
         } else {
-            flickerServo.setPosition(DOWN);
+            r.kicker.setPosition(DOWN);
         }
     }
 
@@ -188,7 +165,9 @@ public class FinsCarousel extends OpMode {
         telemetry.addData("Direction", direction);
         telemetry.addData("Settled", isCarouselSettled() ? "Y" : "N");
 
-        telemetry.addData("In Hole", isFinInHole() ? "Y" : "N");
+        telemetry.addData("Left", r.getState(r.leftLim) ? "Y" : "N");
+        telemetry.addData("Right", r.getState(r.rightLim) ? "Y" : "N");
+
         telemetry.addData("Hole Count", holeCount);
 
         telemetry.addData("Flicking", isFlicking ? "Y" : "N");

@@ -8,7 +8,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @TeleOp(name = "flickyy", group = "Testing")
-public class FullFlick extends OpMode {
+public class ShootSequence extends OpMode {
 
     private enum BallColor { GREEN, PURPLE, EMPTY }
 
