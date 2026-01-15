@@ -4,8 +4,6 @@ package org.firstinspires.ftc.teamcode.Shooter;
 import android.util.Size;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -31,8 +29,6 @@ public class ShooterCamera {
     private int orderID;
     private int exposureMS = 10;
 
-    Servo cameraMount;
-
     public ShooterCamera(Telemetry telemetryy, HardwareMap hardwaremap) {
 
 
@@ -49,11 +45,6 @@ public class ShooterCamera {
         visionPortal = builder.build();
 
 
-
-        cameraMount = hardwaremap.get(Servo.class, "cameraServo");
-        cameraMount.setPosition(.15);
-
-
         visionPortal.resumeStreaming();
         ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
         exposureControl.setMode(ExposureControl.Mode.Manual);
@@ -63,22 +54,6 @@ public class ShooterCamera {
 
     }
 
-
-    public void alignCameraToTag() {
-
-        AprilTagDetection lockedTag = getBasketDetection();
-        double initialPos = cameraMount.getPosition();
-        double targetPos;
-
-        if (lockedTag != null) {
-
-            targetPos = Range.clip((initialPos + (lockedTag.ftcPose.elevation/360)/4), 0, .5);
-
-            cameraMount.setPosition(targetPos);
-
-        }
-
-    }
     public double alignRobotToTagPower() {
         AprilTagDetection lockedTag = getBasketDetection();
         double tolerance = 1; // degrees
@@ -92,8 +67,6 @@ public class ShooterCamera {
 
         return 0;
     }
-
-
 
     public AprilTagDetection getBasketDetection() {
         List<AprilTagDetection> currentDetections = camera.getDetections();
@@ -129,7 +102,7 @@ public class ShooterCamera {
 
     public int getOrderID() { return orderID; }
     public double getTagElevation() { return tagElevation; }
-    public double getFromTagDistance() { return distanceToTag; }
+    public double getTagDistance() { return getBasketDetection().ftcPose.y; }
 
     public boolean canSeeRedTag() {
         return (getBasketDetection() != null && getBasketDetection().id == 24);
@@ -137,7 +110,7 @@ public class ShooterCamera {
 
 
     public void addTelemetry() {
-        telemetry.addData("Distance to apriltag", distanceToTag);
-        telemetry.addData("Visible Tags", camera.getDetections().size());
+        telemetry.addData("TagID", getBasketDetection() != null ? getBasketDetection().id : "None");
+        telemetry.addData("TagDistance", getTagDistance());
     }
 }

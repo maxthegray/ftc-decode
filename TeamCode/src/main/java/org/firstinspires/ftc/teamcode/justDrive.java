@@ -17,49 +17,34 @@ public class justDrive extends OpMode {
     private Follower follower;
 
     // Carousel
-    private DcMotor carouselMotor;
     private int targetPosition = 0;
-    private static final int TICKS_PER_REV = 6700 / 4;
+    private static final int TICKS_PER_REV = 2234;
     private static final int POSITION_1 = 0;
     private static final int POSITION_2 = TICKS_PER_REV / 3;
     private static final int POSITION_3 = (TICKS_PER_REV / 3) * 2;
-    private static final double CAROUSEL_POWER = 0.6;
+    private static final double CAROUSEL_POWER = 0.4;
     private static final int POSITION_TOLERANCE = 5;
 
     // Flicker
-    private Servo flickerServo;
     private double flickerPosition = 0;
     private static final double FLICKER_DOWN = 0;
     private static final double FLICKER_UP = 0.4;
 
-    // Limit switches
-    private DigitalChannel leftFinLimit;
-    private DigitalChannel rightFinLimit;
+    private boolean intakeOn = false;
+
+    private Robot r;
 
     @Override
     public void init() {
+        r = new Robot(hardwareMap);
+        r.init();
+
         // Initialize drive
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(new Pose(0, 0, 0));
         follower.startTeleOpDrive();
         follower.setTeleOpDrive(0,0,0);
 
-        // Initialize carousel
-        carouselMotor = hardwareMap.dcMotor.get("carouselMotor");
-        carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        carouselMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        // Initialize flicker
-        flickerServo = hardwareMap.get(Servo.class, "flickServo");
-        flickerPosition = FLICKER_DOWN;
-
-        // Initialize limit switches
-        leftFinLimit = hardwareMap.get(DigitalChannel.class, "leftFin");
-        leftFinLimit.setMode(DigitalChannel.Mode.INPUT);
-
-        rightFinLimit = hardwareMap.get(DigitalChannel.class, "rightFin");
-        rightFinLimit.setMode(DigitalChannel.Mode.INPUT);
-        follower.update();
     }
 
     @Override
@@ -79,6 +64,15 @@ public class justDrive extends OpMode {
         // Flicker
         handleFlickerInput();
         updateFlicker();
+
+        if (gamepad2.right_bumper) {
+            r.Intake1.setPower(.75);
+            r.Intake2.setPower(.75);
+        }
+        if (gamepad2.left_bumper) {
+            r.Intake1.setPower(0);
+            r.Intake2.setPower(0);
+        }
 
         // Telemetry
         updateTelemetry();
@@ -108,13 +102,13 @@ public class justDrive extends OpMode {
     }
 
     private void updateCarousel() {
-        carouselMotor.setTargetPosition(targetPosition);
-        carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        carouselMotor.setPower(CAROUSEL_POWER);
+        r.carouselMotor.setTargetPosition(targetPosition);
+        r.carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        r.carouselMotor.setPower(CAROUSEL_POWER);
     }
 
     private boolean isCarouselSettled() {
-        int error = Math.abs(carouselMotor.getCurrentPosition() - targetPosition);
+        int error = Math.abs(r.carouselMotor.getCurrentPosition() - targetPosition);
         return error <= POSITION_TOLERANCE;
     }
 
@@ -124,7 +118,6 @@ public class justDrive extends OpMode {
         if (!isCarouselSettled()) {
             return;
         }
-
         if (gamepad2.dpad_up) {
             flickerPosition = FLICKER_UP;
         } else if (gamepad2.dpad_down) {
@@ -133,7 +126,19 @@ public class justDrive extends OpMode {
     }
 
     private void updateFlicker() {
-        flickerServo.setPosition(flickerPosition);
+        r.kicker.setPosition(flickerPosition);
+    }
+
+    private void handleIntake() {
+        if (gamepad2.right_bumper) {
+            r.setIntakeMotors(-0.75);
+        }
+        else if (gamepad2.left_bumper) {
+            r.setIntakeMotors(0.75);
+        }
+        else if (gamepad2.left_trigger > 0) {
+            r.setIntakeMotors(0);
+        }
     }
 
     // Telemtry
@@ -151,8 +156,8 @@ public class justDrive extends OpMode {
         telemetry.addLine();
         telemetry.addData("--- CAROUSEL ---", "");
         telemetry.addData("Target", targetPosition);
-        telemetry.addData("Current", carouselMotor.getCurrentPosition());
-        telemetry.addData("Power", "%.2f", carouselMotor.getPower());
+        telemetry.addData("Current", r.carouselMotor.getCurrentPosition());
+        telemetry.addData("Power", "%.2f", r.carouselMotor.getPower());
         telemetry.addData("Settled", isCarouselSettled() ? "YES" : "NO");
 
         // Flicker info
@@ -160,12 +165,6 @@ public class justDrive extends OpMode {
         telemetry.addData("--- FLICKER ---", "");
         telemetry.addData("Position", "%.2f", flickerPosition);
         telemetry.addData("State", flickerPosition == FLICKER_UP ? "UP" : "DOWN");
-
-        // Limit switches
-        telemetry.addLine();
-        telemetry.addData("--- LIMIT SWITCHES ---", "");
-        telemetry.addData("Left Fin", leftFinLimit.getState() ? "P" : "NP");
-        telemetry.addData("Right Fin", rightFinLimit.getState() ? "P" : "NP");
 
         telemetry.update();
     }

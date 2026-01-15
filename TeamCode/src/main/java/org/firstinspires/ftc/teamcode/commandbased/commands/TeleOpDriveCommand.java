@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.commandbased.commands;
 
 import com.arcrobotics.ftclib.command.CommandBase;
+import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
@@ -8,23 +9,26 @@ import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
 public class TeleOpDriveCommand extends CommandBase {
 
     private final DriveSubsystem driveSubsystem;
-    private Gamepad gamepad;
+    private GamepadEx gamepad;
 
-    public TeleOpDriveCommand(DriveSubsystem driveSubsystem, Gamepad gamepad) {
+    public TeleOpDriveCommand(DriveSubsystem driveSubsystem, GamepadEx gamepad) {
         this.driveSubsystem = driveSubsystem;
         this.gamepad = gamepad;
 
-        driveSubsystem.initializeTeleOpDrive();
 
         addRequirements(driveSubsystem);
     }
 
     @Override
-    public void execute() {
-        double forwardSpeed = -gamepad.left_stick_y;
-        double strafeSpeed = -gamepad.left_stick_x;
-        double rotationSpeed = -gamepad.right_stick_y;
+    public void initialize() {
+        driveSubsystem.initializeTeleOpDrive();
+    }
 
+    @Override
+    public void execute() {
+        double forwardSpeed = gamepad.getLeftY();
+        double strafeSpeed = -gamepad.getLeftX();
+        double rotationSpeed = -gamepad.getRightX()/2;
         // drive w pedro
         driveSubsystem.drive(forwardSpeed, strafeSpeed, rotationSpeed);
     }

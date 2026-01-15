@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.Tests;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 
 @TeleOp(name = "limit", group = "Testing")
+@Disabled
 public class Limit extends OpMode {
 
     private DigitalChannel leftFinLimit;

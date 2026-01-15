@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.Shooter.ShooterCamera;
+import com.qualcomm.robotcore.hardware.PIDCoefficients;
 
 public class DriveTrain {
     HardwareMap hardwareMap;
@@ -53,7 +54,6 @@ public class DriveTrain {
         backLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         frontRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
         shooterCamera = new ShooterCamera(tmtry, hardwaremp);
 
 //        Location = new UnifiedLocalization(tmtry, hardwaremp);

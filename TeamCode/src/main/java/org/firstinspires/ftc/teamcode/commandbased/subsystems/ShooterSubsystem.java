@@ -16,14 +16,13 @@ public class ShooterSubsystem extends SubsystemBase {
     private static final double POWER_TOLERANCE = 0.02;
 
     public ShooterSubsystem(HardwareMap hardwareMap) {
-        shooterMotor = hardwareMap.get(DcMotor.class, "launcherMotor");
+        shooterMotor = hardwareMap.get(DcMotor.class, "launcher_motor");
         shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
     @Override
     public void periodic() {
-        // Update motor power
         shooterMotor.setPower(targetPower);
     }
 
@@ -53,8 +52,12 @@ public class ShooterSubsystem extends SubsystemBase {
     }
 
     public boolean isAtTargetSpeed() {
-        // Check if motor is at target power (within tolerance)
         return targetPower > 0 &&
                 Math.abs(shooterMotor.getPower() - targetPower) <= POWER_TOLERANCE;
+    }
+
+    public void setPowerWithDistance(double distance) {
+        double power = (distance / 100.0); //some equation, find tmro
+        setTargetPower(power);
     }
 }

@@ -10,7 +10,7 @@ public class KickCommand extends CommandBase {
     private final CarouselSubsystem carousel;
     private final ElapsedTime timer = new ElapsedTime();
 
-    private static final double KICK_DURATION = 0.5;
+    private static final double KICK_DURATION = 0.25;
 
     private enum Phase { WAITING, KICKING, RETRACTING }
     private Phase phase;

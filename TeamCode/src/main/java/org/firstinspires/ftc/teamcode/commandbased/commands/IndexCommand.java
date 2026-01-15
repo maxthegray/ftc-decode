@@ -1,27 +1,23 @@
-// ============================================
-// GoToPositionCommand.java
-// ============================================
-
 package org.firstinspires.ftc.teamcode.commandbased.commands;
 
 import com.arcrobotics.ftclib.command.CommandBase;
 
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
 
-public class GoToPositionCommand extends CommandBase {
+
+//kist rptate tp next empty slot (for auto indexing)
+public class IndexCommand extends CommandBase {
 
     private final CarouselSubsystem carousel;
-    private final int targetPosition;
 
-    public GoToPositionCommand(CarouselSubsystem carousel, int position) {
+    public IndexCommand(CarouselSubsystem carousel) {
         this.carousel = carousel;
-        this.targetPosition = position;
         addRequirements(carousel);
     }
 
     @Override
     public void initialize() {
-        carousel.goToPosition(targetPosition);
+        carousel.rotateEmptyToIntake();
     }
 
     @Override
