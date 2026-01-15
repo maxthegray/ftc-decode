@@ -11,72 +11,54 @@ public class CarouselSubsystem extends SubsystemBase {
 
     public enum BallColor { GREEN, PURPLE, EMPTY, UNKNOWN }
 
-    // Fixed positions on robot frame
-    public static final int POS_INTAKE = 0;      // Front - intake and kicker position
+    public static final int POS_INTAKE = 0;
     public static final int POS_BACK_LEFT = 1;
     public static final int POS_BACK_RIGHT = 2;
 
-
-    // Hardware
     private final DcMotor carouselMotor;
     private final DcMotor leftIntake;
     private final DcMotor rightIntake;
     private final Servo kickerServo;
 
-
     private final Servo light1, light2, light3;
-
 
     private final RevColorSensorV3[] sensorsA = new RevColorSensorV3[3];
     private final RevColorSensorV3[] sensorsB = new RevColorSensorV3[3];
 
-
     private static final double LIGHT_OFF = 0.0;
     private static final double LIGHT_GREEN = 0.500;
     private static final double LIGHT_PURPLE = 0.722;
-
 
     private static double CAROUSEL_POWER = 0.6;
     private static final double INTAKE_POWER = 0.75;
     private static final double KICKER_DOWN = 0.0;
     private static final double KICKER_UP = 0.4;
 
-
     public static int TICKS_PER_ROTATION = 2230;
     public static int TICKS_PER_SLOT = TICKS_PER_ROTATION / 3;
 
-    //  detection thresholds (hue scale converted to)
-    public static int GREEN_HUE_MIN = 80;
-    public static int GREEN_HUE_MAX = 160;
-    public static int PURPLE_HUE_MIN = 200;
-    public static int PURPLE_HUE_MAX = 300;
-    public static int PRESENCE_THRESHOLD = 200;
+    public static int PRESENCE_THRESHOLD = 70;
 
-    // ramping
     private double currentPower = 0;
     private static double RAMP_RATE = 0.05;
 
     private final BallColor[] positions = { BallColor.EMPTY, BallColor.EMPTY, BallColor.EMPTY };
 
     public CarouselSubsystem(HardwareMap hardwareMap) {
-        // Carousel motor
         carouselMotor = hardwareMap.dcMotor.get("carousel_motor");
         carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         carouselMotor.setTargetPosition(0);
         carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         carouselMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Intake motors
         leftIntake = hardwareMap.dcMotor.get("left_intake");
         rightIntake = hardwareMap.dcMotor.get("right_intake");
         leftIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Kicker servo
         kickerServo = hardwareMap.get(Servo.class, "flicker_servo");
         kickerServo.setPosition(KICKER_DOWN);
 
-        // Status lights
         light1 = hardwareMap.get(Servo.class, "light1");
         light2 = hardwareMap.get(Servo.class, "light2");
         light3 = hardwareMap.get(Servo.class, "light3");
@@ -84,7 +66,6 @@ public class CarouselSubsystem extends SubsystemBase {
         light2.setPosition(LIGHT_OFF);
         light3.setPosition(LIGHT_OFF);
 
-        // Color sensors at each fixed position
         sensorsA[POS_INTAKE] = hardwareMap.get(RevColorSensorV3.class, "intake_color1");
         sensorsB[POS_INTAKE] = hardwareMap.get(RevColorSensorV3.class, "intake_color2");
         sensorsA[POS_BACK_LEFT] = hardwareMap.get(RevColorSensorV3.class, "BL_color");
@@ -100,7 +81,7 @@ public class CarouselSubsystem extends SubsystemBase {
         updateLights();
     }
 
-    //Lights
+    // Lights
 
     private void updateLights() {
         light1.setPosition(getLightValue(positions[POS_INTAKE]));
@@ -116,35 +97,27 @@ public class CarouselSubsystem extends SubsystemBase {
         }
     }
 
-    //CAROUSEL ROTATION STUFF
-
-    // Rotation direction: +ticks = forward = INTAKE then BACK_LEFT then BACK_RIGHT then INTAKE
-    // So: BACK_LEFT needs -1 step to reach intake
-    //     BACK_RIGHT needs +1 step to reach intake
+    // Carousel rotation
+    // +ticks = forward = INTAKE -> BACK_LEFT -> BACK_RIGHT -> INTAKE
 
     public void rotateToKicker(BallColor color) {
         int pos = findPositionWithColor(color);
-        if (pos == -1) return; // Color not found
-
+        if (pos == -1) return;
         rotatePositionToKicker(pos);
     }
 
- 
     public void rotatePositionToKicker(int position) {
         int steps = getStepsToIntake(position);
         int targetTicks = carouselMotor.getCurrentPosition() + (steps * TICKS_PER_SLOT);
         carouselMotor.setTargetPosition(targetTicks);
-        currentPower = 0; // Start ramping
+        currentPower = 0;
     }
-
 
     public void rotateEmptyToIntake() {
         int emptyPos = findPositionWithColor(BallColor.EMPTY);
-        if (emptyPos == -1) return; // No empty position (full)
-
+        if (emptyPos == -1) return;
         rotatePositionToKicker(emptyPos);
     }
-
 
     public void rotateOneStepForward() {
         int targetTicks = carouselMotor.getCurrentPosition() + TICKS_PER_SLOT;
@@ -152,19 +125,17 @@ public class CarouselSubsystem extends SubsystemBase {
         currentPower = 0;
     }
 
-
     public void rotateOneStepBackward() {
         int targetTicks = carouselMotor.getCurrentPosition() - TICKS_PER_SLOT;
         carouselMotor.setTargetPosition(targetTicks);
         currentPower = 0;
     }
 
-
     private int getStepsToIntake(int position) {
         switch (position) {
             case POS_INTAKE: return 0;
-            case POS_BACK_LEFT: return -1;  // 1 step backward
-            case POS_BACK_RIGHT: return 1;  // 1 step forward
+            case POS_BACK_LEFT: return -1;
+            case POS_BACK_RIGHT: return 1;
             default: return 0;
         }
     }
@@ -199,7 +170,7 @@ public class CarouselSubsystem extends SubsystemBase {
         carouselMotor.setPower(currentPower);
     }
 
-    //INTAKE stuff
+    // Intake
 
     public void runIntake() {
         leftIntake.setPower(INTAKE_POWER);
@@ -216,7 +187,7 @@ public class CarouselSubsystem extends SubsystemBase {
         rightIntake.setPower(0);
     }
 
-    //KIcker
+    // Kicker
 
     public void setKickerUp() {
         kickerServo.setPosition(KICKER_UP);
@@ -230,7 +201,7 @@ public class CarouselSubsystem extends SubsystemBase {
         return kickerServo.getPosition() == KICKER_DOWN;
     }
 
-    //Position contents for telemetry and logic
+    // Position contents
 
     public BallColor getPositionContents(int position) {
         if (position < 0 || position >= 3) return BallColor.EMPTY;
@@ -309,24 +280,24 @@ public class CarouselSubsystem extends SubsystemBase {
             return BallColor.EMPTY;
         }
 
-        int hue = rgbToHue(sensor.red(), sensor.green(), sensor.blue());
+        int blue = sensor.blue();
+        int green = sensor.green();
 
-        if (hue >= GREEN_HUE_MIN && hue <= GREEN_HUE_MAX) {
-            return BallColor.GREEN;
-        } else if (hue >= PURPLE_HUE_MIN && hue <= PURPLE_HUE_MAX) {
-            return BallColor.PURPLE;
+        if (green == 0) {
+            return (blue > 0) ? BallColor.PURPLE : BallColor.UNKNOWN;
         }
 
-        return BallColor.UNKNOWN;
+        double ratio = (double) blue / green;
+
+        // ratio > 1 = purple, ratio < 1 = green
+        if (ratio > 1.0) {
+            return BallColor.PURPLE;
+        } else {
+            return BallColor.GREEN;
+        }
     }
 
-    private int rgbToHue(int r, int g, int b) {
-        float[] hsv = new float[3];
-        android.graphics.Color.RGBToHSV(r, g, b, hsv);
-        return (int) hsv[0];
-    }
-
-    // TELEM getters
+    // Telemetry getters
 
     public int getCurrentTicks() {
         return carouselMotor.getCurrentPosition();

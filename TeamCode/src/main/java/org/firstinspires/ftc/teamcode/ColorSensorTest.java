@@ -27,9 +27,22 @@ public class ColorSensorTest extends OpMode {
 
         telemetry.addData("Alpha", a.alpha());
         telemetry.addData("gain", a.getGain());
+
+        telemetry.addData("red", a.red());
         telemetry.addData("green", a.green());
+        telemetry.addData("blue", a.blue());
+
+        telemetry.addData("hue", rgbToHue(a.red(), a.green(), a.blue()));
+
 
         telemetry.update();
+    }
+
+    private int rgbToHue(int r, int g, int b) {
+        float[] hsv = new float[3];
+
+        android.graphics.Color.RGBToHSV(r, g, b, hsv);
+        return (int) hsv[0];
     }
 
 }
