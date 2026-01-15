@@ -26,7 +26,7 @@ public class CarouselSubsystem extends SubsystemBase {
     private final RevColorSensorV3[] sensorsB = new RevColorSensorV3[3];
 
     private static final double LIGHT_OFF = 0.0;
-    private static final double LIGHT_GREEN = 0.500;
+    private static final double LIGHT_GREEN = 0.555;
     private static final double LIGHT_PURPLE = 0.722;
 
     private static double CAROUSEL_POWER = 0.6;
@@ -34,10 +34,10 @@ public class CarouselSubsystem extends SubsystemBase {
     private static final double KICKER_DOWN = 0.0;
     private static final double KICKER_UP = 0.4;
 
-    public static int TICKS_PER_ROTATION = 2230;
+    public static int TICKS_PER_ROTATION = 2320;
     public static int TICKS_PER_SLOT = TICKS_PER_ROTATION / 3;
 
-    public static int PRESENCE_THRESHOLD = 70;
+    public static int PRESENCE_THRESHOLD = 150;
 
     private double currentPower = 0;
     private static double RAMP_RATE = 0.05;

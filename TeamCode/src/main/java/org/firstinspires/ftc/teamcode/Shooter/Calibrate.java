@@ -57,8 +57,6 @@ public class Calibrate extends LinearOpMode {
 
         setExposure(10);
 
-        telemetry.addLine("Shooter Calibration Ready");
-        telemetry.update();
         waitForStart();
 
         while (opModeIsActive()) {

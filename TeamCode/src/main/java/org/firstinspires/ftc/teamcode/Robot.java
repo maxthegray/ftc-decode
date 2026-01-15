@@ -13,7 +13,7 @@ public class Robot {
 
     public DcMotorEx launcherMotor, carouselMotor;
 
-    public DigitalChannel leftLim, rightLim;
+//    public DigitalChannel leftLim, rightLim;
 
     public ColorSensor blColor, brColor, intakeColor1, intakeColor2;
 
@@ -48,11 +48,11 @@ public class Robot {
         Intake1 = hardwareMap.get(DcMotor.class, "right_intake");
         Intake2 = hardwareMap.get(DcMotor.class, "left_intake");
 
-        leftLim = hardwareMap.get(DigitalChannel.class, "leftFin");
-        leftLim.setMode(DigitalChannel.Mode.INPUT);
-
-        rightLim = hardwareMap.get(DigitalChannel.class, "rightFin");
-        rightLim.setMode(DigitalChannel.Mode.INPUT);
+//        leftLim = hardwareMap.get(DigitalChannel.class, "leftFin");
+//        leftLim.setMode(DigitalChannel.Mode.INPUT);
+//
+//        rightLim = hardwareMap.get(DigitalChannel.class, "rightFin");
+//        rightLim.setMode(DigitalChannel.Mode.INPUT);
 
         blColor = hardwareMap.get(ColorSensor.class, "BL_color");
         brColor = hardwareMap.get(ColorSensor.class, "BR_color");

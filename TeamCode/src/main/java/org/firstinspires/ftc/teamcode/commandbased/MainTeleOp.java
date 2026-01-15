@@ -131,7 +131,6 @@ public class MainTeleOp extends CommandOpMode {
         telemetry.addData("Current Ticks", carouselSubsystem.getCurrentTicks());
         telemetry.addData("Target Ticks", carouselSubsystem.getTargetTicks());
         telemetry.addData("Settled", carouselSubsystem.isSettled());
-        telemetry.addData("Ball Count", carouselSubsystem.getBallCount() + "/3");
         telemetry.addData("Intake State", intakeState);
 
         BallColor[] positions = carouselSubsystem.getAllPositions();

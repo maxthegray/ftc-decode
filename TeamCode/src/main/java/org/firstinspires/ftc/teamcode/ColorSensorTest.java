@@ -32,9 +32,6 @@ public class ColorSensorTest extends OpMode {
         telemetry.addData("green", a.green());
         telemetry.addData("blue", a.blue());
 
-        telemetry.addData("hue", rgbToHue(a.red(), a.green(), a.blue()));
-
-
         telemetry.update();
     }
 
