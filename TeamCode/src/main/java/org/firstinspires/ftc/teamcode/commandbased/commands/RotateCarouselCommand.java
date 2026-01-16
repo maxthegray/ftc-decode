@@ -4,7 +4,9 @@ import com.arcrobotics.ftclib.command.CommandBase;
 
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
 
-
+/**
+ * Rotates the carousel one step left or right.
+ */
 public class RotateCarouselCommand extends CommandBase {
 
     public enum Direction { LEFT, RIGHT }

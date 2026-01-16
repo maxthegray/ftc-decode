@@ -5,6 +5,9 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
 
+/**
+ * Kicks whatever ball is at the INTAKE position.
+ */
 public class KickCommand extends CommandBase {
 
     private final CarouselSubsystem carousel;

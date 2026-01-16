@@ -3,11 +3,14 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class Robot {
 
@@ -19,7 +22,7 @@ public class Robot {
 
     public Servo kicker;
 
-    DcMotor Intake1, Intake2;
+    DcMotorEx Intake1, Intake2;
 
     //Lights
 
@@ -38,6 +41,8 @@ public class Robot {
         launcherMotor = hardwareMap.get(DcMotorEx.class, "launcher_motor");
         launcherMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         launcherMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        launcherMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        launcherMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         carouselMotor = hardwareMap.get(DcMotorEx.class, "carousel_motor");
         carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -45,8 +50,8 @@ public class Robot {
         carouselMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
 
-        Intake1 = hardwareMap.get(DcMotor.class, "right_intake");
-        Intake2 = hardwareMap.get(DcMotor.class, "left_intake");
+        Intake1 = hardwareMap.get(DcMotorEx.class, "right_intake");
+        Intake2 = hardwareMap.get(DcMotorEx.class, "left_intake");
 
 //        leftLim = hardwareMap.get(DigitalChannel.class, "leftFin");
 //        leftLim.setMode(DigitalChannel.Mode.INPUT);
@@ -88,7 +93,11 @@ public class Robot {
     }
 
     public void setLauncherMotor(double speed) {
-        launcherMotor.setPower(speed);
+        launcherMotor.setVelocity(speed, AngleUnit.DEGREES);
+    }
+
+    public void setLauncherPiwer(double speed) {
+        launcherMotor.setVelocity(speed);
     }
 
     public void setIntakeMotors(double speed) {

@@ -35,8 +35,6 @@ public class CarouselTests extends OpMode {
 
         telemetry.addData("Motor Power", gamepad1.left_stick_x);
         telemetry.addData("Flicker", flickerUp ? "UP" : "DOWN");
-        telemetry.addData("Left Fin", r.getState(r.leftLim) ? "P" : "NP");
-        telemetry.addData("Right Fin", r.getState(r.rightLim) ? "P" : "NP");
         telemetry.addData("Red", r.blColor.red());
         telemetry.addData("Green", r.blColor.green());
         telemetry.addData("Blue", r.brColor.blue());

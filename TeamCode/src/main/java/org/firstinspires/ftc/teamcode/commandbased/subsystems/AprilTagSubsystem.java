@@ -25,19 +25,6 @@ public class AprilTagSubsystem extends SubsystemBase {
     private int orderID;
     private int exposureMS = 10;
 
-    // AprilTag field positions (from FTC game manual - DECODE 2025-2026)
-    // Origin at FIELD CENTER (0, 0)
-    // All positions are in inches, angles in degrees
-    // Field coordinate system: X = left/right, Y = forward/back, Heading = rotation
-
-    // We only use Tag 24 (Red Goal) for alignment and localization
-    // Tag 20 (Blue Goal) is ignored
-
-    // Red Alliance Goal Tag (ONLY ONE WE USE)
-    // From game manual: Field position X=-58.35", Y=55.63" (if corner is origin)
-    // Converting to center origin: Need to subtract field center offset
-    // FTC field is 144" x 144" (12ft x 12ft)
-    // Center offset = 144 / 2 = 72"
     private static final double TAG_24_X = -58.35 - 72;  // = -128.97" from center
     private static final double TAG_24_Y = 55.63 - 72;   // = -14.99" from center
     private static final double TAG_24_HEADING = -54.0; // degrees
@@ -46,9 +33,9 @@ public class AprilTagSubsystem extends SubsystemBase {
     // Positive X = camera is forward of center
     // Positive Y = camera is left of center
     // Positive heading offset = camera pointing left relative to robot front
-    private static final double CAMERA_OFFSET_X = 0.0;  // inches - TODO: MEASURE THIS
-    private static final double CAMERA_OFFSET_Y = 0.0;  // inches - TODO: MEASURE THIS
-    private static final double CAMERA_HEADING_OFFSET = 0.0; // degrees - TODO: MEASURE THIS
+    private static final double CAMERA_OFFSET_X = 0.0;
+    private static final double CAMERA_OFFSET_Y = 0.0;
+    private static final double CAMERA_HEADING_OFFSET = 0.0;
 
     public AprilTagSubsystem(HardwareMap hardwareMap, Telemetry telemetry) {
         this.telemetry = telemetry;
@@ -89,27 +76,16 @@ public class AprilTagSubsystem extends SubsystemBase {
         return null;
     }
 
-    /**
-     * Get the distance from the camera to the AprilTag.
-     * This should be called when the robot is aligned (bearing near 0) for accurate readings.
-     *
-     * @return Distance in inches from camera to tag center, or 0 if no tag detected
-     */
+
     public double getDistanceToTag() {
         AprilTagDetection tag = getBasketDetection();
         if (tag != null) {
             // ftcPose.range gives the direct 3D distance from camera to tag center
-            return tag.ftcPose.range;
+            return tag.ftcPose.y;
         }
         return 0;
     }
 
-    /**
-     * Check if robot is aligned well enough to get accurate distance measurement.
-     *
-     * @param toleranceDegrees Maximum bearing deviation allowed
-     * @return true if aligned within tolerance
-     */
     public boolean isAlignedForDistance(double toleranceDegrees) {
         AprilTagDetection tag = getBasketDetection();
         if (tag == null) {
@@ -118,25 +94,10 @@ public class AprilTagSubsystem extends SubsystemBase {
         return Math.abs(tag.ftcPose.bearing) <= toleranceDegrees;
     }
 
-    /**
-     * Check if robot is aligned well enough to get accurate distance measurement.
-     * Uses default tolerance of 1.0 degrees.
-     *
-     * @return true if aligned within default tolerance
-     */
     public boolean isAlignedForDistance() {
         return isAlignedForDistance(1.0);
     }
 
-    /**
-     * Calculate the robot's pose on the field using AprilTag detection.
-     * This uses Tag 24's known field position and the camera's detection to
-     * calculate where the robot is on the field.
-     * Origin is at FIELD CENTER (0, 0).
-     *
-     * @return Pose object with robot's estimated field position (X, Y, Heading in radians),
-     *         or null if Tag 24 not detected
-     */
     public Pose getRobotPoseFromAprilTag() {
         AprilTagDetection tag = getBasketDetection();
         if (tag == null || tag.id != 24) {
@@ -188,38 +149,6 @@ public class AprilTagSubsystem extends SubsystemBase {
         return new Pose(robotFieldX, robotFieldY, cameraHeadingRad);
     }
 
-    /**
-     * Check if the AprilTag pose estimate is reliable enough to use for localization update.
-     *
-     * @return true if we should trust this pose estimate
-     */
-
-    /**
-     * Calculate a confidence score for the AprilTag pose estimate (0-1).
-     * Higher values mean more confidence.
-     * Used for passive sensor fusion with OTOS.
-     *
-     * @return Confidence from 0 (no confidence) to 1 (high confidence)
-     */
-    public double getPoseEstimateConfidence() {
-        AprilTagDetection tag = getBasketDetection();
-        if (tag == null) {
-            return 0.0;
-        }
-
-        double range = tag.ftcPose.range;
-        double bearing = Math.abs(tag.ftcPose.bearing);
-
-        // Confidence decreases with distance and bearing angle
-        // Perfect score at 0 distance and 0 bearing, drops off as they increase
-        double rangeConfidence = Math.max(0, 1.0 - (range / 100.0));      // 1.0 at 0", 0.0 at 100"
-        double bearingConfidence = Math.max(0, 1.0 - (bearing / 45.0));  // 1.0 at 0°, 0.0 at 45°
-
-        // Combined confidence (average of both factors)
-        double confidence = (rangeConfidence + bearingConfidence) / 2.0;
-
-        return Math.max(0, Math.min(1.0, confidence));  // Clamp to 0-1
-    }
 
     public boolean hasBasketTag() {
         return getBasketDetection() != null;

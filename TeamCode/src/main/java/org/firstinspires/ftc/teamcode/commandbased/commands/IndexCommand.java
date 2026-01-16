@@ -4,8 +4,9 @@ import com.arcrobotics.ftclib.command.CommandBase;
 
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
 
-
-//kist rptate tp next empty slot (for auto indexing)
+/**
+ * Rotates an empty position to the INTAKE for loading a new ball.
+ */
 public class IndexCommand extends CommandBase {
 
     private final CarouselSubsystem carousel;

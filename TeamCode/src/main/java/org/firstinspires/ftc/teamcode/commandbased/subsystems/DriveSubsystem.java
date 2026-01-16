@@ -9,6 +9,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
+import dev.nextftc.ftc.GamepadEx;
+
 public class DriveSubsystem extends SubsystemBase {
 
     private final Follower follower;

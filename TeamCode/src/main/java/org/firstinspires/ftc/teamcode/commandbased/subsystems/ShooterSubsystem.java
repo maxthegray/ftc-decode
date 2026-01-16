@@ -2,62 +2,69 @@ package org.firstinspires.ftc.teamcode.commandbased.subsystems;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.util.Range;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class ShooterSubsystem extends SubsystemBase {
 
-    private final DcMotor shooterMotor;
-    private double targetPower = 0;
-
-    private static final double POWER_INCREMENT = 0.05;
-    private static final double MIN_POWER = 0.0;
-    private static final double MAX_POWER = 1.0;
-    private static final double POWER_TOLERANCE = 0.02;
+    private final DcMotorEx launcherMotor;
+    private double targetVelocity = 0; // degrees per second
 
     public ShooterSubsystem(HardwareMap hardwareMap) {
-        shooterMotor = hardwareMap.get(DcMotor.class, "launcher_motor");
-        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        launcherMotor = hardwareMap.get(DcMotorEx.class, "launcher_motor");
+
+        launcherMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        launcherMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        launcherMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        launcherMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        launcherMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(4, 2, 0, 5));
+
     }
 
     @Override
     public void periodic() {
-        shooterMotor.setPower(targetPower);
+        launcherMotor.setVelocity(targetVelocity, AngleUnit.DEGREES);
     }
 
-    public void setTargetPower(double power) {
-        targetPower = Range.clip(power, MIN_POWER, MAX_POWER);
+    public void setTargetVelocity(double degreesPerSecond) {
+        targetVelocity = degreesPerSecond;
     }
 
-    public void increasePower() {
-        targetPower = Range.clip(targetPower + POWER_INCREMENT, MIN_POWER, MAX_POWER);
+    public void setAdjustedVelocity(double d) {
+        double a = 1;
+        double b = 1;
+        double c = 1;
+        targetVelocity = a*d*d + b*d + c; //make this right
     }
 
-    public void decreasePower() {
-        targetPower = Range.clip(targetPower - POWER_INCREMENT, MIN_POWER, MAX_POWER);
+    public void increaseVelocity(double delta) {
+        targetVelocity = Math.max(0, targetVelocity + delta);
+    }
+
+    public void decreaseVelocity(double delta) {
+        targetVelocity = Math.max(0, targetVelocity - delta);
     }
 
     public void stop() {
-        targetPower = 0;
-        shooterMotor.setPower(0);
+        launcherMotor.setPower(0);
+        targetVelocity = 0;
     }
 
-    public double getTargetPower() {
-        return targetPower;
+    public double getTargetVelocity() {
+        return targetVelocity;
     }
 
-    public double getCurrentPower() {
-        return shooterMotor.getPower();
+    public double getCurrentVelocity() {
+        return launcherMotor.getVelocity(AngleUnit.DEGREES);
     }
 
-    public boolean isAtTargetSpeed() {
-        return targetPower > 0 &&
-                Math.abs(shooterMotor.getPower() - targetPower) <= POWER_TOLERANCE;
-    }
-
-    public void setPowerWithDistance(double distance) {
-        double power = (distance / 100.0); //some equation, find tmro
-        setTargetPower(power);
+    public boolean isAtTargetVelocity(double tolerance) {
+        return targetVelocity > 0 &&
+                Math.abs(getCurrentVelocity() - targetVelocity) <= tolerance;
     }
 }

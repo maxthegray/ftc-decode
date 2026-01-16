@@ -22,9 +22,9 @@ public class GoToOriginCommand extends CommandBase {
     @Override
     public void initialize() {
         if (maintainHeading) {
-            driveSubsystem.goToOrigin();
+            driveSubsystem.goToOrigin();  // Keeps current heading
         } else {
-            driveSubsystem.goToOrigin(0);
+            driveSubsystem.goToOrigin(0); // Resets heading to 0
         }
     }
 

@@ -24,12 +24,12 @@ public class IntakeCommand extends CommandBase {
 
     @Override
     public void execute() {
-        // Check if a ball just entered the intake slot
+        // Check if a ball just entered the intake position
         BallColor intakeContents = carousel.getIntakeContents();
         boolean hasBall = (intakeContents == BallColor.GREEN || intakeContents == BallColor.PURPLE);
 
         if (hasBall && !ballDetectedThisCycle) {
-            // rotate to next empty slot
+            // rotate to next empty position
             ballDetectedThisCycle = true;
 
             if (!carousel.isFull()) {
@@ -37,7 +37,7 @@ public class IntakeCommand extends CommandBase {
             }
         }
 
-        // Reset detection flag when slot becomes empty again
+        // Reset detection flag when position becomes empty again
         if (!hasBall) {
             ballDetectedThisCycle = false;
         }
