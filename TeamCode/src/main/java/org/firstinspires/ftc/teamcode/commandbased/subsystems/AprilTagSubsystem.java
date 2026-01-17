@@ -25,14 +25,14 @@ public class AprilTagSubsystem extends SubsystemBase {
     private int orderID;
     private int exposureMS = 10;
 
-    private static final double TAG_24_X = -58.35 - 72;  // = -128.97" from center
-    private static final double TAG_24_Y = 55.63 - 72;   // = -14.99" from center
+    // === OPTIMIZATION: Cache detection result to avoid redundant list iterations ===
+    private AprilTagDetection cachedBasketDetection = null;
+
+    private static final double TAG_24_X = -58.35 - 72;  // = -130.35" from center
+    private static final double TAG_24_Y = 55.63 - 72;   // = -16.37" from center
     private static final double TAG_24_HEADING = -54.0; // degrees
 
     // Camera offset from robot center (adjust these for your robot)
-    // Positive X = camera is forward of center
-    // Positive Y = camera is left of center
-    // Positive heading offset = camera pointing left relative to robot front
     private static final double CAMERA_OFFSET_X = 0.0;
     private static final double CAMERA_OFFSET_Y = 0.0;
     private static final double CAMERA_HEADING_OFFSET = 0.0;
@@ -61,37 +61,49 @@ public class AprilTagSubsystem extends SubsystemBase {
         exposureControl.setExposure((long)exposureMS, TimeUnit.MILLISECONDS);
     }
 
-    public AprilTagDetection getBasketDetection() {
+    @Override
+    public void periodic() {
+        // === OPTIMIZATION: Update cached detection once per loop ===
+        // This prevents multiple methods from iterating through detections list
+        updateCachedDetection();
+    }
+
+    private void updateCachedDetection() {
+        cachedBasketDetection = null;
         List<AprilTagDetection> currentDetections = camera.getDetections();
+
         for (AprilTagDetection detection : currentDetections) {
             // Only use Tag 24 (Red Goal) for alignment and localization
             if (detection.id == 24) {
-                return detection;
+                cachedBasketDetection = detection;
             }
-            // Still track order ID from specimen tags (not used in DECODE)
+            // Still track order ID from specimen tags
             if (detection.id == 21 || detection.id == 22 || detection.id == 23) {
                 orderID = detection.id;
             }
         }
-        return null;
     }
 
+    /**
+     * Returns the cached basket detection from the current loop.
+     * Call this instead of iterating through detections multiple times.
+     */
+    public AprilTagDetection getBasketDetection() {
+        return cachedBasketDetection;
+    }
 
     public double getDistanceToTag() {
-        AprilTagDetection tag = getBasketDetection();
-        if (tag != null) {
-            // ftcPose.range gives the direct 3D distance from camera to tag center
-            return tag.ftcPose.y;
+        if (cachedBasketDetection != null) {
+            return cachedBasketDetection.ftcPose.y;
         }
         return 0;
     }
 
     public boolean isAlignedForDistance(double toleranceDegrees) {
-        AprilTagDetection tag = getBasketDetection();
-        if (tag == null) {
+        if (cachedBasketDetection == null) {
             return false;
         }
-        return Math.abs(tag.ftcPose.bearing) <= toleranceDegrees;
+        return Math.abs(cachedBasketDetection.ftcPose.bearing) <= toleranceDegrees;
     }
 
     public boolean isAlignedForDistance() {
@@ -99,10 +111,11 @@ public class AprilTagSubsystem extends SubsystemBase {
     }
 
     public Pose getRobotPoseFromAprilTag() {
-        AprilTagDetection tag = getBasketDetection();
-        if (tag == null || tag.id != 24) {
+        if (cachedBasketDetection == null || cachedBasketDetection.id != 24) {
             return null;
         }
+
+        AprilTagDetection tag = cachedBasketDetection;
 
         // Get Tag 24's known field position (field center origin)
         double tagFieldX = TAG_24_X;
@@ -110,13 +123,9 @@ public class AprilTagSubsystem extends SubsystemBase {
         double tagFieldHeading = TAG_24_HEADING;
 
         // Get camera's measurements to the tag
-        double range = tag.ftcPose.range;           // Distance from camera to tag
-        double bearing = tag.ftcPose.bearing;       // Horizontal angle from camera axis
-        double yaw = tag.ftcPose.yaw;              // Tag's rotation relative to camera
-
-        // Calculate camera position relative to tag
-        // We need to work backwards: we know where the tag is, and where the camera
-        // sees the tag, so we can figure out where the camera (and robot) is
+        double range = tag.ftcPose.range;
+        double bearing = tag.ftcPose.bearing;
+        double yaw = tag.ftcPose.yaw;
 
         // Convert bearing to radians
         double bearingRad = Math.toRadians(bearing);
@@ -133,12 +142,10 @@ public class AprilTagSubsystem extends SubsystemBase {
         double cameraFieldY = tagFieldY - (cameraToTagX * Math.sin(tagHeadingRad) + cameraToTagY * Math.cos(tagHeadingRad));
 
         // Calculate camera's heading on field
-        // The camera's heading is the tag's heading minus the yaw angle
         double cameraHeadingDeg = tagFieldHeading - yaw - CAMERA_HEADING_OFFSET;
         double cameraHeadingRad = Math.toRadians(cameraHeadingDeg);
 
-        // Now convert camera position to robot center position
-        // Robot center is offset from camera by CAMERA_OFFSET_X and CAMERA_OFFSET_Y
+        // Convert camera position to robot center position
         double robotFieldX = cameraFieldX - (CAMERA_OFFSET_X * Math.cos(cameraHeadingRad) - CAMERA_OFFSET_Y * Math.sin(cameraHeadingRad));
         double robotFieldY = cameraFieldY - (CAMERA_OFFSET_X * Math.sin(cameraHeadingRad) + CAMERA_OFFSET_Y * Math.cos(cameraHeadingRad));
 
@@ -149,24 +156,20 @@ public class AprilTagSubsystem extends SubsystemBase {
         return new Pose(robotFieldX, robotFieldY, cameraHeadingRad);
     }
 
-
     public boolean hasBasketTag() {
-        return getBasketDetection() != null;
+        return cachedBasketDetection != null;
     }
 
     public double getTagBearing() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null) ? tag.ftcPose.bearing : 0;
+        return (cachedBasketDetection != null) ? cachedBasketDetection.ftcPose.bearing : 0;
     }
 
     public double getTagElevation() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null) ? tag.ftcPose.elevation : 0;
+        return (cachedBasketDetection != null) ? cachedBasketDetection.ftcPose.elevation : 0;
     }
 
     public double getTagRange() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null) ? tag.ftcPose.range : 0;
+        return (cachedBasketDetection != null) ? cachedBasketDetection.ftcPose.range : 0;
     }
 
     public int getOrderID() {
@@ -174,20 +177,18 @@ public class AprilTagSubsystem extends SubsystemBase {
     }
 
     public boolean canSeeRedTag() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null && tag.id == 24);
+        return (cachedBasketDetection != null && cachedBasketDetection.id == 24);
     }
 
     public void addTelemetry() {
-        AprilTagDetection tag = getBasketDetection();
         telemetry.addData("Visible Tags", camera.getDetections().size());
-        if (tag != null) {
-            telemetry.addData("Tag ID", tag.id);
-            telemetry.addData("Range", "%.2f inches", tag.ftcPose.range);
-            telemetry.addData("Bearing", "%.2f degrees", tag.ftcPose.bearing);
-            telemetry.addData("Elevation", "%.2f degrees", tag.ftcPose.elevation);
-            telemetry.addData("Distance (when aligned)", "%.2f inches", getDistanceToTag());
-            telemetry.addData("Aligned for distance?", isAlignedForDistance() ? "YES" : "NO");
+        if (cachedBasketDetection != null) {
+            telemetry.addData("Tag ID", cachedBasketDetection.id);
+            telemetry.addData("Range", "%.2f inches", cachedBasketDetection.ftcPose.range);
+            telemetry.addData("Bearing", "%.2f degrees", cachedBasketDetection.ftcPose.bearing);
+            telemetry.addData("Elevation", "%.2f degrees", cachedBasketDetection.ftcPose.elevation);
+            telemetry.addData("Distance (Y)", "%.2f inches", getDistanceToTag());
+            telemetry.addData("Aligned?", isAlignedForDistance() ? "YES" : "NO");
         } else {
             telemetry.addData("Goal Tag", "Not Detected");
         }

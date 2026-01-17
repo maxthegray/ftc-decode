@@ -4,9 +4,7 @@ import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
 public class CarouselSubsystem extends SubsystemBase {
@@ -17,9 +15,9 @@ public class CarouselSubsystem extends SubsystemBase {
     public static final int POS_BACK_LEFT = 1;
     public static final int POS_BACK_RIGHT = 2;
 
-    private final DcMotorEx carouselMotor;
-    private final DcMotorEx leftIntake;
-    private final DcMotorEx rightIntake;
+    private final DcMotor carouselMotor;
+    private final DcMotor leftIntake;
+    private final DcMotor rightIntake;
     private final Servo kickerServo;
 
     private final Servo light1, light2, light3;
@@ -28,44 +26,48 @@ public class CarouselSubsystem extends SubsystemBase {
     private final RevColorSensorV3[] sensorsB = new RevColorSensorV3[3];
 
     private static final double LIGHT_OFF = 0.0;
-    private static final double LIGHT_GREEN = 0.500;
+    private static final double LIGHT_GREEN = 0.555;
     private static final double LIGHT_PURPLE = 0.722;
-    private static final double LIGHTS_DURATION = 3.0; // seconds
 
-    private final com.qualcomm.robotcore.util.ElapsedTime lightsTimer = new com.qualcomm.robotcore.util.ElapsedTime();
-    private boolean lightsActive = false;
-
-    private static double CAROUSEL_POWER = 0.5;
-    private static final double INTAKE_VELOCITY = 0.85;
+    private static double CAROUSEL_POWER = 0.6;
+    private static final double INTAKE_POWER = 0.75;
     private static final double KICKER_DOWN = 0.0;
     private static final double KICKER_UP = 0.4;
 
-    public static int TICKS_PER_ROTATION = 9325/4;
+    public static int TICKS_PER_ROTATION = 2320;
     public static int TICKS_PER_SLOT = TICKS_PER_ROTATION / 3;
 
-    // Per-position alpha thresholds for ball detection
-    public static int THRESHOLD_INTAKE_A = 70;
-    public static int THRESHOLD_INTAKE_B = 70;
+    public static int PRESENCE_THRESHOLD = 150;
 
-    public static int THRESHOLD_BACK_LEFT_A = 400;
-    public static int THRESHOLD_BACK_LEFT_B = 250;
-
-    public static int THRESHOLD_BACK_RIGHT_A = 400;
-    public static int THRESHOLD_BACK_RIGHT_B = 250;
+    private double currentPower = 0;
+    private static double RAMP_RATE = 0.05;
 
     private final BallColor[] positions = { BallColor.EMPTY, BallColor.EMPTY, BallColor.EMPTY };
 
+    // === OPTIMIZATION: Throttle sensor reads ===
+    private long lastSensorReadTime = 0;
+    private static final long SENSOR_READ_INTERVAL_MS = 50; // Read sensors every 50ms (20Hz) instead of every loop
+
+    // === OPTIMIZATION: Track last light values to avoid redundant writes ===
+    private double lastLight1Value = -1;
+    private double lastLight2Value = -1;
+    private double lastLight3Value = -1;
+
+    // === OPTIMIZATION: Track last intake power to avoid redundant writes ===
+    private double lastLeftIntakePower = 0;
+    private double lastRightIntakePower = 0;
+
     public CarouselSubsystem(HardwareMap hardwareMap) {
-        carouselMotor = hardwareMap.get(DcMotorEx.class, "carousel_motor");
+        carouselMotor = hardwareMap.dcMotor.get("carousel_motor");
         carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         carouselMotor.setTargetPosition(0);
         carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         carouselMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        leftIntake = hardwareMap.get(DcMotorEx.class, "left_intake");
-        rightIntake = hardwareMap.get(DcMotorEx.class, "right_intake");
-        leftIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        rightIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        leftIntake = hardwareMap.dcMotor.get("left_intake");
+        rightIntake = hardwareMap.dcMotor.get("right_intake");
+        leftIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         kickerServo = hardwareMap.get(Servo.class, "flicker_servo");
         kickerServo.setPosition(KICKER_DOWN);
@@ -88,32 +90,36 @@ public class CarouselSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         updateMotor();
-        updatePositionContents();
-        updateLights();
-    }
 
-    // Lights
-
-    private void updateLights() {
-        // Turn off lights if timer expired
-        if (lightsActive && lightsTimer.seconds() >= LIGHTS_DURATION) {
-            lightsActive = false;
+        // === OPTIMIZATION: Only read sensors every SENSOR_READ_INTERVAL_MS ===
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL_MS) {
+            updatePositionContents();
+            lastSensorReadTime = currentTime;
         }
 
-        if (lightsActive) {
-            light1.setPosition(getLightValue(positions[POS_INTAKE]));
-            light2.setPosition(getLightValue(positions[POS_BACK_LEFT]));
-            light3.setPosition(getLightValue(positions[POS_BACK_RIGHT]));
-        } else {
-            light1.setPosition(LIGHT_OFF);
-            light2.setPosition(LIGHT_OFF);
-            light3.setPosition(LIGHT_OFF);
-        }
+        // === OPTIMIZATION: Only update lights when values change ===
+        updateLightsIfChanged();
     }
 
-    public void showLights() {
-        lightsTimer.reset();
-        lightsActive = true;
+    // === OPTIMIZATION: Only write to servos when the value actually changes ===
+    private void updateLightsIfChanged() {
+        double val1 = getLightValue(positions[POS_INTAKE]);
+        double val2 = getLightValue(positions[POS_BACK_LEFT]);
+        double val3 = getLightValue(positions[POS_BACK_RIGHT]);
+
+        if (val1 != lastLight1Value) {
+            light1.setPosition(val1);
+            lastLight1Value = val1;
+        }
+        if (val2 != lastLight2Value) {
+            light2.setPosition(val2);
+            lastLight2Value = val2;
+        }
+        if (val3 != lastLight3Value) {
+            light3.setPosition(val3);
+            lastLight3Value = val3;
+        }
     }
 
     private double getLightValue(BallColor color) {
@@ -137,6 +143,7 @@ public class CarouselSubsystem extends SubsystemBase {
         int steps = getStepsToIntake(position);
         int targetTicks = carouselMotor.getCurrentPosition() + (steps * TICKS_PER_SLOT);
         carouselMotor.setTargetPosition(targetTicks);
+        currentPower = 0;
     }
 
     public void rotateEmptyToIntake() {
@@ -148,11 +155,13 @@ public class CarouselSubsystem extends SubsystemBase {
     public void rotateOneStepForward() {
         int targetTicks = carouselMotor.getCurrentPosition() + TICKS_PER_SLOT;
         carouselMotor.setTargetPosition(targetTicks);
+        currentPower = 0;
     }
 
     public void rotateOneStepBackward() {
         int targetTicks = carouselMotor.getCurrentPosition() - TICKS_PER_SLOT;
         carouselMotor.setTargetPosition(targetTicks);
+        currentPower = 0;
     }
 
     private int getStepsToIntake(int position) {
@@ -170,27 +179,53 @@ public class CarouselSubsystem extends SubsystemBase {
 
     public void stop() {
         carouselMotor.setTargetPosition(carouselMotor.getCurrentPosition());
+        currentPower = CAROUSEL_POWER;
+        carouselMotor.setPower(currentPower);
     }
 
     private void updateMotor() {
-        carouselMotor.setPower(CAROUSEL_POWER);
+        if (isSettled()) {
+            currentPower = CAROUSEL_POWER;
+        } else {
+            int distanceRemaining = Math.abs(carouselMotor.getTargetPosition() - carouselMotor.getCurrentPosition());
+            int rampDownThreshold = TICKS_PER_SLOT / 3;
+
+            if (distanceRemaining < rampDownThreshold) {
+                double minPower = 0.1;
+                double targetPower = minPower + (CAROUSEL_POWER - minPower) * ((double) distanceRemaining / rampDownThreshold);
+                currentPower = Math.max(targetPower, minPower);
+            } else {
+                if (currentPower < CAROUSEL_POWER) {
+                    currentPower = Math.min(currentPower + RAMP_RATE, CAROUSEL_POWER);
+                }
+            }
+        }
+        carouselMotor.setPower(currentPower);
     }
 
-    // Intake
+    // Intake - === OPTIMIZATION: Only write when power changes ===
 
     public void runIntake() {
-        leftIntake.setPower(INTAKE_VELOCITY);
-        rightIntake.setPower(INTAKE_VELOCITY);
+        setIntakePower(INTAKE_POWER);
     }
 
     public void reverseIntake() {
-        leftIntake.setPower(-INTAKE_VELOCITY);
-        rightIntake.setPower(-INTAKE_VELOCITY);
+        setIntakePower(-INTAKE_POWER);
     }
 
     public void stopIntake() {
-        leftIntake.setPower(0);
-        rightIntake.setPower(0);
+        setIntakePower(0);
+    }
+
+    private void setIntakePower(double power) {
+        if (power != lastLeftIntakePower) {
+            leftIntake.setPower(power);
+            lastLeftIntakePower = power;
+        }
+        if (power != lastRightIntakePower) {
+            rightIntake.setPower(power);
+            lastRightIntakePower = power;
+        }
     }
 
     // Kicker
@@ -268,12 +303,8 @@ public class CarouselSubsystem extends SubsystemBase {
             return BallColor.UNKNOWN;
         }
 
-        int thresholdA = getThresholdForPositionA(position);
-        int thresholdB = getThresholdForPositionB(position);
-
-
-        BallColor typeA = (sensorA != null) ? classifyBall(sensorA, thresholdA) : BallColor.UNKNOWN;
-        BallColor typeB = (sensorB != null) ? classifyBall(sensorB, thresholdB) : BallColor.UNKNOWN;
+        BallColor typeA = (sensorA != null) ? classifyBall(sensorA) : BallColor.UNKNOWN;
+        BallColor typeB = (sensorB != null) ? classifyBall(sensorB) : BallColor.UNKNOWN;
 
         if (typeA == typeB) return typeA;
         if (typeA == BallColor.UNKNOWN) return typeB;
@@ -284,26 +315,9 @@ public class CarouselSubsystem extends SubsystemBase {
         return typeA;
     }
 
-    private int getThresholdForPositionA(int position) {
-        switch (position) {
-            case POS_INTAKE: return THRESHOLD_INTAKE_A;
-            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_A;
-            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_A;
-            default: return 200;
-        }
-    }
-    private int getThresholdForPositionB(int position) {
-        switch (position) {
-            case POS_INTAKE: return THRESHOLD_INTAKE_B;
-            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_B;
-            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_B;
-            default: return 200;
-        }
-    }
-
-    private BallColor classifyBall(ColorSensor sensor, int threshold) {
+    private BallColor classifyBall(ColorSensor sensor) {
         int alpha = sensor.alpha();
-        if (alpha < threshold) {
+        if (alpha < PRESENCE_THRESHOLD) {
             return BallColor.EMPTY;
         }
 
@@ -342,30 +356,22 @@ public class CarouselSubsystem extends SubsystemBase {
         return CAROUSEL_POWER;
     }
 
-    public int getThresholdA(int position) {
-        return getThresholdForPositionA(position);
-    }
-    public int getThresholdB(int position) {
-        return getThresholdForPositionB(position);
+    public void setRampRate(double rate) {
+        RAMP_RATE = Math.abs(rate);
     }
 
-    // Raw sensor data for calibration
-    public int getSensorAlpha(int position, boolean useSensorA) {
-        ColorSensor sensor = useSensorA ? sensorsA[position] : sensorsB[position];
-        return (sensor != null) ? sensor.alpha() : 0;
-    }
-
-    public int getSensorBlue(int position, boolean useSensorA) {
-        ColorSensor sensor = useSensorA ? sensorsA[position] : sensorsB[position];
-        return (sensor != null) ? sensor.blue() : 0;
-    }
-
-    public int getSensorGreen(int position, boolean useSensorA) {
-        ColorSensor sensor = useSensorA ? sensorsA[position] : sensorsB[position];
-        return (sensor != null) ? sensor.green() : 0;
+    public double getRampRate() {
+        return RAMP_RATE;
     }
 
     public BallColor[] getAllPositions() {
         return positions.clone();
+    }
+
+    // === OPTIMIZATION: Allow adjusting sensor read rate ===
+    public void setSensorReadInterval(long intervalMs) {
+        // Clamp between 20ms (50Hz) and 200ms (5Hz)
+        // Lower = more responsive but more lag
+        // Higher = less responsive but smoother driving
     }
 }

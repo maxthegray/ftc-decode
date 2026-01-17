@@ -9,8 +9,6 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-import dev.nextftc.ftc.GamepadEx;
-
 public class DriveSubsystem extends SubsystemBase {
 
     private final Follower follower;
@@ -39,12 +37,10 @@ public class DriveSubsystem extends SubsystemBase {
     }
 
     public void stop() {
-//        follower.setTeleOpDrive(0, 0, 0);
         isFollowingPath = false;
     }
 
     public void goToOrigin(double targetHeading) {
-        Pose currentPose = follower.getPose();
         Pose originPose = new Pose(0, 0, targetHeading);
         goToPoint(originPose);
     }

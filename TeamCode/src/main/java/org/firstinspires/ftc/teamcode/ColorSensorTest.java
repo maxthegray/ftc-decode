@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+/*package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -70,4 +70,4 @@ public class ColorSensorTest extends LinearOpMode {
         if (green == 0) return 0;
         return (double) sensor.blue() / green;
     }
-}
+}*/
