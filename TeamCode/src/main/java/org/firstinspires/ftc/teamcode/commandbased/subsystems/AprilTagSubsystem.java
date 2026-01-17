@@ -5,16 +5,15 @@ import android.util.Size;
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class AprilTagSubsystem extends SubsystemBase {
 
@@ -22,174 +21,108 @@ public class AprilTagSubsystem extends SubsystemBase {
     private final VisionPortal visionPortal;
     private final Telemetry telemetry;
 
-    private int orderID;
-    private int exposureMS = 10;
+    // Configurable update rate
+    public static long UPDATE_INTERVAL_MS = 100;
+    private final ElapsedTime updateTimer = new ElapsedTime();
 
-    private static final double TAG_24_X = -58.35 - 72;  // = -128.97" from center
-    private static final double TAG_24_Y = 55.63 - 72;   // = -14.99" from center
-    private static final double TAG_24_HEADING = -54.0; // degrees
+    // Cached data
+    private AprilTagDetection cachedBasketTag = null;
+    private double cachedRange = 0;
+    private double cachedBearing = 0;
+    private Pose cachedRobotPose = null;
 
-    // Camera offset from robot center (adjust these for your robot)
-    // Positive X = camera is forward of center
-    // Positive Y = camera is left of center
-    // Positive heading offset = camera pointing left relative to robot front
-    private static final double CAMERA_OFFSET_X = 0.0;
-    private static final double CAMERA_OFFSET_Y = 0.0;
-    private static final double CAMERA_HEADING_OFFSET = 0.0;
+    // Tag positions
+    private static final double TAG_24_X = -58.35 - 72;
+    private static final double TAG_24_Y = 55.63 - 72;
+    private static final double TAG_24_HEADING = -54.0;
 
     public AprilTagSubsystem(HardwareMap hardwareMap, Telemetry telemetry) {
         this.telemetry = telemetry;
 
-        // Initialize AprilTag processor
         camera = new AprilTagProcessor.Builder().build();
 
-        // Build vision portal
-        VisionPortal.Builder builder = new VisionPortal.Builder();
-        builder.setCamera(hardwareMap.get(WebcamName.class, "hsc"));
-        builder.setCameraResolution(new Size(1280, 800));
-        builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
-        builder.enableLiveView(false);
-        builder.setAutoStartStreamOnBuild(true);
-        builder.addProcessor(camera);
-
-        visionPortal = builder.build();
-
-        // Configure exposure
-        visionPortal.resumeStreaming();
-        ExposureControl exposureControl = visionPortal.getCameraControl(ExposureControl.class);
-        exposureControl.setMode(ExposureControl.Mode.Manual);
-        exposureControl.setExposure((long)exposureMS, TimeUnit.MILLISECONDS);
+        visionPortal = new VisionPortal.Builder()
+                .setCamera(hardwareMap.get(WebcamName.class, "hsc"))
+                .setCameraResolution(new Size(1280, 800))
+                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
+                .enableLiveView(false)
+                .addProcessor(camera)
+                .build();
     }
 
-    public AprilTagDetection getBasketDetection() {
-        List<AprilTagDetection> currentDetections = camera.getDetections();
-        for (AprilTagDetection detection : currentDetections) {
-            // Only use Tag 24 (Red Goal) for alignment and localization
-            if (detection.id == 24) {
-                return detection;
+    @Override
+    public void periodic() {
+        if (updateTimer.milliseconds() < UPDATE_INTERVAL_MS) {
+            return;
+        }
+        updateTimer.reset();
+
+        // Only process if camera is streaming
+        if (visionPortal.getCameraState() != VisionPortal.CameraState.STREAMING) {
+            return;
+        }
+
+        updateCachedData();
+    }
+
+    private void updateCachedData() {
+        List<AprilTagDetection> detections = camera.getDetections();
+        cachedBasketTag = null;
+
+        for (AprilTagDetection detection : detections) {
+            if (detection.id == 24 && detection.ftcPose != null) {
+                cachedBasketTag = detection;
+                cachedRange = detection.ftcPose.range;
+                cachedBearing = detection.ftcPose.bearing;
+                cachedRobotPose = calculateRobotPose(detection);
+                return;
             }
-            // Still track order ID from specimen tags (not used in DECODE)
-            if (detection.id == 21 || detection.id == 22 || detection.id == 23) {
-                orderID = detection.id;
-            }
-        }
-        return null;
-    }
-
-
-    public double getDistanceToTag() {
-        AprilTagDetection tag = getBasketDetection();
-        if (tag != null) {
-            // ftcPose.range gives the direct 3D distance from camera to tag center
-            return tag.ftcPose.y;
-        }
-        return 0;
-    }
-
-    public boolean isAlignedForDistance(double toleranceDegrees) {
-        AprilTagDetection tag = getBasketDetection();
-        if (tag == null) {
-            return false;
-        }
-        return Math.abs(tag.ftcPose.bearing) <= toleranceDegrees;
-    }
-
-    public boolean isAlignedForDistance() {
-        return isAlignedForDistance(1.0);
-    }
-
-    public Pose getRobotPoseFromAprilTag() {
-        AprilTagDetection tag = getBasketDetection();
-        if (tag == null || tag.id != 24) {
-            return null;
         }
 
-        // Get Tag 24's known field position (field center origin)
-        double tagFieldX = TAG_24_X;
-        double tagFieldY = TAG_24_Y;
-        double tagFieldHeading = TAG_24_HEADING;
+        cachedRange = 0;
+        cachedBearing = 0;
+        cachedRobotPose = null;
+    }
 
-        // Get camera's measurements to the tag
-        double range = tag.ftcPose.range;           // Distance from camera to tag
-        double bearing = tag.ftcPose.bearing;       // Horizontal angle from camera axis
-        double yaw = tag.ftcPose.yaw;              // Tag's rotation relative to camera
+    private Pose calculateRobotPose(AprilTagDetection tag) {
+        double range = tag.ftcPose.range;
+        double bearing = tag.ftcPose.bearing;
+        double yaw = tag.ftcPose.yaw;
 
-        // Calculate camera position relative to tag
-        // We need to work backwards: we know where the tag is, and where the camera
-        // sees the tag, so we can figure out where the camera (and robot) is
-
-        // Convert bearing to radians
         double bearingRad = Math.toRadians(bearing);
+        double tagHeadingRad = Math.toRadians(TAG_24_HEADING);
 
-        // Camera's position relative to the tag (in tag's reference frame)
         double cameraToTagX = range * Math.cos(bearingRad);
         double cameraToTagY = range * Math.sin(bearingRad);
 
-        // Tag's heading in field coordinates (radians)
-        double tagHeadingRad = Math.toRadians(tagFieldHeading);
+        double cameraFieldX = TAG_24_X - (cameraToTagX * Math.cos(tagHeadingRad) - cameraToTagY * Math.sin(tagHeadingRad));
+        double cameraFieldY = TAG_24_Y - (cameraToTagX * Math.sin(tagHeadingRad) + cameraToTagY * Math.cos(tagHeadingRad));
 
-        // Rotate camera-to-tag vector into field coordinates
-        double cameraFieldX = tagFieldX - (cameraToTagX * Math.cos(tagHeadingRad) - cameraToTagY * Math.sin(tagHeadingRad));
-        double cameraFieldY = tagFieldY - (cameraToTagX * Math.sin(tagHeadingRad) + cameraToTagY * Math.cos(tagHeadingRad));
+        double cameraHeadingRad = Math.toRadians(TAG_24_HEADING - yaw);
 
-        // Calculate camera's heading on field
-        // The camera's heading is the tag's heading minus the yaw angle
-        double cameraHeadingDeg = tagFieldHeading - yaw - CAMERA_HEADING_OFFSET;
-        double cameraHeadingRad = Math.toRadians(cameraHeadingDeg);
-
-        // Now convert camera position to robot center position
-        // Robot center is offset from camera by CAMERA_OFFSET_X and CAMERA_OFFSET_Y
-        double robotFieldX = cameraFieldX - (CAMERA_OFFSET_X * Math.cos(cameraHeadingRad) - CAMERA_OFFSET_Y * Math.sin(cameraHeadingRad));
-        double robotFieldY = cameraFieldY - (CAMERA_OFFSET_X * Math.sin(cameraHeadingRad) + CAMERA_OFFSET_Y * Math.cos(cameraHeadingRad));
-
-        // Normalize heading to -PI to PI
         while (cameraHeadingRad > Math.PI) cameraHeadingRad -= 2 * Math.PI;
         while (cameraHeadingRad < -Math.PI) cameraHeadingRad += 2 * Math.PI;
 
-        return new Pose(robotFieldX, robotFieldY, cameraHeadingRad);
+        return new Pose(cameraFieldX, cameraFieldY, cameraHeadingRad);
     }
-
 
     public boolean hasBasketTag() {
-        return getBasketDetection() != null;
-    }
-
-    public double getTagBearing() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null) ? tag.ftcPose.bearing : 0;
-    }
-
-    public double getTagElevation() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null) ? tag.ftcPose.elevation : 0;
+        return cachedBasketTag != null;
     }
 
     public double getTagRange() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null) ? tag.ftcPose.range : 0;
+        return cachedRange;
     }
 
-    public int getOrderID() {
-        return orderID;
+    public double getTagBearing() {
+        return cachedBearing;
     }
 
-    public boolean canSeeRedTag() {
-        AprilTagDetection tag = getBasketDetection();
-        return (tag != null && tag.id == 24);
+    public Pose getRobotPoseFromAprilTag() {
+        return cachedRobotPose;
     }
 
-    public void addTelemetry() {
-        AprilTagDetection tag = getBasketDetection();
-        telemetry.addData("Visible Tags", camera.getDetections().size());
-        if (tag != null) {
-            telemetry.addData("Tag ID", tag.id);
-            telemetry.addData("Range", "%.2f inches", tag.ftcPose.range);
-            telemetry.addData("Bearing", "%.2f degrees", tag.ftcPose.bearing);
-            telemetry.addData("Elevation", "%.2f degrees", tag.ftcPose.elevation);
-            telemetry.addData("Distance (when aligned)", "%.2f inches", getDistanceToTag());
-            telemetry.addData("Aligned for distance?", isAlignedForDistance() ? "YES" : "NO");
-        } else {
-            telemetry.addData("Goal Tag", "Not Detected");
-        }
+    public static void setUpdateInterval(long intervalMs) {
+        UPDATE_INTERVAL_MS = intervalMs;
     }
 }

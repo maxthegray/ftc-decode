@@ -13,7 +13,7 @@ public class ControlHubI2CThread extends Thread {
     private RevColorSensorV3 blUpper;   // BL_upper - sensor B for BACK_LEFT
     private RevColorSensorV3 brColor;   // BR_color - sensor A for BACK_RIGHT
 
-    private static final long UPDATE_INTERVAL_MS = 30;
+    private static final long UPDATE_INTERVAL_MS = 200;
 
     public ControlHubI2CThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;

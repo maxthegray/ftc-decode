@@ -2,12 +2,14 @@ package org.firstinspires.ftc.teamcode.commandbased.subsystems;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.qualcomm.hardware.rev.RevColorSensorV3;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 public class CarouselSubsystem extends SubsystemBase {
 
@@ -21,6 +23,7 @@ public class CarouselSubsystem extends SubsystemBase {
     private final DcMotorEx leftIntake;
     private final DcMotorEx rightIntake;
     private final Servo kickerServo;
+    private final CRServo intakeServo;  // New CR servo for intake
 
     private final Servo light1, light2, light3;
 
@@ -32,43 +35,49 @@ public class CarouselSubsystem extends SubsystemBase {
     private static final double LIGHT_PURPLE = 0.722;
     private static final double LIGHTS_DURATION = 3.0; // seconds
 
-    private final com.qualcomm.robotcore.util.ElapsedTime lightsTimer = new com.qualcomm.robotcore.util.ElapsedTime();
+    private final ElapsedTime lightsTimer = new ElapsedTime();
     private boolean lightsActive = false;
 
-    private static double CAROUSEL_POWER = 0.5;
-    private static final double INTAKE_VELOCITY = 0.85;
+    private static double CAROUSEL_POWER = 0.6;
+    private static final double INTAKE_POWER = 0.75;
+    private static final double INTAKE_SERVO_POWER = 1.0;  // CR servo power
     private static final double KICKER_DOWN = 0.0;
     private static final double KICKER_UP = 0.4;
 
-    public static int TICKS_PER_ROTATION = 9325/4;
+    public static int TICKS_PER_ROTATION = 2230;
     public static int TICKS_PER_SLOT = TICKS_PER_ROTATION / 3;
 
     // Per-position alpha thresholds for ball detection
-    public static int THRESHOLD_INTAKE_A = 70;
-    public static int THRESHOLD_INTAKE_B = 70;
-
-    public static int THRESHOLD_BACK_LEFT_A = 400;
-    public static int THRESHOLD_BACK_LEFT_B = 250;
-
-    public static int THRESHOLD_BACK_RIGHT_A = 400;
-    public static int THRESHOLD_BACK_RIGHT_B = 250;
+    public static int THRESHOLD_INTAKE = 200;
+    public static int THRESHOLD_BACK_LEFT = 200;
+    public static int THRESHOLD_BACK_RIGHT = 200;
 
     private final BallColor[] positions = { BallColor.EMPTY, BallColor.EMPTY, BallColor.EMPTY };
+
+    // Configurable update rates (milliseconds between updates)
+    public static long SENSOR_UPDATE_INTERVAL_MS = 100;   // Color sensors (I2C is slow)
+    public static long MOTOR_UPDATE_INTERVAL_MS = 100;    // Motor/servo updates
+
+    private final ElapsedTime sensorUpdateTimer = new ElapsedTime();
+    private final ElapsedTime motorUpdateTimer = new ElapsedTime();
 
     public CarouselSubsystem(HardwareMap hardwareMap) {
         carouselMotor = hardwareMap.get(DcMotorEx.class, "carousel_motor");
         carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         carouselMotor.setTargetPosition(0);
         carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        carouselMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(10, 0, 0, 0));
         carouselMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         leftIntake = hardwareMap.get(DcMotorEx.class, "left_intake");
         rightIntake = hardwareMap.get(DcMotorEx.class, "right_intake");
-        leftIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        rightIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        leftIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         kickerServo = hardwareMap.get(Servo.class, "flicker_servo");
         kickerServo.setPosition(KICKER_DOWN);
+
+        intakeServo = hardwareMap.get(CRServo.class, "intake_servo");
 
         light1 = hardwareMap.get(Servo.class, "light1");
         light2 = hardwareMap.get(Servo.class, "light2");
@@ -87,9 +96,18 @@ public class CarouselSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        updateMotor();
-        updatePositionContents();
-        updateLights();
+        // Motor updates (faster)
+        if (motorUpdateTimer.milliseconds() >= MOTOR_UPDATE_INTERVAL_MS) {
+            motorUpdateTimer.reset();
+            updateMotor();
+            updateLights();
+        }
+
+        // Sensor updates (slower - I2C is the bottleneck)
+        if (sensorUpdateTimer.milliseconds() >= SENSOR_UPDATE_INTERVAL_MS) {
+            sensorUpdateTimer.reset();
+            updatePositionContents();
+        }
     }
 
     // Lights
@@ -179,18 +197,21 @@ public class CarouselSubsystem extends SubsystemBase {
     // Intake
 
     public void runIntake() {
-        leftIntake.setPower(INTAKE_VELOCITY);
-        rightIntake.setPower(INTAKE_VELOCITY);
+        leftIntake.setPower(INTAKE_POWER);
+        rightIntake.setPower(INTAKE_POWER);
+        intakeServo.setPower(INTAKE_SERVO_POWER);
     }
 
     public void reverseIntake() {
-        leftIntake.setPower(-INTAKE_VELOCITY);
-        rightIntake.setPower(-INTAKE_VELOCITY);
+        leftIntake.setPower(-INTAKE_POWER);
+        rightIntake.setPower(-INTAKE_POWER);
+        intakeServo.setPower(-INTAKE_SERVO_POWER);
     }
 
     public void stopIntake() {
         leftIntake.setPower(0);
         rightIntake.setPower(0);
+        intakeServo.setPower(0);
     }
 
     // Kicker
@@ -268,12 +289,10 @@ public class CarouselSubsystem extends SubsystemBase {
             return BallColor.UNKNOWN;
         }
 
-        int thresholdA = getThresholdForPositionA(position);
-        int thresholdB = getThresholdForPositionB(position);
+        int threshold = getThresholdForPosition(position);
 
-
-        BallColor typeA = (sensorA != null) ? classifyBall(sensorA, thresholdA) : BallColor.UNKNOWN;
-        BallColor typeB = (sensorB != null) ? classifyBall(sensorB, thresholdB) : BallColor.UNKNOWN;
+        BallColor typeA = (sensorA != null) ? classifyBall(sensorA, threshold) : BallColor.UNKNOWN;
+        BallColor typeB = (sensorB != null) ? classifyBall(sensorB, threshold) : BallColor.UNKNOWN;
 
         if (typeA == typeB) return typeA;
         if (typeA == BallColor.UNKNOWN) return typeB;
@@ -284,19 +303,11 @@ public class CarouselSubsystem extends SubsystemBase {
         return typeA;
     }
 
-    private int getThresholdForPositionA(int position) {
+    private int getThresholdForPosition(int position) {
         switch (position) {
-            case POS_INTAKE: return THRESHOLD_INTAKE_A;
-            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_A;
-            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_A;
-            default: return 200;
-        }
-    }
-    private int getThresholdForPositionB(int position) {
-        switch (position) {
-            case POS_INTAKE: return THRESHOLD_INTAKE_B;
-            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_B;
-            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_B;
+            case POS_INTAKE: return THRESHOLD_INTAKE;
+            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT;
+            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT;
             default: return 200;
         }
     }
@@ -342,11 +353,16 @@ public class CarouselSubsystem extends SubsystemBase {
         return CAROUSEL_POWER;
     }
 
-    public int getThresholdA(int position) {
-        return getThresholdForPositionA(position);
+    public void setThreshold(int position, int threshold) {
+        switch (position) {
+            case POS_INTAKE: THRESHOLD_INTAKE = threshold; break;
+            case POS_BACK_LEFT: THRESHOLD_BACK_LEFT = threshold; break;
+            case POS_BACK_RIGHT: THRESHOLD_BACK_RIGHT = threshold; break;
+        }
     }
-    public int getThresholdB(int position) {
-        return getThresholdForPositionB(position);
+
+    public int getThreshold(int position) {
+        return getThresholdForPosition(position);
     }
 
     // Raw sensor data for calibration
@@ -367,5 +383,22 @@ public class CarouselSubsystem extends SubsystemBase {
 
     public BallColor[] getAllPositions() {
         return positions.clone();
+    }
+
+    // Configurable update rates
+    public static void setSensorUpdateInterval(long intervalMs) {
+        SENSOR_UPDATE_INTERVAL_MS = intervalMs;
+    }
+
+    public static long getSensorUpdateInterval() {
+        return SENSOR_UPDATE_INTERVAL_MS;
+    }
+
+    public static void setMotorUpdateInterval(long intervalMs) {
+        MOTOR_UPDATE_INTERVAL_MS = intervalMs;
+    }
+
+    public static long getMotorUpdateInterval() {
+        return MOTOR_UPDATE_INTERVAL_MS;
     }
 }

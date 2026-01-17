@@ -74,6 +74,14 @@ public class BotState {
     private volatile double tagRange = 0;
     private volatile int tagId = -1;
 
+    // Calculated robot pose from AprilTag
+    private volatile Pose tagCalculatedPose = null;
+    private volatile boolean poseUpdateRequested = false;
+
+    // Debug info
+    private volatile int detectionCount = 0;
+    private volatile String cameraState = "UNKNOWN";
+
     // Auto-align
     private volatile boolean autoAlignEnabled = false;
 
@@ -363,6 +371,44 @@ public class BotState {
 
     public int getTagId() {
         return tagId;
+    }
+
+    // Pose from AprilTag
+    public void setTagCalculatedPose(Pose pose) {
+        this.tagCalculatedPose = pose;
+    }
+
+    public Pose getTagCalculatedPose() {
+        return tagCalculatedPose;
+    }
+
+    public void requestPoseUpdate() {
+        this.poseUpdateRequested = true;
+    }
+
+    public boolean isPoseUpdateRequested() {
+        return poseUpdateRequested;
+    }
+
+    public void clearPoseUpdateRequest() {
+        this.poseUpdateRequested = false;
+    }
+
+    // Debug info
+    public void setDetectionCount(int count) {
+        this.detectionCount = count;
+    }
+
+    public int getDetectionCount() {
+        return detectionCount;
+    }
+
+    public void setCameraState(String state) {
+        this.cameraState = state;
+    }
+
+    public String getCameraState() {
+        return cameraState;
     }
 
     // Auto-align

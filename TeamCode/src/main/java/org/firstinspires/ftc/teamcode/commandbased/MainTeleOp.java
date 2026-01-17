@@ -1,172 +1,202 @@
 package org.firstinspires.ftc.teamcode.commandbased;
 
-import com.arcrobotics.ftclib.command.CommandOpMode;
+import com.arcrobotics.ftclib.command.CommandScheduler;
 import com.arcrobotics.ftclib.command.InstantCommand;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.commandbased.commands.GoToOriginCommand;
 import org.firstinspires.ftc.teamcode.commandbased.commands.IndexCommand;
 import org.firstinspires.ftc.teamcode.commandbased.commands.KickCommand;
 import org.firstinspires.ftc.teamcode.commandbased.commands.RotateCarouselCommand;
 import org.firstinspires.ftc.teamcode.commandbased.commands.ShootSequenceCommand;
-import org.firstinspires.ftc.teamcode.commandbased.commands.TeleOpDriveCommand;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.AprilTagSubsystem;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem.BallColor;
-import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.ShooterSubsystem;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @TeleOp(name = "Main TeleOp", group = "TeleOp")
-public class MainTeleOp extends CommandOpMode {
+public class MainTeleOp extends LinearOpMode {
 
-    private DriveSubsystem driveSubsystem;
+    private Follower follower;
     private CarouselSubsystem carouselSubsystem;
     private ShooterSubsystem shooterSubsystem;
     private AprilTagSubsystem aprilTagSubsystem;
 
-    private TeleOpDriveCommand teleOpDriveCommand;
-
     private GamepadEx driverGamepad;
     private GamepadEx operatorGamepad;
 
-    // Auto-indexing
+    private boolean autoAlignEnabled = false;
+    private static final double ALIGN_POWER = 0.15;
+    private static final double BEARING_TOLERANCE = 1.0;
+
     private boolean ballWasInIntake = false;
     private enum IntakeState { COLLECTING, FULL }
     private IntakeState intakeState = IntakeState.COLLECTING;
-
-    // Shooter velocity (degrees/second)
-    private double shooterVelocity = 0.0;
-    private static final double VELOCITY_INCREMENT_SMALL = 1.0;   // ±1 deg/s (fine)
-    private static final double VELOCITY_INCREMENT_LARGE = 20.0;   // ±5 deg/s (coarse)
-
-    // Shooter mutex - shooter only runs when robot is stationary and intake is off
     private boolean intakeRunning = false;
-    private boolean robotMoving = false;
 
     private static final BallColor[] SHOOT_ORDER = { BallColor.GREEN, BallColor.PURPLE, BallColor.PURPLE };
 
     @Override
-    public void initialize() {
+    public void runOpMode() {
+        // Step 1: Reset scheduler
+        telemetry.addData("Step", "1 - Resetting CommandScheduler");
+        telemetry.update();
+        CommandScheduler.getInstance().reset();
+        sleep(100);
+
+        // Step 2: Gamepads
+        telemetry.addData("Step", "2 - Creating GamepadEx");
+        telemetry.update();
         driverGamepad = new GamepadEx(gamepad1);
         operatorGamepad = new GamepadEx(gamepad2);
+        sleep(100);
 
-        // Initialize subsystems
-        driveSubsystem = new DriveSubsystem(hardwareMap);
+        // Step 3: Drive
+        telemetry.addData("Step", "3 - Creating Follower");
+        telemetry.update();
+        follower = Constants.createFollower(hardwareMap);
+        follower.startTeleOpDrive();
+        sleep(100);
+
+        // Step 4: Carousel
+        telemetry.addData("Step", "4 - Creating CarouselSubsystem");
+        telemetry.update();
         carouselSubsystem = new CarouselSubsystem(hardwareMap);
+        sleep(100);
+
+        // Step 5: Shooter
+        telemetry.addData("Step", "5 - Creating ShooterSubsystem");
+        telemetry.update();
         shooterSubsystem = new ShooterSubsystem(hardwareMap);
-        aprilTagSubsystem = new AprilTagSubsystem(hardwareMap, telemetry);
+        sleep(100);
 
-        // Create drive command with AprilTag support
-        teleOpDriveCommand = new TeleOpDriveCommand(driveSubsystem, aprilTagSubsystem, driverGamepad);
+        // Step 6: AprilTag (in try-catch)
+        telemetry.addData("Step", "6 - Creating AprilTagSubsystem");
+        telemetry.update();
+        try {
+            aprilTagSubsystem = new AprilTagSubsystem(hardwareMap, telemetry);
+        } catch (Exception e) {
+            telemetry.addData("AprilTag Error", e.getMessage());
+            aprilTagSubsystem = null;
+        }
+        sleep(100);
 
-        // ==================== DRIVER CONTROLS (Gamepad 1) ====================
+        // Step 7: Button bindings
+        telemetry.addData("Step", "7 - Setting up button bindings");
+        telemetry.update();
+        setupControls();
+        sleep(100);
 
-        // Left bumper - Toggle auto-align
+        // Step 8: Register subsystems
+        telemetry.addData("Step", "8 - Registering subsystems");
+        telemetry.update();
+        if (aprilTagSubsystem != null) {
+            CommandScheduler.getInstance().registerSubsystem(carouselSubsystem, shooterSubsystem, aprilTagSubsystem);
+        } else {
+            CommandScheduler.getInstance().registerSubsystem(carouselSubsystem, shooterSubsystem);
+        }
+        sleep(100);
+
+        telemetry.addData("Status", "READY - Press Start");
+        telemetry.update();
+
+        waitForStart();
+
+        while (opModeIsActive()) {
+            driverGamepad.readButtons();
+            operatorGamepad.readButtons();
+
+            updateDrive();
+            CommandScheduler.getInstance().run();
+            handleTriggers();
+            handleShooter();
+            updateTelemetry();
+        }
+
+        CommandScheduler.getInstance().reset();
+    }
+
+    private void setupControls() {
+        // Driver
         driverGamepad.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
-                .whenPressed(new InstantCommand(() -> teleOpDriveCommand.toggleAutoAlign()));
+                .whenPressed(new InstantCommand(() -> autoAlignEnabled = !autoAlignEnabled));
 
-        // Right bumper - Go to origin
         driverGamepad.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
-                .whenPressed(new GoToOriginCommand(driveSubsystem));
-
-        // Back - Cancel path
-        driverGamepad.getGamepadButton(GamepadKeys.Button.BACK)
-                .whenPressed(new InstantCommand(() -> driveSubsystem.cancelPath(), driveSubsystem));
-
-        // Square - Show lights for 3 seconds
-        operatorGamepad.getGamepadButton(GamepadKeys.Button.X)
-                .whenPressed(new InstantCommand(() -> carouselSubsystem.showLights()));
-
-
-
-        // Bumpers - Shooter velocity (±50 deg/s)
-        operatorGamepad.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
-                .whenPressed(new InstantCommand(() -> adjustShooterVelocity(-VELOCITY_INCREMENT_LARGE)));
-
-        operatorGamepad.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
-                .whenPressed(new InstantCommand(() -> adjustShooterVelocity(VELOCITY_INCREMENT_LARGE)));
-
-        // D-pad up/down - Shooter velocity fine adjust (±10 deg/s)
-        operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_UP)
-                .whenPressed(new InstantCommand(() -> adjustShooterVelocity(VELOCITY_INCREMENT_SMALL)));
-
-        operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
-                .whenPressed(new InstantCommand(() -> adjustShooterVelocity(-VELOCITY_INCREMENT_SMALL)));
-// THIS WILL BE FOR FINAL
-//        operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
-//                .whenPressed(new InstantCommand(() -> shooterSubsystem.setAdjustedVelocity(aprilTagSubsystem.getDistanceToTag())));
-
-        // X - Shooter off
-        operatorGamepad.getGamepadButton(GamepadKeys.Button.X)
                 .whenPressed(new InstantCommand(() -> {
-                    shooterSubsystem.stop();
+                    if (aprilTagSubsystem != null) {
+                        Pose tagPose = aprilTagSubsystem.getRobotPoseFromAprilTag();
+                        if (tagPose != null) {
+                            follower.setPose(tagPose);
+                        }
+                    }
                 }));
 
-        // D-pad left/right - Manual carousel rotation
+        driverGamepad.getGamepadButton(GamepadKeys.Button.BACK)
+                .whenPressed(new InstantCommand(() -> follower.breakFollowing()));
+
+        driverGamepad.getGamepadButton(GamepadKeys.Button.X)
+                .whenPressed(new InstantCommand(() -> carouselSubsystem.showLights()));
+
+        // Operator
+        operatorGamepad.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
+                .whenPressed(new InstantCommand(() -> {
+                    if (aprilTagSubsystem != null && aprilTagSubsystem.hasBasketTag()) {
+                        shooterSubsystem.setAdjustedVelocity(aprilTagSubsystem.getTagRange());
+                    }
+                }));
+
+        operatorGamepad.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
+                .whenPressed(new InstantCommand(() -> shooterSubsystem.stop()));
+
         operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
                 .whenPressed(new RotateCarouselCommand(carouselSubsystem, RotateCarouselCommand.Direction.LEFT));
 
         operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
                 .whenPressed(new RotateCarouselCommand(carouselSubsystem, RotateCarouselCommand.Direction.RIGHT));
 
-        // A - Index
         operatorGamepad.getGamepadButton(GamepadKeys.Button.A)
                 .whenPressed(new IndexCommand(carouselSubsystem));
 
-        // B - Manual kick
         operatorGamepad.getGamepadButton(GamepadKeys.Button.B)
                 .whenPressed(new KickCommand(carouselSubsystem));
 
-        // Y - Shoot sequence
         operatorGamepad.getGamepadButton(GamepadKeys.Button.Y)
                 .whenPressed(new ShootSequenceCommand(carouselSubsystem, SHOOT_ORDER));
-
-        // Register subsystems
-        register(driveSubsystem, carouselSubsystem, shooterSubsystem, aprilTagSubsystem);
-
-        driveSubsystem.setDefaultCommand(teleOpDriveCommand);
     }
 
-    @Override
-    public void run() {
-        super.run();
-        updateMutexState();
-        handleTriggers();
-        handleShooter();
-        updateTelemetry();
-    }
+    private void updateDrive() {
+        double forward = driverGamepad.getLeftY();
+        double strafe = -driverGamepad.getLeftX();
+        double rotate = -driverGamepad.getRightX() / 2.0;
 
-    private void updateMutexState() {
-        // Check if robot is moving (joystick input or following a path)
-        double forward = Math.abs(driverGamepad.getLeftY());
-        double strafe = Math.abs(driverGamepad.getLeftX());
-        double rotate = Math.abs(driverGamepad.getRightX());
-        robotMoving = (forward > 0.1 || strafe > 0.1 || rotate > 0.1 || driveSubsystem.isFollowingPath());
-    }
+        if (autoAlignEnabled && aprilTagSubsystem != null && aprilTagSubsystem.hasBasketTag()) {
+            double bearing = aprilTagSubsystem.getTagBearing();
+            if (Math.abs(bearing) > BEARING_TOLERANCE) {
+                rotate = ALIGN_POWER * bearing/30;
+            } else {
+                rotate = 0;
+            }
+        }
 
-    private void adjustShooterVelocity(double delta) {
-        shooterVelocity = Math.max(0, shooterVelocity + delta);
+        follower.setTeleOpDrive(forward, strafe, rotate, true);
+        follower.update();
     }
 
     private void handleShooter() {
-        // Shooter only runs when robot is stationary and intake is off
-        boolean canRunShooter = !robotMoving && !intakeRunning;
-
-        if (canRunShooter && shooterVelocity > 0) {
-            shooterSubsystem.setTargetVelocity(shooterVelocity);
-        } else {
+        if (intakeRunning) {
             shooterSubsystem.stop();
-            shooterVelocity = 0;
         }
     }
 
     private void handleTriggers() {
-        double rightTrigger = driverGamepad.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER);
-        double leftTrigger = driverGamepad.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER);
+        double rightTrigger = operatorGamepad.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER);
+        double leftTrigger = operatorGamepad.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER);
 
-        // Update intake state
         if (carouselSubsystem.isFull()) {
             intakeState = IntakeState.FULL;
             ballWasInIntake = true;
@@ -175,12 +205,10 @@ public class MainTeleOp extends CommandOpMode {
             ballWasInIntake = true;
         }
 
-        // Right trigger - run intake
         if (rightTrigger > 0.1) {
             intakeRunning = true;
             carouselSubsystem.runIntake();
 
-            // Auto-index in COLLECTING state
             if (intakeState == IntakeState.COLLECTING && carouselSubsystem.isSettled()) {
                 BallColor intakeContents = carouselSubsystem.getIntakeContents();
                 boolean hasBall = (intakeContents == BallColor.GREEN || intakeContents == BallColor.PURPLE);
@@ -190,54 +218,41 @@ public class MainTeleOp extends CommandOpMode {
                 }
                 ballWasInIntake = hasBall;
             }
-        }
-        // Left trigger - reverse intake
-        else if (leftTrigger > 0.1) {
+        } else if (leftTrigger > 0.1) {
             intakeRunning = true;
             carouselSubsystem.reverseIntake();
             ballWasInIntake = false;
-        }
-        // No trigger - stop intake
-        else {
+        } else {
             intakeRunning = false;
             carouselSubsystem.stopIntake();
             ballWasInIntake = false;
         }
-
-
     }
 
     private void updateTelemetry() {
-        // Shooter info
         telemetry.addLine("=== SHOOTER ===");
-        telemetry.addData("Target Velocity", "%.0f deg/s", shooterVelocity);
-        telemetry.addData("Current Velocity", "%.0f deg/s", shooterSubsystem.getCurrentVelocity());
-        telemetry.addData("Can Run", (!robotMoving && !intakeRunning) ? "YES" : "NO (moving/intake)");
-        telemetry.addData("Auto-Align", teleOpDriveCommand.isAutoAlignEnabled() ? "ON" : "OFF");
+        telemetry.addData("Target", "%.0f deg/s", shooterSubsystem.getTargetVelocity());
+        telemetry.addData("Current", "%.0f deg/s", shooterSubsystem.getCurrentVelocity());
 
-        // AprilTag info
         telemetry.addLine("=== APRILTAG ===");
-        if (aprilTagSubsystem.hasBasketTag()) {
+        telemetry.addData("Auto-Align", autoAlignEnabled ? "ON" : "OFF");
+        if (aprilTagSubsystem != null && aprilTagSubsystem.hasBasketTag()) {
             telemetry.addData("Distance", "%.1f in", aprilTagSubsystem.getTagRange());
             telemetry.addData("Bearing", "%.1f°", aprilTagSubsystem.getTagBearing());
         } else {
-            telemetry.addData("Tag", "NOT VISIBLE");
+            telemetry.addData("Tag", aprilTagSubsystem == null ? "DISABLED" : "NOT VISIBLE");
         }
 
-        // Carousel info
         telemetry.addLine("=== CAROUSEL ===");
         telemetry.addData("Ball Count", carouselSubsystem.getBallCount() + "/3");
-        telemetry.addData("Intake State", intakeState);
 
         BallColor[] positions = carouselSubsystem.getAllPositions();
         telemetry.addData("INTAKE", positions[CarouselSubsystem.POS_INTAKE]);
         telemetry.addData("BACK_LEFT", positions[CarouselSubsystem.POS_BACK_LEFT]);
         telemetry.addData("BACK_RIGHT", positions[CarouselSubsystem.POS_BACK_RIGHT]);
 
-        // Drive info
         telemetry.addLine("=== DRIVE ===");
-        telemetry.addData("Pose", driveSubsystem.getPose());
-        telemetry.addData("Following Path", driveSubsystem.isFollowingPath());
+        telemetry.addData("Pose", follower.getPose());
 
         telemetry.update();
     }

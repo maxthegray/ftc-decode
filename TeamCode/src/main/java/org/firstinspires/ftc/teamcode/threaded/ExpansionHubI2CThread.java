@@ -13,7 +13,7 @@ public class ExpansionHubI2CThread extends Thread {
     private RevColorSensorV3 intakeColor2;  // intake_color2 - sensor B for INTAKE
     private RevColorSensorV3 brUpper;       // BR_upper - sensor B for BACK_RIGHT
 
-    private static final long UPDATE_INTERVAL_MS = 30;
+    private static final long UPDATE_INTERVAL_MS = 1000;
 
     public ExpansionHubI2CThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;

@@ -1,9 +1,12 @@
 package org.firstinspires.ftc.teamcode.threaded;
 
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
 import org.firstinspires.ftc.teamcode.threaded.BotState.CarouselCommand;
 
@@ -11,7 +14,7 @@ import org.firstinspires.ftc.teamcode.threaded.BotState.CarouselCommand;
 public class SimpleTeleOp extends LinearOpMode {
 
     private BotState state;
-    private DriveThread driveThread;
+    private Follower follower;
     private ControlHubI2CThread controlHubI2C;
     private ExpansionHubI2CThread expansionHubI2C;
     private CarouselThread carouselThread;
@@ -30,6 +33,7 @@ public class SimpleTeleOp extends LinearOpMode {
     private boolean prevLBumper = false;
     private boolean prevRBumper = false;
     private boolean prevLBumper1 = false;
+    private boolean prevRBumper1 = false;
 
     // Shooter velocity increments
     private static final double VELOCITY_INCREMENT_SMALL = 1.0;
@@ -46,10 +50,11 @@ public class SimpleTeleOp extends LinearOpMode {
         // Initialize state
         state = new BotState();
 
-        // Initialize threads
-        driveThread = new DriveThread(state, hardwareMap);
-        driveThread.initialize();
+        // Initialize drive (in main loop, not a thread)
+        follower = Constants.createFollower(hardwareMap);
+        follower.startTeleOpDrive();
 
+        // Initialize threads
         controlHubI2C = new ControlHubI2CThread(state, hardwareMap);
         expansionHubI2C = new ExpansionHubI2CThread(state, hardwareMap);
         carouselThread = new CarouselThread(state, hardwareMap);
@@ -62,8 +67,7 @@ public class SimpleTeleOp extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
-        // Start threads
-        driveThread.start();
+        // Start threads (NOT drive - that stays in main loop)
         controlHubI2C.start();
         expansionHubI2C.start();
         carouselThread.start();
@@ -78,6 +82,9 @@ public class SimpleTeleOp extends LinearOpMode {
             handleCarouselInput();
             handleShooterInput();
 
+            // Update drive directly in main loop for lowest latency
+            updateDrive();
+
             // Telemetry
             updateTelemetry();
         }
@@ -86,7 +93,6 @@ public class SimpleTeleOp extends LinearOpMode {
         state.endThreads();
 
         try {
-            driveThread.join(500);
             controlHubI2C.join(500);
             expansionHubI2C.join(500);
             carouselThread.join(500);
@@ -95,6 +101,30 @@ public class SimpleTeleOp extends LinearOpMode {
         } catch (InterruptedException e) {
             // Ignore
         }
+    }
+
+    private void updateDrive() {
+        // Check for pose update request from AprilTag
+        if (state.isPoseUpdateRequested()) {
+            Pose tagPose = state.getTagCalculatedPose();
+            if (tagPose != null) {
+                follower.setPose(tagPose);
+            }
+            state.clearPoseUpdateRequest();
+        }
+
+        // Get drive input from state
+        double forward = state.getDriveForward();
+        double strafe = state.getDriveStrafe();
+        double rotate = state.getDriveRotate();
+
+        // Apply to follower
+        follower.setTeleOpDrive(forward, strafe, rotate, true);
+        follower.update();
+
+        // Update state with current pose
+        state.setCurrentPose(follower.getPose());
+        state.setFollowingPath(follower.isBusy());
     }
 
     private void handleDriveInput() {
@@ -107,6 +137,14 @@ public class SimpleTeleOp extends LinearOpMode {
             state.toggleAutoAlign();
         }
         prevLBumper1 = gamepad1.left_bumper;
+
+        // Update pose from AprilTag - Right Bumper on gamepad1
+        if (gamepad1.right_bumper && !prevRBumper1) {
+            if (state.isBasketTagVisible() && state.getTagCalculatedPose() != null) {
+                state.requestPoseUpdate();
+            }
+        }
+        prevRBumper1 = gamepad1.right_bumper;
 
         // Apply auto-align rotation if enabled and tag visible
         if (state.isAutoAlignEnabled() && state.isBasketTagVisible()) {
@@ -198,10 +236,18 @@ public class SimpleTeleOp extends LinearOpMode {
         telemetry.addData("Runtime", "%.1f s", runtime.seconds());
 
         telemetry.addLine("=== APRIL TAG ===");
+        telemetry.addData("Camera State", state.getCameraState());
+        telemetry.addData("Detections", state.getDetectionCount());
         telemetry.addData("Auto-Align", state.isAutoAlignEnabled() ? "ON" : "OFF");
         if (state.isBasketTagVisible()) {
             telemetry.addData("Tag", "ID %d | Bearing %.1f° | Range %.1f in",
                     state.getTagId(), state.getTagBearing(), state.getTagRange());
+            if (state.getTagCalculatedPose() != null) {
+                telemetry.addData("Tag Pose", "(%.1f, %.1f) %.1f°",
+                        state.getTagCalculatedPose().getX(),
+                        state.getTagCalculatedPose().getY(),
+                        Math.toDegrees(state.getTagCalculatedPose().getHeading()));
+            }
         } else {
             telemetry.addData("Tag", "NOT VISIBLE");
         }
@@ -212,7 +258,10 @@ public class SimpleTeleOp extends LinearOpMode {
         telemetry.addData("Can Run", state.canShooterRun() ? "YES" : "NO (intake)");
 
         telemetry.addLine("=== DRIVE ===");
-        telemetry.addData("Pose", state.getCurrentPose());
+        telemetry.addData("Pose", "(%.1f, %.1f) %.1f°",
+                state.getCurrentPose().getX(),
+                state.getCurrentPose().getY(),
+                Math.toDegrees(state.getCurrentPose().getHeading()));
 
         telemetry.addLine("=== CAROUSEL ===");
         telemetry.addData("Ball Count", state.getBallCount() + "/3");

@@ -12,7 +12,7 @@ public class ShooterThread extends Thread {
     private final BotState state;
     private final DcMotorEx launcherMotor;
 
-    private static final long UPDATE_INTERVAL_MS = 20;
+    private static final long UPDATE_INTERVAL_MS = 1000;
 
     public ShooterThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;

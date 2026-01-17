@@ -38,14 +38,11 @@ public class justDrive extends OpMode {
 
     private Robot r;
 
-    GamepadEx driverGamepad;
 
     @Override
     public void init() {
         r = new Robot(hardwareMap);
         r.init();
-
-        driverGamepad = new GamepadEx((Function0<? extends Gamepad>) gamepad1);
 
         // Initialize drive
         follower = Constants.createFollower(hardwareMap);

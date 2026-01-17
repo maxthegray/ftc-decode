@@ -21,9 +21,9 @@ public class CameraThread extends Thread {
     private VisionPortal visionPortal;
 
     // Basket tag IDs (into the net tags)
-    private static final int[] BASKET_TAG_IDS = { 11, 12, 13, 14 };
+    private static final int[] BASKET_TAG_IDS = { 24 };
 
-    private static final long UPDATE_INTERVAL_MS = 50;
+    private static final long UPDATE_INTERVAL_MS = 1000/120;
 
     public CameraThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;
