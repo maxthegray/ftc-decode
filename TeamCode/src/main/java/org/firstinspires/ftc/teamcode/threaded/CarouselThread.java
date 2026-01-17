@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.threaded;
 
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -18,11 +19,13 @@ public class CarouselThread extends Thread {
     private final DcMotorEx leftIntake;
     private final DcMotorEx rightIntake;
     private final Servo kickerServo;
+    private final CRServo intakeServo;
     private final Servo light1, light2, light3;
 
     // Constants
-    private static final double CAROUSEL_POWER = 0.6;
+    private static final double CAROUSEL_POWER = 0.9;
     private static final double INTAKE_POWER = 0.75;
+    private static final double INTAKE_SERVO_POWER = 1.0;
     private static final double KICKER_DOWN = 0.0;
     private static final double KICKER_UP = 0.4;
 
@@ -31,7 +34,6 @@ public class CarouselThread extends Thread {
     private static final double LIGHT_PURPLE = 0.722;
     private static final double LIGHTS_DURATION = 3.0;
 
-    private static final long UPDATE_INTERVAL_MS = 20;
     private static final double KICK_DURATION_MS = 250;
 
     // State
@@ -45,6 +47,7 @@ public class CarouselThread extends Thread {
 
     public CarouselThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;
+        this.setPriority(Thread.NORM_PRIORITY);
 
         // Carousel motor
         carouselMotor = hardwareMap.get(DcMotorEx.class, "carousel_motor");
@@ -63,6 +66,9 @@ public class CarouselThread extends Thread {
         // Kicker
         kickerServo = hardwareMap.get(Servo.class, "flicker_servo");
         kickerServo.setPosition(KICKER_DOWN);
+
+        // Intake CR servo
+        intakeServo = hardwareMap.get(CRServo.class, "intake_servo");
 
         // Lights
         light1 = hardwareMap.get(Servo.class, "light1");
@@ -97,7 +103,7 @@ public class CarouselThread extends Thread {
             state.setCarouselSettled(!carouselMotor.isBusy());
 
             try {
-                Thread.sleep(UPDATE_INTERVAL_MS);
+                Thread.sleep(BotState.CAROUSEL_UPDATE_MS);
             } catch (InterruptedException e) {
                 break;
             }
@@ -106,43 +112,52 @@ public class CarouselThread extends Thread {
         // Cleanup
         leftIntake.setPower(0);
         rightIntake.setPower(0);
+        intakeServo.setPower(0);
     }
 
     private void handleCarouselCommand() {
         CarouselCommand cmd = state.getCarouselCommand();
         if (cmd == CarouselCommand.NONE) return;
 
-        int currentTicks = carouselMotor.getCurrentPosition();
-        int targetTicks = currentTicks;
+        int currentTarget = carouselMotor.getTargetPosition();
+        int targetTicks = currentTarget;
 
         switch (cmd) {
             case ROTATE_EMPTY_TO_INTAKE:
                 int emptyPos = state.findPositionWithColor(BallColor.EMPTY);
                 if (emptyPos != -1) {
-                    targetTicks = currentTicks + (getStepsToIntake(emptyPos) * BotState.TICKS_PER_SLOT);
+                    targetTicks = currentTarget + (getStepsToIntake(emptyPos) * BotState.TICKS_PER_SLOT);
                 }
                 break;
 
             case ROTATE_TO_KICK_GREEN:
                 int greenPos = state.findPositionWithColor(BallColor.GREEN);
                 if (greenPos != -1) {
-                    targetTicks = currentTicks + (getStepsToIntake(greenPos) * BotState.TICKS_PER_SLOT);
+                    targetTicks = currentTarget + (getStepsToIntake(greenPos) * BotState.TICKS_PER_SLOT);
                 }
                 break;
 
             case ROTATE_TO_KICK_PURPLE:
                 int purplePos = state.findPositionWithColor(BallColor.PURPLE);
                 if (purplePos != -1) {
-                    targetTicks = currentTicks + (getStepsToIntake(purplePos) * BotState.TICKS_PER_SLOT);
+                    targetTicks = currentTarget + (getStepsToIntake(purplePos) * BotState.TICKS_PER_SLOT);
                 }
                 break;
 
             case ROTATE_LEFT:
-                targetTicks = currentTicks - BotState.TICKS_PER_SLOT;
+                targetTicks = currentTarget - BotState.TICKS_PER_SLOT;
                 break;
 
             case ROTATE_RIGHT:
-                targetTicks = currentTicks + BotState.TICKS_PER_SLOT;
+                targetTicks = currentTarget + BotState.TICKS_PER_SLOT;
+                break;
+
+            case NUDGE_FORWARD:
+                targetTicks = currentTarget + BotState.NUDGE_TICKS;
+                break;
+
+            case NUDGE_BACKWARD:
+                targetTicks = currentTarget - BotState.NUDGE_TICKS;
                 break;
         }
 
@@ -161,7 +176,8 @@ public class CarouselThread extends Thread {
     }
 
     private void handleKick() {
-        if (state.isKickRequested() && !kicking && state.isCarouselSettled()) {
+        // Only kick if shooter is ready
+        if (state.isKickRequested() && !kicking && state.isCarouselSettled() && state.isShooterReady()) {
             // Start kick
             kickerServo.setPosition(KICKER_UP);
             state.setKickerUp(true);
@@ -182,12 +198,15 @@ public class CarouselThread extends Thread {
         if (state.isIntakeForward()) {
             leftIntake.setPower(INTAKE_POWER);
             rightIntake.setPower(INTAKE_POWER);
+            intakeServo.setPower(INTAKE_SERVO_POWER);
         } else if (state.isIntakeReverse()) {
             leftIntake.setPower(-INTAKE_POWER);
             rightIntake.setPower(-INTAKE_POWER);
+            intakeServo.setPower(-INTAKE_SERVO_POWER);
         } else {
             leftIntake.setPower(0);
             rightIntake.setPower(0);
+            intakeServo.setPower(0);
         }
     }
 

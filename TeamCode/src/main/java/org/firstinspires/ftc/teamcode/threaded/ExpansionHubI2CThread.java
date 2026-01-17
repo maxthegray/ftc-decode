@@ -5,66 +5,93 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
 
+/**
+ * Thread for reading color sensors on Expansion Hub I2C bus.
+ * Handles back left and back right position sensors.
+ */
 public class ExpansionHubI2CThread extends Thread {
 
     private final BotState state;
 
-    private RevColorSensorV3 intakeColor1;  // intake_color1 - sensor A for INTAKE
-    private RevColorSensorV3 intakeColor2;  // intake_color2 - sensor B for INTAKE
-    private RevColorSensorV3 brUpper;       // BR_upper - sensor B for BACK_RIGHT
-
-    private static final long UPDATE_INTERVAL_MS = 1000;
+    private final RevColorSensorV3 backLeftSensorA;
+    private final RevColorSensorV3 backLeftSensorB;
+    private final RevColorSensorV3 backRightSensorA;
+    private final RevColorSensorV3 backRightSensorB;
 
     public ExpansionHubI2CThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;
+        this.setPriority(Thread.MIN_PRIORITY);  // Low priority - I2C is slow
 
-        intakeColor1 = hardwareMap.get(RevColorSensorV3.class, "intake_color1");
-        intakeColor2 = hardwareMap.get(RevColorSensorV3.class, "intake_color2");
-        brUpper = hardwareMap.get(RevColorSensorV3.class, "BR_upper");
+        backLeftSensorA = hardwareMap.get(RevColorSensorV3.class, "BL_color");
+        backLeftSensorB = hardwareMap.get(RevColorSensorV3.class, "BL_upper");
+        backRightSensorA = hardwareMap.get(RevColorSensorV3.class, "BR_color");
+        backRightSensorB = hardwareMap.get(RevColorSensorV3.class, "BR_upper");
     }
 
     @Override
     public void run() {
         while (!state.shouldKillThreads()) {
 
-            // Read intake_color1 (sensor A for INTAKE)
-            int intake1Alpha = intakeColor1.alpha();
-            int intake1Blue = intakeColor1.blue();
-            int intake1Green = intakeColor1.green();
-            state.setSensorValuesA(BotState.POS_INTAKE, intake1Alpha, intake1Blue, intake1Green);
+            // Read back left sensors
+            if (backLeftSensorA != null) {
+                int alpha = backLeftSensorA.alpha();
+                int blue = backLeftSensorA.blue();
+                int green = backLeftSensorA.green();
+                state.setSensorValuesA(BotState.POS_BACK_LEFT, alpha, blue, green);
+            }
 
-            // Read intake_color2 (sensor B for INTAKE)
-            int intake2Alpha = intakeColor2.alpha();
-            int intake2Blue = intakeColor2.blue();
-            int intake2Green = intakeColor2.green();
-            state.setSensorValuesB(BotState.POS_INTAKE, intake2Alpha, intake2Blue, intake2Green);
+            if (backLeftSensorB != null) {
+                int alpha = backLeftSensorB.alpha();
+                int blue = backLeftSensorB.blue();
+                int green = backLeftSensorB.green();
+                state.setSensorValuesB(BotState.POS_BACK_LEFT, alpha, blue, green);
+            }
 
-            // Read BR_upper (sensor B for BACK_RIGHT)
-            int brUpperAlpha = brUpper.alpha();
-            int brUpperBlue = brUpper.blue();
-            int brUpperGreen = brUpper.green();
-            state.setSensorValuesB(BotState.POS_BACK_RIGHT, brUpperAlpha, brUpperBlue, brUpperGreen);
+            // Read back right sensors
+            if (backRightSensorA != null) {
+                int alpha = backRightSensorA.alpha();
+                int blue = backRightSensorA.blue();
+                int green = backRightSensorA.green();
+                state.setSensorValuesA(BotState.POS_BACK_RIGHT, alpha, blue, green);
+            }
 
-            // Classify INTAKE (we have both sensors)
-            BallColor intakeA = classifyBall(intake1Alpha, intake1Blue, intake1Green, BotState.THRESHOLD_INTAKE);
-            BallColor intakeB = classifyBall(intake2Alpha, intake2Blue, intake2Green, BotState.THRESHOLD_INTAKE);
-            state.setPositionColor(BotState.POS_INTAKE, combineSensors(intakeA, intakeB));
+            if (backRightSensorB != null) {
+                int alpha = backRightSensorB.alpha();
+                int blue = backRightSensorB.blue();
+                int green = backRightSensorB.green();
+                state.setSensorValuesB(BotState.POS_BACK_RIGHT, alpha, blue, green);
+            }
 
-            // Note: BACK_RIGHT classification is done by ControlHubI2CThread
-            // This thread only updates sensor B values for BACK_RIGHT
+            // Classify balls at back positions
+            state.setPositionColor(BotState.POS_BACK_LEFT, classifyPosition(BotState.POS_BACK_LEFT));
+            state.setPositionColor(BotState.POS_BACK_RIGHT, classifyPosition(BotState.POS_BACK_RIGHT));
 
             try {
-                Thread.sleep(UPDATE_INTERVAL_MS);
+                Thread.sleep(BotState.I2C_UPDATE_MS);
             } catch (InterruptedException e) {
                 break;
             }
         }
     }
 
+    private BallColor classifyPosition(int position) {
+        int thresholdA = state.getThresholdA(position);
+        int thresholdB = state.getThresholdB(position);
+
+        BallColor typeA = classifyBall(state.getAlphaA(position), state.getBlueA(position), state.getGreenA(position), thresholdA);
+        BallColor typeB = classifyBall(state.getAlphaB(position), state.getBlueB(position), state.getGreenB(position), thresholdB);
+
+        // Merge readings
+        if (typeA == typeB) return typeA;
+        if (typeA == BallColor.UNKNOWN) return typeB;
+        if (typeB == BallColor.UNKNOWN) return typeA;
+        if (typeA == BallColor.EMPTY) return typeB;
+        if (typeB == BallColor.EMPTY) return typeA;
+        return typeA;
+    }
+
     private BallColor classifyBall(int alpha, int blue, int green, int threshold) {
-        if (alpha < threshold) {
-            return BallColor.EMPTY;
-        }
+        if (alpha < threshold) return BallColor.EMPTY;
 
         if (green == 0) {
             return (blue > 0) ? BallColor.PURPLE : BallColor.UNKNOWN;
@@ -72,14 +99,5 @@ public class ExpansionHubI2CThread extends Thread {
 
         double ratio = (double) blue / green;
         return (ratio > 1.0) ? BallColor.PURPLE : BallColor.GREEN;
-    }
-
-    private BallColor combineSensors(BallColor a, BallColor b) {
-        if (a == b) return a;
-        if (a == BallColor.UNKNOWN) return b;
-        if (b == BallColor.UNKNOWN) return a;
-        if (a == BallColor.EMPTY) return b;
-        if (b == BallColor.EMPTY) return a;
-        return a;
     }
 }

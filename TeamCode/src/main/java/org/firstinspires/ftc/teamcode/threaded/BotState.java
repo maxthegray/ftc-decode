@@ -7,25 +7,30 @@ public class BotState {
 
     private volatile boolean killThreads = false;
 
-    // Drive state
+    // ========================= CONFIGURABLE UPDATE RATES =========================
+    public static long DRIVE_UPDATE_MS = 10;
+    public static long CAROUSEL_UPDATE_MS = 20;
+    public static long SHOOTER_UPDATE_MS = 20;
+    public static long CAMERA_UPDATE_MS = 100;
+    public static long I2C_UPDATE_MS = 50;
+
+    // ========================= DRIVE STATE =========================
     private volatile double driveForward = 0;
     private volatile double driveStrafe = 0;
     private volatile double driveRotate = 0;
     private volatile boolean followingPath = false;
     private volatile Pose currentPose = new Pose(0, 0, 0);
 
-    // Ball colors
+    // ========================= CAROUSEL STATE =========================
     public enum BallColor { GREEN, PURPLE, EMPTY, UNKNOWN }
 
-    // Position indices
     public static final int POS_INTAKE = 0;
     public static final int POS_BACK_LEFT = 1;
     public static final int POS_BACK_RIGHT = 2;
 
-    // Detected ball at each position
     private volatile BallColor[] positions = { BallColor.EMPTY, BallColor.EMPTY, BallColor.EMPTY };
 
-    // Raw sensor values for telemetry/calibration (A and B sensor per position)
+    // Raw sensor values
     private volatile int[] alphaA = { 0, 0, 0 };
     private volatile int[] alphaB = { 0, 0, 0 };
     private volatile int[] blueA = { 0, 0, 0 };
@@ -33,21 +38,35 @@ public class BotState {
     private volatile int[] greenA = { 0, 0, 0 };
     private volatile int[] greenB = { 0, 0, 0 };
 
-    // Per-position alpha thresholds
-    public static int THRESHOLD_INTAKE = 200;
-    public static int THRESHOLD_BACK_LEFT = 200;
-    public static int THRESHOLD_BACK_RIGHT = 200;
+    // Individual sensor thresholds (calibrated)
+    public static int THRESHOLD_INTAKE_A = 80;
+    public static int THRESHOLD_INTAKE_B = 120;
+    public static int THRESHOLD_BACK_LEFT_A = 300;
+    public static int THRESHOLD_BACK_LEFT_B = 200;
+    public static int THRESHOLD_BACK_RIGHT_A = 300;
+    public static int THRESHOLD_BACK_RIGHT_B = 200;
 
-    // Carousel state
-    public static final int TICKS_PER_ROTATION = 2230;
-    public static final int TICKS_PER_SLOT = TICKS_PER_ROTATION / 3;
+    // Carousel constants
+    public static final int TICKS_PER_SLOT = 780;
+    public static final int TICKS_PER_ROTATION = TICKS_PER_SLOT * 3;  // 2332
+
+    public static int NUDGE_TICKS = 50;
 
     private volatile int carouselTargetTicks = 0;
     private volatile int carouselCurrentTicks = 0;
     private volatile boolean carouselSettled = true;
 
     // Carousel commands
-    public enum CarouselCommand { NONE, ROTATE_EMPTY_TO_INTAKE, ROTATE_TO_KICK_GREEN, ROTATE_TO_KICK_PURPLE, ROTATE_LEFT, ROTATE_RIGHT }
+    public enum CarouselCommand {
+        NONE,
+        ROTATE_EMPTY_TO_INTAKE,
+        ROTATE_TO_KICK_GREEN,
+        ROTATE_TO_KICK_PURPLE,
+        ROTATE_LEFT,
+        ROTATE_RIGHT,
+        NUDGE_FORWARD,
+        NUDGE_BACKWARD
+    }
     private volatile CarouselCommand carouselCommand = CarouselCommand.NONE;
 
     // Kicker state
@@ -64,32 +83,43 @@ public class BotState {
     // Auto-index enable
     private volatile boolean autoIndexEnabled = true;
 
-    // Shooter state
-    private volatile double shooterTargetVelocity = 0;  // degrees per second
+    // ========================= SHOOTER STATE =========================
+    private volatile double shooterTargetVelocity = 0;
     private volatile double shooterCurrentVelocity = 0;
 
-    // AprilTag state
+    // Distance-to-velocity coefficients
+    private static final double COEFF_A = 0.00000043;
+    private static final double COEFF_B = -.0001927;
+    private static final double COEFF_C = .026899;
+    private static final double COEFF_D = -.402824;
+
+
+
+    // Velocity tolerance
+    public static double VELOCITY_TOLERANCE = 50.0;
+
+    // ========================= APRILTAG STATE =========================
     private volatile boolean basketTagVisible = false;
     private volatile double tagBearing = 0;
     private volatile double tagRange = 0;
     private volatile int tagId = -1;
-
-    // Calculated robot pose from AprilTag
     private volatile Pose tagCalculatedPose = null;
     private volatile boolean poseUpdateRequested = false;
-
-    // Debug info
     private volatile int detectionCount = 0;
     private volatile String cameraState = "UNKNOWN";
 
     // Auto-align
     private volatile boolean autoAlignEnabled = false;
 
-    // Constructor
+    // Shoot order from tags (21=GPP, 22=PGP, 23=PPG)
+    private volatile BallColor[] detectedShootOrder = null;
+    private volatile int shootOrderTagId = -1;
+
+    // ========================= CONSTRUCTOR =========================
     public BotState() {
     }
 
-    // Kill threads
+    // ========================= THREAD CONTROL =========================
     public void endThreads() {
         killThreads = true;
     }
@@ -98,42 +128,24 @@ public class BotState {
         return killThreads;
     }
 
-    // Drive getters/setters
+    // ========================= DRIVE =========================
     public void setDriveInput(double forward, double strafe, double rotate) {
         this.driveForward = forward;
         this.driveStrafe = strafe;
         this.driveRotate = rotate;
     }
 
-    public double getDriveForward() {
-        return driveForward;
-    }
+    public double getDriveForward() { return driveForward; }
+    public double getDriveStrafe() { return driveStrafe; }
+    public double getDriveRotate() { return driveRotate; }
 
-    public double getDriveStrafe() {
-        return driveStrafe;
-    }
+    public void setFollowingPath(boolean following) { this.followingPath = following; }
+    public boolean isFollowingPath() { return followingPath; }
 
-    public double getDriveRotate() {
-        return driveRotate;
-    }
+    public void setCurrentPose(Pose pose) { this.currentPose = pose; }
+    public Pose getCurrentPose() { return currentPose; }
 
-    public void setFollowingPath(boolean following) {
-        this.followingPath = following;
-    }
-
-    public boolean isFollowingPath() {
-        return followingPath;
-    }
-
-    public void setCurrentPose(Pose pose) {
-        this.currentPose = pose;
-    }
-
-    public Pose getCurrentPose() {
-        return currentPose;
-    }
-
-    // Color sensor setters (called by I2C threads)
+    // ========================= COLOR SENSORS =========================
     public void setSensorValuesA(int position, int alpha, int blue, int green) {
         if (position >= 0 && position < 3) {
             alphaA[position] = alpha;
@@ -156,7 +168,6 @@ public class BotState {
         }
     }
 
-    // Color sensor getters
     public BallColor getPositionColor(int position) {
         if (position >= 0 && position < 3) {
             return positions[position];
@@ -164,9 +175,7 @@ public class BotState {
         return BallColor.UNKNOWN;
     }
 
-    public BallColor[] getAllPositions() {
-        return positions.clone();
-    }
+    public BallColor[] getAllPositions() { return positions.clone(); }
 
     public int getAlphaA(int position) { return alphaA[position]; }
     public int getAlphaB(int position) { return alphaB[position]; }
@@ -175,16 +184,25 @@ public class BotState {
     public int getGreenA(int position) { return greenA[position]; }
     public int getGreenB(int position) { return greenB[position]; }
 
-    public int getThreshold(int position) {
+    public int getThresholdA(int position) {
         switch (position) {
-            case POS_INTAKE: return THRESHOLD_INTAKE;
-            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT;
-            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT;
+            case POS_INTAKE: return THRESHOLD_INTAKE_A;
+            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_A;
+            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_A;
             default: return 200;
         }
     }
 
-    // Ball count helpers
+    public int getThresholdB(int position) {
+        switch (position) {
+            case POS_INTAKE: return THRESHOLD_INTAKE_B;
+            case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_B;
+            case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_B;
+            default: return 200;
+        }
+    }
+
+    // Ball helpers
     public int getBallCount() {
         int count = 0;
         for (BallColor c : positions) {
@@ -193,13 +211,8 @@ public class BotState {
         return count;
     }
 
-    public boolean isFull() {
-        return getBallCount() >= 3;
-    }
-
-    public boolean isEmpty() {
-        return getBallCount() == 0;
-    }
+    public boolean isFull() { return getBallCount() >= 3; }
+    public boolean isEmpty() { return getBallCount() == 0; }
 
     public boolean hasColor(BallColor color) {
         for (BallColor c : positions) {
@@ -215,126 +228,64 @@ public class BotState {
         return -1;
     }
 
-    // Carousel getters/setters
-    public void setCarouselCommand(CarouselCommand cmd) {
-        this.carouselCommand = cmd;
-    }
+    // ========================= CAROUSEL =========================
+    public void setCarouselCommand(CarouselCommand cmd) { this.carouselCommand = cmd; }
+    public CarouselCommand getCarouselCommand() { return carouselCommand; }
+    public void clearCarouselCommand() { this.carouselCommand = CarouselCommand.NONE; }
 
-    public CarouselCommand getCarouselCommand() {
-        return carouselCommand;
-    }
+    public void setCarouselTargetTicks(int ticks) { this.carouselTargetTicks = ticks; }
+    public int getCarouselTargetTicks() { return carouselTargetTicks; }
 
-    public void clearCarouselCommand() {
-        this.carouselCommand = CarouselCommand.NONE;
-    }
+    public void setCarouselCurrentTicks(int ticks) { this.carouselCurrentTicks = ticks; }
+    public int getCarouselCurrentTicks() { return carouselCurrentTicks; }
 
-    public void setCarouselTargetTicks(int ticks) {
-        this.carouselTargetTicks = ticks;
-    }
-
-    public int getCarouselTargetTicks() {
-        return carouselTargetTicks;
-    }
-
-    public void setCarouselCurrentTicks(int ticks) {
-        this.carouselCurrentTicks = ticks;
-    }
-
-    public int getCarouselCurrentTicks() {
-        return carouselCurrentTicks;
-    }
-
-    public void setCarouselSettled(boolean settled) {
-        this.carouselSettled = settled;
-    }
-
-    public boolean isCarouselSettled() {
-        return carouselSettled;
-    }
+    public void setCarouselSettled(boolean settled) { this.carouselSettled = settled; }
+    public boolean isCarouselSettled() { return carouselSettled; }
 
     // Kicker
-    public void requestKick() {
-        this.kickRequested = true;
-    }
-
-    public boolean isKickRequested() {
-        return kickRequested;
-    }
-
-    public void clearKickRequest() {
-        this.kickRequested = false;
-    }
-
-    public void setKickerUp(boolean up) {
-        this.kickerUp = up;
-    }
-
-    public boolean isKickerUp() {
-        return kickerUp;
-    }
+    public void requestKick() { this.kickRequested = true; }
+    public boolean isKickRequested() { return kickRequested; }
+    public void clearKickRequest() { this.kickRequested = false; }
+    public void setKickerUp(boolean up) { this.kickerUp = up; }
+    public boolean isKickerUp() { return kickerUp; }
 
     // Intake
-    public void setIntakeForward(boolean forward) {
-        this.intakeForward = forward;
-    }
-
-    public void setIntakeReverse(boolean reverse) {
-        this.intakeReverse = reverse;
-    }
-
-    public boolean isIntakeForward() {
-        return intakeForward;
-    }
-
-    public boolean isIntakeReverse() {
-        return intakeReverse;
-    }
-
-    public boolean isIntakeRunning() {
-        return intakeForward || intakeReverse;
-    }
+    public void setIntakeForward(boolean forward) { this.intakeForward = forward; }
+    public void setIntakeReverse(boolean reverse) { this.intakeReverse = reverse; }
+    public boolean isIntakeForward() { return intakeForward; }
+    public boolean isIntakeReverse() { return intakeReverse; }
+    public boolean isIntakeRunning() { return intakeForward || intakeReverse; }
 
     // Lights
-    public void requestShowLights() {
-        this.showLightsRequested = true;
-    }
-
-    public boolean isShowLightsRequested() {
-        return showLightsRequested;
-    }
-
-    public void clearShowLightsRequest() {
-        this.showLightsRequested = false;
-    }
+    public void requestShowLights() { this.showLightsRequested = true; }
+    public boolean isShowLightsRequested() { return showLightsRequested; }
+    public void clearShowLightsRequest() { this.showLightsRequested = false; }
 
     // Auto-index
-    public void setAutoIndexEnabled(boolean enabled) {
-        this.autoIndexEnabled = enabled;
+    public void setAutoIndexEnabled(boolean enabled) { this.autoIndexEnabled = enabled; }
+    public boolean isAutoIndexEnabled() { return autoIndexEnabled; }
+
+    // ========================= SHOOTER =========================
+    public void setShooterTargetVelocity(double velocity) { this.shooterTargetVelocity = velocity; }
+    public double getShooterTargetVelocity() { return shooterTargetVelocity; }
+
+    public void setShooterCurrentVelocity(double velocity) { this.shooterCurrentVelocity = velocity; }
+    public double getShooterCurrentVelocity() { return shooterCurrentVelocity; }
+
+    /**
+     * Set shooter velocity based on distance using quadratic formula
+     */
+    public void setAdjustedVelocity(double distance) {
+        shooterTargetVelocity = COEFF_A * distance * distance * distance * distance + COEFF_B * distance * distance * distance + COEFF_C * distance * distance + COEFF_D * distance + 136.48202;
+        shooterTargetVelocity = Math.max(0, shooterTargetVelocity);
     }
 
-    public boolean isAutoIndexEnabled() {
-        return autoIndexEnabled;
-    }
-
-    // Shooter
-    public void setShooterTargetVelocity(double velocity) {
-        this.shooterTargetVelocity = velocity;
-    }
-
-    public double getShooterTargetVelocity() {
-        return shooterTargetVelocity;
-    }
-
-    public void adjustShooterVelocity(double delta) {
-        this.shooterTargetVelocity = Math.max(0, shooterTargetVelocity + delta);
-    }
-
-    public void setShooterCurrentVelocity(double velocity) {
-        this.shooterCurrentVelocity = velocity;
-    }
-
-    public double getShooterCurrentVelocity() {
-        return shooterCurrentVelocity;
+    /**
+     * Check if shooter is at target velocity within tolerance
+     */
+    public boolean isShooterReady() {
+        return shooterTargetVelocity > 0 &&
+                Math.abs(shooterCurrentVelocity - shooterTargetVelocity) <= VELOCITY_TOLERANCE;
     }
 
     // Shooter can run when intake is NOT running
@@ -342,7 +293,7 @@ public class BotState {
         return !isIntakeRunning();
     }
 
-    // AprilTag
+    // ========================= APRILTAG =========================
     public void setTagData(int id, double bearing, double range) {
         this.tagId = id;
         this.tagBearing = bearing;
@@ -357,70 +308,36 @@ public class BotState {
         this.tagRange = 0;
     }
 
-    public boolean isBasketTagVisible() {
-        return basketTagVisible;
-    }
+    public boolean isBasketTagVisible() { return basketTagVisible; }
+    public double getTagBearing() { return tagBearing; }
+    public double getTagRange() { return tagRange; }
+    public int getTagId() { return tagId; }
 
-    public double getTagBearing() {
-        return tagBearing;
-    }
+    public void setTagCalculatedPose(Pose pose) { this.tagCalculatedPose = pose; }
+    public Pose getTagCalculatedPose() { return tagCalculatedPose; }
 
-    public double getTagRange() {
-        return tagRange;
-    }
+    public void requestPoseUpdate() { this.poseUpdateRequested = true; }
+    public boolean isPoseUpdateRequested() { return poseUpdateRequested; }
+    public void clearPoseUpdateRequest() { this.poseUpdateRequested = false; }
 
-    public int getTagId() {
-        return tagId;
-    }
+    public void setDetectionCount(int count) { this.detectionCount = count; }
+    public int getDetectionCount() { return detectionCount; }
 
-    // Pose from AprilTag
-    public void setTagCalculatedPose(Pose pose) {
-        this.tagCalculatedPose = pose;
-    }
-
-    public Pose getTagCalculatedPose() {
-        return tagCalculatedPose;
-    }
-
-    public void requestPoseUpdate() {
-        this.poseUpdateRequested = true;
-    }
-
-    public boolean isPoseUpdateRequested() {
-        return poseUpdateRequested;
-    }
-
-    public void clearPoseUpdateRequest() {
-        this.poseUpdateRequested = false;
-    }
-
-    // Debug info
-    public void setDetectionCount(int count) {
-        this.detectionCount = count;
-    }
-
-    public int getDetectionCount() {
-        return detectionCount;
-    }
-
-    public void setCameraState(String state) {
-        this.cameraState = state;
-    }
-
-    public String getCameraState() {
-        return cameraState;
-    }
+    public void setCameraState(String state) { this.cameraState = state; }
+    public String getCameraState() { return cameraState; }
 
     // Auto-align
-    public void setAutoAlignEnabled(boolean enabled) {
-        this.autoAlignEnabled = enabled;
+    public void setAutoAlignEnabled(boolean enabled) { this.autoAlignEnabled = enabled; }
+    public boolean isAutoAlignEnabled() { return autoAlignEnabled; }
+    public void toggleAutoAlign() { this.autoAlignEnabled = !autoAlignEnabled; }
+
+    // Shoot order
+    public void setDetectedShootOrder(BallColor[] order, int tagId) {
+        this.detectedShootOrder = order;
+        this.shootOrderTagId = tagId;
     }
 
-    public boolean isAutoAlignEnabled() {
-        return autoAlignEnabled;
-    }
-
-    public void toggleAutoAlign() {
-        this.autoAlignEnabled = !autoAlignEnabled;
-    }
+    public BallColor[] getDetectedShootOrder() { return detectedShootOrder; }
+    public int getShootOrderTagId() { return shootOrderTagId; }
+    public boolean hasDetectedShootOrder() { return detectedShootOrder != null; }
 }

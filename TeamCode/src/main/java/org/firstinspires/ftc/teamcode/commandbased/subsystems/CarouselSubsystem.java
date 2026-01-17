@@ -44,8 +44,9 @@ public class CarouselSubsystem extends SubsystemBase {
     private static final double KICKER_DOWN = 0.0;
     private static final double KICKER_UP = 0.4;
 
-    public static int TICKS_PER_ROTATION = 2230;
+    public static int TICKS_PER_ROTATION = 9328/4;
     public static int TICKS_PER_SLOT = TICKS_PER_ROTATION / 3;
+    public static int NUDGE_TICKS = 10;  // Fine adjustment amount
 
     // Per-position alpha thresholds for ball detection
     public static int THRESHOLD_INTAKE = 200;
@@ -55,8 +56,8 @@ public class CarouselSubsystem extends SubsystemBase {
     private final BallColor[] positions = { BallColor.EMPTY, BallColor.EMPTY, BallColor.EMPTY };
 
     // Configurable update rates (milliseconds between updates)
-    public static long SENSOR_UPDATE_INTERVAL_MS = 100;   // Color sensors (I2C is slow)
-    public static long MOTOR_UPDATE_INTERVAL_MS = 100;    // Motor/servo updates
+    public static long SENSOR_UPDATE_INTERVAL_MS = 50;   // Color sensors (I2C is slow)
+    public static long MOTOR_UPDATE_INTERVAL_MS = 20;    // Motor/servo updates
 
     private final ElapsedTime sensorUpdateTimer = new ElapsedTime();
     private final ElapsedTime motorUpdateTimer = new ElapsedTime();
@@ -66,7 +67,6 @@ public class CarouselSubsystem extends SubsystemBase {
         carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         carouselMotor.setTargetPosition(0);
         carouselMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        carouselMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_TO_POSITION, new PIDFCoefficients(10, 0, 0, 0));
         carouselMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         leftIntake = hardwareMap.get(DcMotorEx.class, "left_intake");
@@ -171,6 +171,24 @@ public class CarouselSubsystem extends SubsystemBase {
     public void rotateOneStepBackward() {
         int targetTicks = carouselMotor.getCurrentPosition() - TICKS_PER_SLOT;
         carouselMotor.setTargetPosition(targetTicks);
+    }
+
+    public void nudgeForward(int ticks) {
+        int targetTicks = carouselMotor.getCurrentPosition() + ticks;
+        carouselMotor.setTargetPosition(targetTicks);
+    }
+
+    public void nudgeBackward(int ticks) {
+        int targetTicks = carouselMotor.getCurrentPosition() - ticks;
+        carouselMotor.setTargetPosition(targetTicks);
+    }
+
+    public void nudgeForward() {
+        nudgeForward(NUDGE_TICKS);
+    }
+
+    public void nudgeBackward() {
+        nudgeBackward(NUDGE_TICKS);
     }
 
     private int getStepsToIntake(int position) {

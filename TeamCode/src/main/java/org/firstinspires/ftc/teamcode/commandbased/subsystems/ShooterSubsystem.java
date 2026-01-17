@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -15,7 +16,7 @@ public class ShooterSubsystem extends SubsystemBase {
     private double targetVelocity = 0; // degrees per second
 
     // Configurable update rate (milliseconds between updates)
-    public static long UPDATE_INTERVAL_MS = 100;
+    public static long UPDATE_INTERVAL_MS = 20;
     private final ElapsedTime updateTimer = new ElapsedTime();
 
     // Distance-to-velocity coefficients (quadratic: a*d^2 + b*d + c)
@@ -23,8 +24,13 @@ public class ShooterSubsystem extends SubsystemBase {
     private static final double COEFF_B = 2.07959;
     private static final double COEFF_C = 93.57352;
 
+    // Velocity tolerance for "ready" state
+    public static double VELOCITY_TOLERANCE = 5.0;  // degrees per second
+
     public ShooterSubsystem(HardwareMap hardwareMap) {
         launcherMotor = hardwareMap.get(DcMotorEx.class, "launcher_motor");
+        launcherMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(2, 1, 0, 2));
+
         launcherMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         launcherMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         launcherMotor.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -75,6 +81,13 @@ public class ShooterSubsystem extends SubsystemBase {
                 Math.abs(getCurrentVelocity() - targetVelocity) <= tolerance;
     }
 
+    /**
+     * Check if shooter is ready to fire (within VELOCITY_TOLERANCE of target)
+     */
+    public boolean isReady() {
+        return isAtTargetVelocity(VELOCITY_TOLERANCE);
+    }
+
     // Configurable update rate
     public static void setUpdateInterval(long intervalMs) {
         UPDATE_INTERVAL_MS = intervalMs;
@@ -82,5 +95,14 @@ public class ShooterSubsystem extends SubsystemBase {
 
     public static long getUpdateInterval() {
         return UPDATE_INTERVAL_MS;
+    }
+
+    // Velocity tolerance
+    public static void setVelocityTolerance(double tolerance) {
+        VELOCITY_TOLERANCE = tolerance;
+    }
+
+    public static double getVelocityTolerance() {
+        return VELOCITY_TOLERANCE;
     }
 }

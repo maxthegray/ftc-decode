@@ -112,10 +112,11 @@ public class MainTeleOp extends LinearOpMode {
             operatorGamepad.readButtons();
 
             updateDrive();
-            CommandScheduler.getInstance().run();
             handleTriggers();
             handleShooter();
             updateTelemetry();
+            CommandScheduler.getInstance().run();
+
         }
 
         CommandScheduler.getInstance().reset();
@@ -139,7 +140,7 @@ public class MainTeleOp extends LinearOpMode {
         driverGamepad.getGamepadButton(GamepadKeys.Button.BACK)
                 .whenPressed(new InstantCommand(() -> follower.breakFollowing()));
 
-        driverGamepad.getGamepadButton(GamepadKeys.Button.X)
+        operatorGamepad.getGamepadButton(GamepadKeys.Button.X)
                 .whenPressed(new InstantCommand(() -> carouselSubsystem.showLights()));
 
         // Operator
@@ -159,11 +160,21 @@ public class MainTeleOp extends LinearOpMode {
         operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
                 .whenPressed(new RotateCarouselCommand(carouselSubsystem, RotateCarouselCommand.Direction.RIGHT));
 
+        // D-pad up/down - Fine carousel adjustment (±10 ticks)
+        operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_UP)
+                .whenPressed(new InstantCommand(() -> carouselSubsystem.nudgeForward()));
+
+        operatorGamepad.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
+                .whenPressed(new InstantCommand(() -> carouselSubsystem.nudgeBackward()));
+
         operatorGamepad.getGamepadButton(GamepadKeys.Button.A)
                 .whenPressed(new IndexCommand(carouselSubsystem));
 
+        // B - Manual kick (only if shooter is ready)
         operatorGamepad.getGamepadButton(GamepadKeys.Button.B)
-                .whenPressed(new KickCommand(carouselSubsystem));
+                .whenPressed(new InstantCommand(() -> {
+                        new KickCommand(carouselSubsystem).schedule();
+                }));
 
         operatorGamepad.getGamepadButton(GamepadKeys.Button.Y)
                 .whenPressed(new ShootSequenceCommand(carouselSubsystem, SHOOT_ORDER));
@@ -177,13 +188,13 @@ public class MainTeleOp extends LinearOpMode {
         if (autoAlignEnabled && aprilTagSubsystem != null && aprilTagSubsystem.hasBasketTag()) {
             double bearing = aprilTagSubsystem.getTagBearing();
             if (Math.abs(bearing) > BEARING_TOLERANCE) {
-                rotate = ALIGN_POWER * bearing/30;
+                rotate = bearing * ALIGN_POWER;
             } else {
                 rotate = 0;
             }
         }
 
-        follower.setTeleOpDrive(forward, strafe, rotate, true);
+        follower.setTeleOpDrive(forward, strafe, rotate);
         follower.update();
     }
 
@@ -194,8 +205,8 @@ public class MainTeleOp extends LinearOpMode {
     }
 
     private void handleTriggers() {
-        double rightTrigger = operatorGamepad.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER);
-        double leftTrigger = operatorGamepad.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER);
+        double rightTrigger = driverGamepad.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER);
+        double leftTrigger = driverGamepad.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER);
 
         if (carouselSubsystem.isFull()) {
             intakeState = IntakeState.FULL;
@@ -233,6 +244,8 @@ public class MainTeleOp extends LinearOpMode {
         telemetry.addLine("=== SHOOTER ===");
         telemetry.addData("Target", "%.0f deg/s", shooterSubsystem.getTargetVelocity());
         telemetry.addData("Current", "%.0f deg/s", shooterSubsystem.getCurrentVelocity());
+        telemetry.addData("Ready", shooterSubsystem.isReady() ? "YES" : "NO");
+        telemetry.addData("Tolerance", "%.0f deg/s", ShooterSubsystem.VELOCITY_TOLERANCE);
 
         telemetry.addLine("=== APRILTAG ===");
         telemetry.addData("Auto-Align", autoAlignEnabled ? "ON" : "OFF");
