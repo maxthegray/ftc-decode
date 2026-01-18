@@ -7,8 +7,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
 import org.firstinspires.ftc.teamcode.threaded.BotState.CarouselCommand;
 
-@TeleOp(name = "Threaded TeleOp", group = "TeleOp")
-public class SimpleTeleOp extends LinearOpMode {
+@TeleOp(name = "TeleOp - RED", group = "TeleOp")
+public class TeleOpRed extends LinearOpMode {
+
+    // Red alliance uses tag 24
+    private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
 
     private BotState state;
     private DriveThread driveThread;
@@ -38,23 +41,25 @@ public class SimpleTeleOp extends LinearOpMode {
     private ShootSequence shootSequence;
 
     @Override
-    public void runOpMode() throws InterruptedException {
+    public void runOpMode() {
         runtime = new ElapsedTime();
 
         // Initialize state
         state = new BotState();
 
-        // Initialize threads
+        // Initialize threads - pass RED basket tag ID to camera
         driveThread = new DriveThread(state, hardwareMap);
         controlHubI2C = new ControlHubI2CThread(state, hardwareMap);
         expansionHubI2C = new ExpansionHubI2CThread(state, hardwareMap);
         carouselThread = new CarouselThread(state, hardwareMap);
         shooterThread = new ShooterThread(state, hardwareMap);
-        cameraThread = new CameraThread(state, hardwareMap, CameraThread.TAG_BLUE_BASKET);
+        cameraThread = new CameraThread(state, hardwareMap, BASKET_TAG_ID);
 
         // Initialize shoot sequence
         shootSequence = new ShootSequence(state);
 
+        telemetry.addData("Alliance", "RED");
+        telemetry.addData("Basket Tag", BASKET_TAG_ID);
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
@@ -78,7 +83,7 @@ public class SimpleTeleOp extends LinearOpMode {
             handleShooterInput();
 
             // Update shoot sequence
-            shootSequence.update();
+//            shootSequence.update();
 
             // Telemetry
             updateTelemetry();
@@ -185,7 +190,7 @@ public class SimpleTeleOp extends LinearOpMode {
         }
         prevA = gamepad2.a;
 
-//         Triangle - Shoot sequence
+        // Triangle - Shoot sequence
         if (gamepad2.y && !prevY) {
             shootSequence.start();
         }
@@ -211,24 +216,18 @@ public class SimpleTeleOp extends LinearOpMode {
     // ========================= TELEMETRY =========================
 
     private void updateTelemetry() {
+        telemetry.addData("Alliance", "RED (Tag %d)", BASKET_TAG_ID);
         telemetry.addData("Runtime", "%.1f s", runtime.seconds());
-
-        telemetry.addLine("=== UPDATE RATES ===");
-        telemetry.addData("Drive", "%d ms", BotState.DRIVE_UPDATE_MS);
-        telemetry.addData("Carousel", "%d ms", BotState.CAROUSEL_UPDATE_MS);
-        telemetry.addData("Shooter", "%d ms", BotState.SHOOTER_UPDATE_MS);
-        telemetry.addData("Camera", "%d ms", BotState.CAMERA_UPDATE_MS);
-        telemetry.addData("I2C", "%d ms", BotState.I2C_UPDATE_MS);
 
         telemetry.addLine("=== APRIL TAG ===");
         telemetry.addData("Camera State", state.getCameraState());
         telemetry.addData("Detections", state.getDetectionCount());
         telemetry.addData("Auto-Align", state.isAutoAlignEnabled() ? "ON" : "OFF");
         if (state.isBasketTagVisible()) {
-            telemetry.addData("Tag 24", "Bearing %.1f° | Range %.1f in",
+            telemetry.addData("Basket Tag", "Bearing %.1f° | Range %.1f in",
                     state.getTagBearing(), state.getTagRange());
         } else {
-            telemetry.addData("Tag 24", "NOT VISIBLE");
+            telemetry.addData("Basket Tag", "NOT VISIBLE");
         }
         if (state.hasDetectedShootOrder()) {
             BallColor[] order = state.getDetectedShootOrder();
@@ -245,7 +244,6 @@ public class SimpleTeleOp extends LinearOpMode {
         telemetry.addData("Target", "%.0f deg/s", state.getShooterTargetVelocity());
         telemetry.addData("Current", "%.0f deg/s", state.getShooterCurrentVelocity());
         telemetry.addData("Ready", state.isShooterReady() ? "YES" : "NO");
-        telemetry.addData("Tolerance", "%.0f deg/s", BotState.VELOCITY_TOLERANCE);
 
         telemetry.addLine("=== DRIVE ===");
         telemetry.addData("Pose", "(%.1f, %.1f) %.1f°",
@@ -256,9 +254,6 @@ public class SimpleTeleOp extends LinearOpMode {
         telemetry.addLine("=== CAROUSEL ===");
         telemetry.addData("Ball Count", state.getBallCount() + "/3");
         telemetry.addData("Settled", state.isCarouselSettled());
-        telemetry.addData("Target Ticks", state.getCarouselTargetTicks());
-        telemetry.addData("Current Ticks", state.getCarouselCurrentTicks());
-        telemetry.addData("Error", state.getCarouselTargetTicks() - state.getCarouselCurrentTicks());
 
         BallColor[] positions = state.getAllPositions();
         telemetry.addData("INTAKE", positions[BotState.POS_INTAKE]);

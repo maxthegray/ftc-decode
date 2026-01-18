@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode.threaded;
 
 import android.util.Size;
 
-import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -15,23 +14,33 @@ import java.util.List;
 public class CameraThread extends Thread {
 
     private final BotState state;
+    private final int basketTagId;
 
     private AprilTagProcessor aprilTagProcessor;
     private VisionPortal visionPortal;
 
-    // Tag 24 field position (Red Goal)
+    // Tag 24 field position (Red Basket)
     private static final double TAG_24_X = -58.35 - 72;
     private static final double TAG_24_Y = 55.63 - 72;
     private static final double TAG_24_HEADING = -54.0;
+
+    // Tag 20 field position (Blue Basket)
+    private static final double TAG_20_X = 58.35 + 72;
+    private static final double TAG_20_Y = 55.63 - 72;
+    private static final double TAG_20_HEADING = -126.0;
 
     // Shoot order tags
     private static final int TAG_GPP = 21;  // Green, Purple, Purple
     private static final int TAG_PGP = 22;  // Purple, Green, Purple
     private static final int TAG_PPG = 23;  // Purple, Purple, Green
-    private static final int TAG_BASKET = 24;
 
-    public CameraThread(BotState state, HardwareMap hardwareMap) {
+    // Alliance basket tags
+    public static final int TAG_BLUE_BASKET = 20;
+    public static final int TAG_RED_BASKET = 24;
+
+    public CameraThread(BotState state, HardwareMap hardwareMap, int basketTagId) {
         this.state = state;
+        this.basketTagId = basketTagId;
 
         // Initialize AprilTag processor
         aprilTagProcessor = new AprilTagProcessor.Builder()
@@ -80,7 +89,7 @@ public class CameraThread extends Thread {
             AprilTagDetection shootOrderTag = null;
 
             for (AprilTagDetection detection : detections) {
-                if (detection.id == TAG_BASKET && detection.ftcPose != null) {
+                if (detection.id == basketTagId && detection.ftcPose != null) {
                     basketTag = detection;
                 } else if (detection.id == TAG_GPP || detection.id == TAG_PGP || detection.id == TAG_PPG) {
                     shootOrderTag = detection;
@@ -127,20 +136,32 @@ public class CameraThread extends Thread {
     private Pose calculateRobotPose(AprilTagDetection tag) {
         if (tag == null || tag.ftcPose == null) return null;
 
+        // Get tag position based on which basket we're tracking
+        double tagX, tagY, tagHeading;
+        if (basketTagId == TAG_BLUE_BASKET) {
+            tagX = TAG_20_X;
+            tagY = TAG_20_Y;
+            tagHeading = TAG_20_HEADING;
+        } else {
+            tagX = TAG_24_X;
+            tagY = TAG_24_Y;
+            tagHeading = TAG_24_HEADING;
+        }
+
         double range = tag.ftcPose.range;
         double bearing = tag.ftcPose.bearing;
         double yaw = tag.ftcPose.yaw;
 
         double bearingRad = Math.toRadians(bearing);
-        double tagHeadingRad = Math.toRadians(TAG_24_HEADING);
+        double tagHeadingRad = Math.toRadians(tagHeading);
 
         double cameraToTagX = range * Math.cos(bearingRad);
         double cameraToTagY = range * Math.sin(bearingRad);
 
-        double cameraFieldX = TAG_24_X - (cameraToTagX * Math.cos(tagHeadingRad) - cameraToTagY * Math.sin(tagHeadingRad));
-        double cameraFieldY = TAG_24_Y - (cameraToTagX * Math.sin(tagHeadingRad) + cameraToTagY * Math.cos(tagHeadingRad));
+        double cameraFieldX = tagX - (cameraToTagX * Math.cos(tagHeadingRad) - cameraToTagY * Math.sin(tagHeadingRad));
+        double cameraFieldY = tagY - (cameraToTagX * Math.sin(tagHeadingRad) + cameraToTagY * Math.cos(tagHeadingRad));
 
-        double cameraHeadingRad = Math.toRadians(TAG_24_HEADING - yaw);
+        double cameraHeadingRad = Math.toRadians(tagHeading - yaw);
 
         // Normalize heading
         while (cameraHeadingRad > Math.PI) cameraHeadingRad -= 2 * Math.PI;
