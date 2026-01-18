@@ -4,280 +4,159 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name = "Auto - BLUE Simple", group = "Auto")
+@Autonomous(name = "Auto - Shoot 3 (BLUE)", group = "Auto")
 public class AutoBlue extends LinearOpMode {
 
-    // Blue alliance uses tag 20
     private static final int BASKET_TAG_ID = CameraThread.TAG_BLUE_BASKET;
 
-    // Alignment tuning
-    private static final double ALIGN_P = 0.015;
-    private static final double ALIGN_DEADBAND = 2.0;      // degrees - "good enough"
-    private static final double ALIGN_MIN_POWER = 0.10;
-    private static final double ALIGN_MAX_POWER = 0.35;
-    private static final long ALIGN_TIMEOUT_MS = 3000;     // give up after 3 sec
-    private static final long ALIGN_STABLE_MS = 300;       // must be aligned for 300ms
+    private static final double DRIVE_POWER = 0.5;         // forward speed
+    private static final double DRIVE_TIME_SEC = 1.0;      // drive duration
+
+    private static final double DEFAULT_VELOCITY = 0;  // if tag not visible
+    private static final long TAG_TIMEOUT_MS = 3000;       // wait for tag
+    private static final long SPIN_UP_MS = 1500;           // time to spin up shooter
+    private static final long POST_KICK_MS = 500;          // wait after kick
+    private static final long CAROUSEL_SETTLE_MS = 800;    // wait for carousel to rotate
 
     private BotState state;
     private DriveThread driveThread;
-    private ControlHubI2CThread controlHubI2C;
-    private ExpansionHubI2CThread expansionHubI2C;
     private CarouselThread carouselThread;
     private ShooterThread shooterThread;
     private CameraThread cameraThread;
-    private ShootSequence shootSequence;
-
-    private ElapsedTime runtime;
 
     @Override
     public void runOpMode() {
-        runtime = new ElapsedTime();
-
-        // Initialize state
+        // Initialize
         state = new BotState();
-
-        // Disable auto-index during autonomous (we control everything)
         state.setAutoIndexEnabled(false);
 
-        // Initialize threads
         driveThread = new DriveThread(state, hardwareMap);
-        controlHubI2C = new ControlHubI2CThread(state, hardwareMap);
-        expansionHubI2C = new ExpansionHubI2CThread(state, hardwareMap);
         carouselThread = new CarouselThread(state, hardwareMap);
         shooterThread = new ShooterThread(state, hardwareMap);
         cameraThread = new CameraThread(state, hardwareMap, BASKET_TAG_ID);
 
-        // Initialize shoot sequence
-        shootSequence = new ShootSequence(state);
-
-        telemetry.addData("Alliance", "BLUE");
-        telemetry.addData("Status", "Initialized - Waiting for Start");
-        telemetry.addData("Basket Tag", BASKET_TAG_ID);
+        telemetry.addData("Alliance", "BLUE (Tag %d)", BASKET_TAG_ID);
+        telemetry.addData("Status", "Ready");
         telemetry.update();
 
-        // Wait for start
         waitForStart();
-        runtime.reset();
-
-        if (!opModeIsActive()) return;
 
         // Start threads
         driveThread.start();
-        controlHubI2C.start();
-        expansionHubI2C.start();
         carouselThread.start();
         shooterThread.start();
         cameraThread.start();
 
-        // Give sensors time to initialize
-        safeSleep(500);
-
-        // === STEP 1: Wait for camera to see tag ===
-        telemetry.addData("Step", "1 - Waiting for AprilTag...");
-        telemetry.update();
-
-        if (!waitForTag(5000)) {
-            telemetry.addData("ERROR", "Tag not found! Aborting.");
-            telemetry.update();
-            cleanup();
-            return;
-        }
-
-        // === STEP 2: Align to basket ===
-        telemetry.addData("Step", "2 - Aligning to basket...");
-        telemetry.update();
-
-        boolean aligned = alignToBasket();
-        if (!aligned) {
-            telemetry.addData("WARNING", "Alignment timed out, continuing anyway");
-            telemetry.update();
-        }
-
-        // Stop rotation
-        state.setDriveInput(0, 0, 0);
-        safeSleep(200);
-
-        // === STEP 3: Shoot sequence ===
-        telemetry.addData("Step", "3 - Shooting...");
-        telemetry.update();
-
-        shootSequence.start();
-
-        while (opModeIsActive() && shootSequence.isActive()) {
-            shootSequence.update();
-
-            // Continuously re-align while shooting
-            if (state.isBasketTagVisible()) {
-                double bearing = state.getTagBearing();
-                if (Math.abs(bearing) > ALIGN_DEADBAND) {
-                    double rotate = calculateAlignPower(bearing);
-                    state.setDriveInput(0, 0, rotate);
-                } else {
-                    state.setDriveInput(0, 0, 0);
-                }
-            }
-
-            // Telemetry
-            telemetry.addData("Step", "3 - Shooting");
-            telemetry.addData("Ball", "%d/%d",
-                    shootSequence.getBallIndex() + 1,
-                    shootSequence.getTotalBalls());
-            telemetry.addData("State", shootSequence.getStateName());
-            telemetry.addData("Target", shootSequence.getCurrentTarget());
-            telemetry.addData("Shooter Ready", state.isShooterReady());
-            telemetry.addData("Tag Visible", state.isBasketTagVisible());
-            if (state.isBasketTagVisible()) {
-                telemetry.addData("Bearing", "%.1f°", state.getTagBearing());
-                telemetry.addData("Range", "%.1f in", state.getTagRange());
-            }
-            telemetry.update();
-
-            safeSleep(20);
-        }
-
-        // === DONE ===
-        state.setShooterTargetVelocity(0);
-        state.setDriveInput(0, 0, 0);
-
-        telemetry.addData("Step", "DONE!");
-        telemetry.addData("Runtime", "%.1f sec", runtime.seconds());
-        telemetry.update();
-
-        // Keep displaying until auto ends
-        while (opModeIsActive()) {
-            safeSleep(100);
-        }
-
-        cleanup();
-    }
-
-    /**
-     * Wait for the basket tag to be visible.
-     * @param timeoutMs Maximum time to wait
-     * @return true if tag found, false if timeout
-     */
-    private boolean waitForTag(long timeoutMs) {
+        // === STEP 1: Drive forward for 5 seconds ===
         ElapsedTime timer = new ElapsedTime();
 
-        while (opModeIsActive() && timer.milliseconds() < timeoutMs) {
-            if (state.isBasketTagVisible()) {
-                return true;
-            }
 
-            telemetry.addData("Step", "1 - Waiting for AprilTag");
-            telemetry.addData("Camera State", state.getCameraState());
-            telemetry.addData("Detections", state.getDetectionCount());
-            telemetry.addData("Time", "%.1f / %.1f sec",
-                    timer.milliseconds() / 1000.0,
-                    timeoutMs / 1000.0);
+
+        // Stop driving
+
+
+        // === STEP 2: Wait for tag to get distance ===
+        telemetry.addData("Step", "Looking for tag...");
+        telemetry.update();
+
+        timer.reset();
+        while (opModeIsActive() && !state.isBasketTagVisible() && timer.milliseconds() < TAG_TIMEOUT_MS) {
+            telemetry.addData("Step", "Looking for tag...");
+            telemetry.addData("Time", "%.1f / %.1f sec", timer.seconds(), TAG_TIMEOUT_MS / 1000.0);
             telemetry.update();
-
             safeSleep(50);
         }
 
-        return false;
-    }
+        // Set shooter velocity based on distance
+        if (state.isBasketTagVisible()) {
+            double range = state.getTagRange();
+            state.setAdjustedVelocity(range);
+            sleep(500);
+            state.setShooterTargetVelocity(state.getShooterTargetVelocity() - 2);
+            telemetry.addData("Range", "%.1f in", range);
+            telemetry.addData("Velocity", "%.0f deg/s", state.getShooterTargetVelocity());
+            safeSleep(1000);
 
-    /**
-     * Align robot to face the basket tag.
-     * @return true if aligned, false if timeout
-     */
-    private boolean alignToBasket() {
-        ElapsedTime timer = new ElapsedTime();
-        ElapsedTime stableTimer = new ElapsedTime();
-        boolean wasAligned = false;
+        } else {
+            state.setShooterTargetVelocity(DEFAULT_VELOCITY);
 
-        while (opModeIsActive() && timer.milliseconds() < ALIGN_TIMEOUT_MS) {
-            if (!state.isBasketTagVisible()) {
-                // Lost tag, keep last rotation command briefly
-                stableTimer.reset();
-                wasAligned = false;
-                safeSleep(20);
-                continue;
-            }
+            telemetry.addData("Range", "TAG NOT FOUND - using default");
+            telemetry.addData("Velocity", "%.0f deg/s", DEFAULT_VELOCITY);
+        }
+        telemetry.update();
 
-            double bearing = state.getTagBearing();
-            double absBearing = Math.abs(bearing);
+        // === STEP 3: Spin up shooter ===
+        telemetry.addData("Step", "Spinning up...");
+        telemetry.update();
+        safeSleep(SPIN_UP_MS);
 
-            if (absBearing <= ALIGN_DEADBAND) {
-                // We're aligned
-                state.setDriveInput(0, 0, 0);
+        // === STEP 4: Shoot 3 balls ===
+        for (int i = 1; i <= 3; i++) {
 
-                if (!wasAligned) {
-                    stableTimer.reset();
-                    wasAligned = true;
-                }
 
-                // Check if we've been stable long enough
-                if (stableTimer.milliseconds() >= ALIGN_STABLE_MS) {
-                    return true;
-                }
-            } else {
-                // Not aligned, rotate
-                wasAligned = false;
-                double rotate = calculateAlignPower(bearing);
-                state.setDriveInput(0, 0, rotate);
-            }
-
-            // Telemetry
-            telemetry.addData("Step", "2 - Aligning");
-            telemetry.addData("Bearing", "%.1f° (target: ±%.1f°)", bearing, ALIGN_DEADBAND);
-            telemetry.addData("Aligned", wasAligned ? "YES (stable: %.0fms)" : "NO",
-                    stableTimer.milliseconds());
-            telemetry.addData("Time", "%.1f / %.1f sec",
-                    timer.milliseconds() / 1000.0,
-                    ALIGN_TIMEOUT_MS / 1000.0);
+            telemetry.addData("Step", "Shooting ball %d/3", i);
+            telemetry.addData("Velocity", "%.0f deg/s", state.getShooterTargetVelocity());
             telemetry.update();
 
-            safeSleep(20);
+            // Wait for shooter ready
+            while (opModeIsActive() && !state.isShooterReady()) {
+                safeSleep(20);
+            }
+
+            // Kick
+            state.requestKick();
+
+            // Wait for kick to complete
+            safeSleep(POST_KICK_MS);
+            while (opModeIsActive() && state.isKickerUp()) {
+                safeSleep(20);
+            }
+
+            // Rotate carousel for next ball (except after last shot)
+            if (i < 3) {
+                state.setCarouselCommand(BotState.CarouselCommand.ROTATE_RIGHT);
+                safeSleep(CAROUSEL_SETTLE_MS);
+                while (opModeIsActive() && !state.isCarouselSettled()) {
+                    safeSleep(20);
+                }
+            }
         }
 
-        return false;
-    }
+        timer.reset();
 
-    /**
-     * Calculate rotation power for alignment.
-     */
-    private double calculateAlignPower(double bearing) {
-        double power = ALIGN_P * bearing;
+        while (timer.seconds() < DRIVE_TIME_SEC) {
+            state.setDriveInput(DRIVE_POWER, 0, 0);
 
-        // Apply minimum power
-        if (Math.abs(power) < ALIGN_MIN_POWER) {
-            power = Math.signum(bearing) * ALIGN_MIN_POWER;
+            telemetry.addData("Step", "Driving forward");
+            telemetry.addData("Time", "%.1f / %.1f sec", timer.seconds(), DRIVE_TIME_SEC);
+            telemetry.update();
         }
+        state.setDriveInput(0, 0, 0);
+        safeSleep(200);
 
-        // Clamp to max
-        power = Math.max(-ALIGN_MAX_POWER, Math.min(ALIGN_MAX_POWER, power));
+        // Stop shooter
+        state.setShooterTargetVelocity(0);
 
-        return power;
-    }
+        telemetry.addData("Step", "Done!");
+        telemetry.update();
 
-    /**
-     * Sleep that checks opModeIsActive.
-     */
-    private void safeSleep(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    /**
-     * Clean up all threads.
-     */
-    private void cleanup() {
+        // Cleanup
         state.endThreads();
-
         try {
             driveThread.join(500);
-            controlHubI2C.join(500);
-            expansionHubI2C.join(500);
             carouselThread.join(500);
             shooterThread.join(500);
             cameraThread.join(500);
         } catch (InterruptedException e) {
             // Ignore
+        }
+    }
+
+    private void safeSleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }

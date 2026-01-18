@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.threaded;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -60,8 +61,9 @@ public class CarouselThread extends Thread {
         // Intake motors
         leftIntake = hardwareMap.get(DcMotorEx.class, "left_intake");
         rightIntake = hardwareMap.get(DcMotorEx.class, "right_intake");
-        leftIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        rightIntake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
 
         // Kicker
         kickerServo = hardwareMap.get(Servo.class, "flicker_servo");

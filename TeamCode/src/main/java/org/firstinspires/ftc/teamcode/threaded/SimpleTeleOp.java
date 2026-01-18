@@ -186,7 +186,7 @@ public class SimpleTeleOp extends LinearOpMode {
         prevA = gamepad2.a;
 
 //         Triangle - Shoot sequence
-        if (gamepad2.y && !prevY) {
+        if (gamepad2.triangle && !prevY) {
             shootSequence.start();
         }
         prevY = gamepad2.y;

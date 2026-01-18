@@ -9,10 +9,10 @@ public class BotState {
 
     // ========================= CONFIGURABLE UPDATE RATES =========================
     public static long DRIVE_UPDATE_MS = 10;
-    public static long CAROUSEL_UPDATE_MS = 20;
+    public static long CAROUSEL_UPDATE_MS = 50;
     public static long SHOOTER_UPDATE_MS = 50;
-    public static long CAMERA_UPDATE_MS = 20;
-    public static long I2C_UPDATE_MS = 100;
+    public static long CAMERA_UPDATE_MS = 30;
+    public static long I2C_UPDATE_MS = 50;
 
     // ========================= DRIVE STATE =========================
     private volatile double driveForward = 0;

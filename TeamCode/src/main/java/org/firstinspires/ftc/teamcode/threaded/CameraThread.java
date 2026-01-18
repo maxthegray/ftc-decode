@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.threaded;
 
 import android.util.Size;
 
+import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;

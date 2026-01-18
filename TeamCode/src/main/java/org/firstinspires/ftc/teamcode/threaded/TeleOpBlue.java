@@ -83,7 +83,7 @@ public class TeleOpBlue extends LinearOpMode {
             handleShooterInput();
 
             // Update shoot sequence
-//            shootSequence.update();
+            shootSequence.update();
 
             // Telemetry
             updateTelemetry();
@@ -191,10 +191,10 @@ public class TeleOpBlue extends LinearOpMode {
         prevA = gamepad2.a;
 
         // Triangle - Shoot sequence
-        if (gamepad2.y && !prevY) {
-            shootSequence.start();
-        }
-        prevY = gamepad2.y;
+//        if (gamepad2.y && !prevY) {
+//            shootSequence.start();
+//        }
+//        prevY = gamepad2.y;
     }
 
     private void handleShooterInput() {

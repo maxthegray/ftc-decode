@@ -109,7 +109,7 @@ public class ShootSequence {
                 if (state.isBasketTagVisible()) {
                     state.setAdjustedVelocity(state.getTagRange());
                 } else {
-                    state.setShooterTargetVelocity(DEFAULT_VELOCITY);
+                    state.setShooterTargetVelocity(0);
                 }
                 shootState = ShootState.WAIT_SHOOTER;
                 stateTimer.reset();
