@@ -1,6 +1,9 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
+import static java.lang.Math.PI;
+
 import com.pedropathing.Drivetrain;
+import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
 import com.pedropathing.ftc.FollowerBuilder;
@@ -17,9 +20,11 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
-
-            .centripetalScaling(0.005)
-            .mass(17.35);
+            .mass(17.35)
+            .forwardZeroPowerAcceleration(-64.06986774345145)
+            .lateralZeroPowerAcceleration(-62.03069803810496)
+            .useSecondaryDrivePIDF(true)
+            .translationalPIDFCoefficients(new PIDFCoefficients(.1, 0, .01, 0));
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
             .rightFrontMotorName("frontRightMotor")
@@ -30,16 +35,21 @@ public class Constants {
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(47.123)
-            .yVelocity(48.677);
+            .xVelocity(33.71771865003691)
+            .yVelocity(38.83722260242372)
+            ;
 
 
     public static OTOSConstants localizerConstants = new OTOSConstants()
             .hardwareMapName("sensor_otos")
             .linearUnit(DistanceUnit.INCH)
-            .offset(new SparkFunOTOS.Pose2D(0, 0, -90))
-            .linearScalar(1.15940974)
-            .angularScalar(.9907);
+            .angleUnit(AngleUnit.RADIANS)
+            .linearScalar(1.0627440238733985)
+
+            .angularScalar(0.9903437854174533)
+            .offset(new SparkFunOTOS.Pose2D(0, 0, -PI/2));
+
+
 
 
     public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 0.2, 1);
