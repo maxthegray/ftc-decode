@@ -19,7 +19,7 @@ public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
 
             .centripetalScaling(0.005)
-            .mass(15);
+            .mass(17.35);
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
             .rightFrontMotorName("frontRightMotor")
