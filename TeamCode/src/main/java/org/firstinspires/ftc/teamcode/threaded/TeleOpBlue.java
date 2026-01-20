@@ -13,6 +13,14 @@ public class TeleOpBlue extends LinearOpMode {
     // Blue alliance uses tag 20
     private static final int BASKET_TAG_ID = CameraThread.TAG_BLUE_BASKET;
 
+    // Default shoot order if no AprilTag detected
+    private static final BallColor[] DEFAULT_SHOOT_ORDER = {
+            BallColor.GREEN, BallColor.PURPLE, BallColor.PURPLE
+    };
+
+    // Default velocity if no tag visible
+    private static final double DEFAULT_VELOCITY = 210.0;
+
     private BotState state;
     private DriveThread driveThread;
     private ControlHubI2CThread controlHubI2C;
@@ -190,11 +198,21 @@ public class TeleOpBlue extends LinearOpMode {
         }
         prevA = gamepad2.a;
 
-        // Triangle - Shoot sequence
-//        if (gamepad2.y && !prevY) {
-//            shootSequence.start();
-//        }
-//        prevY = gamepad2.y;
+        // Triangle - Start shoot sequence
+        if (gamepad2.y && !prevY && !shootSequence.isActive()) {
+            // Determine shoot order: use detected or default
+            BallColor[] order = state.hasDetectedShootOrder()
+                    ? state.getDetectedShootOrder()
+                    : DEFAULT_SHOOT_ORDER;
+
+            // Determine velocity: use tag distance or default
+            double velocity = state.isBasketTagVisible()
+                    ? getVelocityFromDistance(state.getTagRange())
+                    : DEFAULT_VELOCITY;
+
+            shootSequence.start(order, velocity);
+        }
+        prevY = gamepad2.y;
     }
 
     private void handleShooterInput() {
@@ -211,6 +229,18 @@ public class TeleOpBlue extends LinearOpMode {
             state.setShooterTargetVelocity(0);
         }
         prevRBumper = gamepad2.right_bumper;
+    }
+
+    /**
+     * Calculate velocity from distance (same formula as BotState.setAdjustedVelocity)
+     */
+    private double getVelocityFromDistance(double distance) {
+        double velocity = 0.00000043 * Math.pow(distance, 4)
+                - 0.0001927 * Math.pow(distance, 3)
+                + 0.026899 * Math.pow(distance, 2)
+                - 0.402824 * distance
+                + 136.48202;
+        return Math.max(0, velocity);
     }
 
     // ========================= TELEMETRY =========================

@@ -5,236 +5,221 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
 import org.firstinspires.ftc.teamcode.threaded.BotState.CarouselCommand;
 
+/**
+ * Simple state-machine command to shoot balls in a specific order.
+ *
+ * Usage:
+ *   // At init:
+ *   ShootSequence shootSequence = new ShootSequence(state);
+ *
+ *   // On button press:
+ *   shootSequence.start(new BallColor[]{GREEN, PURPLE, PURPLE}, 210.0);
+ *
+ *   // In loop:
+ *   shootSequence.update();
+ */
 public class ShootSequence {
 
-    private final BotState state;
+    // ========================= TUNABLE DELAYS (ms) =========================
+    public static long DELAY_START_MS = 200;         // Before first rotation
+    public static long DELAY_BEFORE_KICK_MS = 150;   // After settle, before kick
+    public static long DELAY_AFTER_KICK_MS = 200;    // After kick, before next rotation
 
-    // Default shoot order if no tag detected
-    private static final BallColor[] DEFAULT_SHOOT_ORDER = {
-            BallColor.GREEN,
-            BallColor.PURPLE,
-            BallColor.PURPLE
-    };
-
-    // Default velocity if tag not visible
-    private static final double DEFAULT_VELOCITY = 210.0;
-
-    // Timing constants (milliseconds)
-    private static final long CAROUSEL_TIMEOUT_MS = 2000;      // Max wait for carousel
-    private static final long SENSOR_SETTLE_MS = 150;          // Wait for sensors after rotation
-    private static final long POST_KICK_SETTLE_MS = 500;       // Wait after kick for ball to clear
-
-    // State machine
-    private enum ShootState {
+    // ========================= STATE MACHINE =========================
+    private enum State {
         IDLE,
-        SPIN_UP,
-        WAIT_SHOOTER,
-        FIND_BALL,
-        COMMAND_CAROUSEL,
-        WAIT_CAROUSEL_MOVING,
-        WAIT_CAROUSEL_SETTLED,
-        WAIT_SENSOR_SETTLE,
+        START_DELAY,
+        ROTATE,
+        WAIT_SETTLE,
+        PRE_KICK_DELAY,
         KICK,
         WAIT_KICK_DONE,
-        WAIT_POST_KICK
+        POST_KICK_DELAY,
+        COMPLETE
     }
 
-    private ShootState shootState = ShootState.IDLE;
-    private BallColor[] activeShootOrder = null;
-    private int ballIndex = 0;
+    private final BotState botState;
 
-    private final ElapsedTime stateTimer = new ElapsedTime();
-    private BallColor currentTargetColor = null;
+    private State currentState = State.IDLE;
+    private BallColor[] shootOrder = null;
+    private double lockedVelocity = 0;
+    private int currentBallIndex = 0;
+    private final ElapsedTime timer = new ElapsedTime();
 
-    public ShootSequence(BotState state) {
-        this.state = state;
-    }
+    // Track shots
+    private int shotsFired = 0;
+    private int shotsSkipped = 0;
 
-    public void start() {
-        if (isActive()) return;
-
-        if (state.hasDetectedShootOrder()) {
-            activeShootOrder = state.getDetectedShootOrder();
-        } else {
-            activeShootOrder = DEFAULT_SHOOT_ORDER;
-        }
-
-        ballIndex = 0;
-        currentTargetColor = null;
-        shootState = ShootState.SPIN_UP;
-        stateTimer.reset();
-    }
-
-    public void cancel() {
-        shootState = ShootState.IDLE;
-        ballIndex = 0;
-        activeShootOrder = null;
-        currentTargetColor = null;
-        state.setShooterTargetVelocity(0);
-    }
-
-    public boolean isActive() {
-        return shootState != ShootState.IDLE;
-    }
-
-    public String getStateName() {
-        return shootState.toString();
-    }
-
-    public int getBallIndex() {
-        return ballIndex;
-    }
-
-    public int getTotalBalls() {
-        return activeShootOrder != null ? activeShootOrder.length : 0;
-    }
-
-    public BallColor getCurrentTarget() {
-        return currentTargetColor;
-    }
-
-    public BallColor[] getShootOrder() {
-        return activeShootOrder;
+    public ShootSequence(BotState botState) {
+        this.botState = botState;
     }
 
     /**
-     * Call this every loop iteration. Does NOT block.
+     * Start the shoot sequence with specified order and velocity
+     */
+    public void start(BallColor[] order, double velocity) {
+        if (currentState != State.IDLE && currentState != State.COMPLETE) return;
+
+        this.shootOrder = order;
+        this.lockedVelocity = velocity;
+
+        // Lock in shooter velocity
+        botState.setShooterTargetVelocity(lockedVelocity);
+
+        // Reset counters
+        currentBallIndex = 0;
+        shotsFired = 0;
+        shotsSkipped = 0;
+
+        // Begin
+        currentState = State.START_DELAY;
+        timer.reset();
+    }
+
+    /**
+     * Call this every loop iteration
      */
     public void update() {
-        if (!isActive()) return;
+        if (shootOrder == null) return;
 
-        switch (shootState) {
-            case SPIN_UP:
-                // Set shooter velocity based on distance
-                if (state.isBasketTagVisible()) {
-                    state.setAdjustedVelocity(state.getTagRange());
-                } else {
-                    state.setShooterTargetVelocity(0);
-                }
-                shootState = ShootState.WAIT_SHOOTER;
-                stateTimer.reset();
+        switch (currentState) {
+            case IDLE:
+            case COMPLETE:
+                // Nothing to do
                 break;
 
-            case WAIT_SHOOTER:
-                if (state.isShooterReady()) {
-                    shootState = ShootState.FIND_BALL;
+            case START_DELAY:
+                if (timer.milliseconds() >= DELAY_START_MS) {
+                    advanceToNextBall();
                 }
                 break;
 
-            case FIND_BALL:
-                // Check if we're done
-                if (ballIndex >= activeShootOrder.length) {
-                    cancel();
-                    return;
-                }
+            case ROTATE:
+                // Command was sent, move to waiting
+                currentState = State.WAIT_SETTLE;
+                break;
 
-                currentTargetColor = activeShootOrder[ballIndex];
-
-                // Check if we have this color
-                if (!state.hasColor(currentTargetColor)) {
-                    // Don't have this color, skip to next
-                    ballIndex++;
-                    return;
-                }
-
-                // Check if already at intake position
-                if (state.getPositionColor(BotState.POS_INTAKE) == currentTargetColor) {
-                    // Already in position, go to kick
-                    shootState = ShootState.KICK;
-                } else {
-                    // Need to rotate
-                    shootState = ShootState.COMMAND_CAROUSEL;
+            case WAIT_SETTLE:
+                if (botState.isCarouselSettled()) {
+                    currentState = State.PRE_KICK_DELAY;
+                    timer.reset();
                 }
                 break;
 
-            case COMMAND_CAROUSEL:
-                // Use the correct command based on target color
-                if (currentTargetColor == BallColor.GREEN) {
-                    state.setCarouselCommand(CarouselCommand.ROTATE_TO_KICK_GREEN);
-                } else {
-                    state.setCarouselCommand(CarouselCommand.ROTATE_TO_KICK_PURPLE);
-                }
-                shootState = ShootState.WAIT_CAROUSEL_MOVING;
-                stateTimer.reset();
-                break;
-
-            case WAIT_CAROUSEL_MOVING:
-                // Wait for carousel to start moving (no longer settled)
-                // Or if command was already processed and it's a no-op (already settled)
-                if (!state.isCarouselSettled()) {
-                    // Carousel started moving
-                    shootState = ShootState.WAIT_CAROUSEL_SETTLED;
-                    stateTimer.reset();
-                } else if (stateTimer.milliseconds() > 100) {
-                    // If still settled after 100ms, command was probably a no-op
-                    // (ball was already at intake or very close)
-                    shootState = ShootState.WAIT_SENSOR_SETTLE;
-                    stateTimer.reset();
-                }
-                break;
-
-            case WAIT_CAROUSEL_SETTLED:
-                // Wait for carousel to finish moving
-                if (state.isCarouselSettled()) {
-                    shootState = ShootState.WAIT_SENSOR_SETTLE;
-                    stateTimer.reset();
-                } else if (stateTimer.milliseconds() > CAROUSEL_TIMEOUT_MS) {
-                    // Timeout - something went wrong, try to continue anyway
-                    shootState = ShootState.WAIT_SENSOR_SETTLE;
-                    stateTimer.reset();
-                }
-                break;
-
-            case WAIT_SENSOR_SETTLE:
-                // Give sensors time to read the new ball positions
-                if (stateTimer.milliseconds() >= SENSOR_SETTLE_MS) {
-                    // Verify the ball is actually at intake now
-                    if (state.getPositionColor(BotState.POS_INTAKE) == currentTargetColor) {
-                        shootState = ShootState.KICK;
-                    } else if (state.hasColor(currentTargetColor)) {
-                        // Ball exists but not at intake - try rotating again
-                        shootState = ShootState.COMMAND_CAROUSEL;
-                    } else {
-                        // Ball is gone somehow, skip to next
-                        ballIndex++;
-                        shootState = ShootState.FIND_BALL;
+            case PRE_KICK_DELAY:
+                if (timer.milliseconds() >= DELAY_BEFORE_KICK_MS) {
+                    // Verify shooter is ready before kicking
+                    if (botState.isShooterReady()) {
+                        botState.requestKick();
+                        currentState = State.KICK;
                     }
+                    // If not ready, stay in this state until it is
                 }
                 break;
 
             case KICK:
-                // Update velocity in case distance changed
-                if (state.isBasketTagVisible()) {
-                    state.setAdjustedVelocity(state.getTagRange());
-                }
-
-                // Wait for shooter to be ready, then kick
-                if (state.isShooterReady() && state.isCarouselSettled()) {
-                    state.requestKick();
-                    shootState = ShootState.WAIT_KICK_DONE;
-                    stateTimer.reset();
+                // Wait for kick to start
+                if (botState.isKickerUp()) {
+                    currentState = State.WAIT_KICK_DONE;
                 }
                 break;
 
             case WAIT_KICK_DONE:
-                // Wait for kicker to return down
-                if (!state.isKickerUp() && !state.isKickRequested()) {
-                    shootState = ShootState.WAIT_POST_KICK;
-                    stateTimer.reset();
+                if (!botState.isKickerUp()) {
+                    shotsFired++;
+                    currentState = State.POST_KICK_DELAY;
+                    timer.reset();
                 }
                 break;
 
-            case WAIT_POST_KICK:
-                // Wait for ball to clear and sensors to update
-                if (stateTimer.milliseconds() >= POST_KICK_SETTLE_MS) {
-                    ballIndex++;
-                    shootState = ShootState.FIND_BALL;
+            case POST_KICK_DELAY:
+                if (timer.milliseconds() >= DELAY_AFTER_KICK_MS) {
+                    currentBallIndex++;
+                    advanceToNextBall();
                 }
-                break;
-
-            case IDLE:
-            default:
                 break;
         }
+    }
+
+    /**
+     * Find and rotate to the next ball, or complete if done
+     */
+    private void advanceToNextBall() {
+        // Skip any balls not present in carousel
+        while (currentBallIndex < shootOrder.length) {
+            BallColor targetColor = shootOrder[currentBallIndex];
+
+            // Check if we have this color
+            if (botState.hasColor(targetColor)) {
+                // Send rotate command
+                if (targetColor == BallColor.GREEN) {
+                    botState.setCarouselCommand(CarouselCommand.ROTATE_TO_KICK_GREEN);
+                } else if (targetColor == BallColor.PURPLE) {
+                    botState.setCarouselCommand(CarouselCommand.ROTATE_TO_KICK_PURPLE);
+                }
+                currentState = State.ROTATE;
+                return;
+            } else {
+                // Skip this ball
+                shotsSkipped++;
+                currentBallIndex++;
+            }
+        }
+
+        // No more balls to shoot
+        currentState = State.COMPLETE;
+        botState.setShooterTargetVelocity(0);
+    }
+
+    // ========================= STATUS METHODS =========================
+
+    public boolean isActive() {
+        return currentState != State.IDLE && currentState != State.COMPLETE;
+    }
+
+    public boolean isComplete() {
+        return currentState == State.COMPLETE;
+    }
+
+    public String getStateName() {
+        return currentState.toString();
+    }
+
+    public int getBallIndex() {
+        return currentBallIndex;
+    }
+
+    public int getTotalBalls() {
+        return (shootOrder != null) ? shootOrder.length : 0;
+    }
+
+    public BallColor getCurrentTarget() {
+        if (shootOrder != null && currentBallIndex < shootOrder.length) {
+            return shootOrder[currentBallIndex];
+        }
+        return null;
+    }
+
+    public BallColor[] getShootOrder() {
+        return shootOrder;
+    }
+
+    public int getShotsFired() {
+        return shotsFired;
+    }
+
+    public int getShotsSkipped() {
+        return shotsSkipped;
+    }
+
+    /**
+     * Reset to idle state (for reuse)
+     */
+    public void reset() {
+        currentState = State.IDLE;
+        shootOrder = null;
+        currentBallIndex = 0;
+        shotsFired = 0;
+        shotsSkipped = 0;
     }
 }

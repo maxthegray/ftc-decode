@@ -17,8 +17,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
-            .forwardZeroPowerAcceleration(-63.1909)
-            .lateralZeroPowerAcceleration(-53.17)
+
             .centripetalScaling(0.005)
             .mass(15);
     public static MecanumConstants driveConstants = new MecanumConstants()
@@ -43,7 +42,7 @@ public class Constants {
             .angularScalar(.9907);
 
 
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1, 1);
+    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 0.2, 1);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)
