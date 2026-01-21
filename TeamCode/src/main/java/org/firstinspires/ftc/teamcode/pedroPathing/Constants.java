@@ -22,16 +22,20 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(17.35)
-            .forwardZeroPowerAcceleration(-64.06986774345145)
-            .lateralZeroPowerAcceleration(-62.03069803810496)
+            .forwardZeroPowerAcceleration(-64.33828655584675)
+            .lateralZeroPowerAcceleration(-64.03069803810496)
+
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0, 0, 0, 0, 0))
             .useSecondaryDrivePIDF(true)
+            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0, 0, 0, 0, 0))
+
             .translationalPIDFCoefficients(new PIDFCoefficients(0.1, 0, 0.01, 0.03))
             .useSecondaryTranslationalPIDF(true)
-            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.007, 0, 0.001, 0.015))
+            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.19, 0, 0.009, 0.015))
 
             .headingPIDFCoefficients(new PIDFCoefficients(0.34, 0, 0.08, 0.2))
             .useSecondaryHeadingPIDF(true)
-            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.4, 0, 0, .02))
+            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.4, 0, 0.079, .02))
 
 
 
@@ -46,8 +50,8 @@ public class Constants {
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(33.71771865003691)
-            .yVelocity(38.83722260242372)
+            .xVelocity(47.58399302565206)
+            .yVelocity(46.72012929841289)
             ;
 
 
@@ -56,7 +60,6 @@ public class Constants {
             .linearUnit(DistanceUnit.INCH)
             .angleUnit(AngleUnit.RADIANS)
             .linearScalar(1.0627440238733985)
-
             .angularScalar(0.9903437854174533)
             .offset(new SparkFunOTOS.Pose2D(0, 0, -PI/2));
 
