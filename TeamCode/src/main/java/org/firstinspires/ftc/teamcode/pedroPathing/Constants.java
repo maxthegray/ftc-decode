@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.pedroPathing;
 import static java.lang.Math.PI;
 
 import com.pedropathing.Drivetrain;
+import com.pedropathing.control.FilteredPIDFCoefficients;
 import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
@@ -24,7 +25,17 @@ public class Constants {
             .forwardZeroPowerAcceleration(-64.06986774345145)
             .lateralZeroPowerAcceleration(-62.03069803810496)
             .useSecondaryDrivePIDF(true)
-            .translationalPIDFCoefficients(new PIDFCoefficients(.1, 0, .01, 0));
+            .translationalPIDFCoefficients(new PIDFCoefficients(0.1, 0, 0.01, 0.03))
+            .useSecondaryTranslationalPIDF(true)
+            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.007, 0, 0.001, 0.015))
+
+            .headingPIDFCoefficients(new PIDFCoefficients(0.34, 0, 0.08, 0.2))
+            .useSecondaryHeadingPIDF(true)
+            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.4, 0, 0, .02))
+
+
+
+            ;
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
             .rightFrontMotorName("frontRightMotor")
