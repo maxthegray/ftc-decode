@@ -5,14 +5,8 @@ import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
-import com.qualcomm.robotcore.hardware.Gamepad;
-import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-
-import dev.nextftc.ftc.GamepadEx;
-import kotlin.jvm.functions.Function0;
 
 @TeleOp(name = "Drive + Carousel (Pedro)", group = "TeleOp")
 public class justDrive extends OpMode {
