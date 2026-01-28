@@ -38,7 +38,6 @@ public class TeleOpRed extends LinearOpMode {
     private boolean prevBack1 = false;
 
     // Shoot sequence
-    private ShootSequence shootSequence;
 
     @Override
     public void runOpMode() {
@@ -54,9 +53,6 @@ public class TeleOpRed extends LinearOpMode {
         carouselThread = new CarouselThread(state, hardwareMap);
         shooterThread = new ShooterThread(state, hardwareMap);
         cameraThread = new CameraThread(state, hardwareMap, BASKET_TAG_ID);
-
-        // Initialize shoot sequence
-        shootSequence = new ShootSequence(state);
 
         telemetry.addData("Alliance", "RED");
         telemetry.addData("Basket Tag", BASKET_TAG_ID);
@@ -254,6 +250,10 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addLine("=== CAROUSEL ===");
         telemetry.addData("Ball Count", state.getBallCount() + "/3");
         telemetry.addData("Settled", state.isCarouselSettled());
+        telemetry.addData("Current Ticks", state.getCarouselCurrentTicks());
+        telemetry.addData("Target Ticks", state.getCarouselTargetTicks());
+        telemetry.addData("Error", state.getCarouselTargetTicks() - state.getCarouselCurrentTicks());
+        telemetry.addData("TICKS_PER_SLOT", BotState.TICKS_PER_SLOT);
 
         BallColor[] positions = state.getAllPositions();
         telemetry.addData("INTAKE", positions[BotState.POS_INTAKE]);
@@ -264,22 +264,6 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addData("Running", state.isIntakeRunning());
         telemetry.addData("Kicker", state.isKickerUp() ? "UP" : "DOWN");
 
-        if (shootSequence.isActive()) {
-            telemetry.addLine("=== SHOOT SEQUENCE ===");
-            telemetry.addData("Ball", "%d/%d", shootSequence.getBallIndex() + 1, shootSequence.getTotalBalls());
-            telemetry.addData("State", shootSequence.getStateName());
-            BallColor target = shootSequence.getCurrentTarget();
-            if (target != null) {
-                telemetry.addData("Target", target);
-            }
-            BallColor[] order = shootSequence.getShootOrder();
-            if (order != null) {
-                telemetry.addData("Order", "%s-%s-%s",
-                        order[0].toString().charAt(0),
-                        order[1].toString().charAt(0),
-                        order[2].toString().charAt(0));
-            }
-        }
 
         telemetry.update();
     }

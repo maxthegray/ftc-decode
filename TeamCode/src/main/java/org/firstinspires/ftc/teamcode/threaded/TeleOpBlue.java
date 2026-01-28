@@ -46,7 +46,6 @@ public class TeleOpBlue extends LinearOpMode {
     private boolean prevBack1 = false;
 
     // Shoot sequence
-    private ShootSequence shootSequence;
 
     @Override
     public void runOpMode() {
@@ -63,8 +62,6 @@ public class TeleOpBlue extends LinearOpMode {
         shooterThread = new ShooterThread(state, hardwareMap);
         cameraThread = new CameraThread(state, hardwareMap, BASKET_TAG_ID);
 
-        // Initialize shoot sequence
-        shootSequence = new ShootSequence(state);
 
         telemetry.addData("Alliance", "BLUE");
         telemetry.addData("Basket Tag", BASKET_TAG_ID);
@@ -89,9 +86,6 @@ public class TeleOpBlue extends LinearOpMode {
             handleDriveInput();
             handleCarouselInput();
             handleShooterInput();
-
-            // Update shoot sequence
-            shootSequence.update();
 
             // Telemetry
             updateTelemetry();
@@ -198,21 +192,7 @@ public class TeleOpBlue extends LinearOpMode {
         }
         prevA = gamepad2.a;
 
-        // Triangle - Start shoot sequence
-        if (gamepad2.y && !prevY && !shootSequence.isActive()) {
-            // Determine shoot order: use detected or default
-            BallColor[] order = state.hasDetectedShootOrder()
-                    ? state.getDetectedShootOrder()
-                    : DEFAULT_SHOOT_ORDER;
 
-            // Determine velocity: use tag distance or default
-            double velocity = state.isBasketTagVisible()
-                    ? getVelocityFromDistance(state.getTagRange())
-                    : DEFAULT_VELOCITY;
-
-            shootSequence.start(order, velocity);
-        }
-        prevY = gamepad2.y;
     }
 
     private void handleShooterInput() {
@@ -294,22 +274,7 @@ public class TeleOpBlue extends LinearOpMode {
         telemetry.addData("Running", state.isIntakeRunning());
         telemetry.addData("Kicker", state.isKickerUp() ? "UP" : "DOWN");
 
-        if (shootSequence.isActive()) {
-            telemetry.addLine("=== SHOOT SEQUENCE ===");
-            telemetry.addData("Ball", "%d/%d", shootSequence.getBallIndex() + 1, shootSequence.getTotalBalls());
-            telemetry.addData("State", shootSequence.getStateName());
-            BallColor target = shootSequence.getCurrentTarget();
-            if (target != null) {
-                telemetry.addData("Target", target);
-            }
-            BallColor[] order = shootSequence.getShootOrder();
-            if (order != null) {
-                telemetry.addData("Order", "%s-%s-%s",
-                        order[0].toString().charAt(0),
-                        order[1].toString().charAt(0),
-                        order[2].toString().charAt(0));
-            }
-        }
+
 
         telemetry.update();
     }

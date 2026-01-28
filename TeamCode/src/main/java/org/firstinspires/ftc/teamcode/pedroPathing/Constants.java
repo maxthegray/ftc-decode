@@ -2,12 +2,14 @@ package org.firstinspires.ftc.teamcode.pedroPathing;
 
 import static java.lang.Math.PI;
 
+import com.pedropathing.Drivetrain;
 import com.pedropathing.control.FilteredPIDFCoefficients;
 import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
 import com.pedropathing.ftc.FollowerBuilder;
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
+
 import com.pedropathing.ftc.localization.constants.OTOSConstants;
 import com.pedropathing.paths.PathConstraints;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
@@ -20,10 +22,12 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(17.35)
+            .forwardZeroPowerAcceleration(-64.33828655584675)
+            .lateralZeroPowerAcceleration(-64.03069803810496)
 
-            /*.drivePIDFCoefficients(new FilteredPIDFCoefficients(1, 0, .1, .6, .15))
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(1, 0, .1, .6, .15))
             .useSecondaryDrivePIDF(true)
-            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0, 0, 0, 0, 0))*/
+            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0, 0, 0, 0, 0))
 
             .translationalPIDFCoefficients(new PIDFCoefficients(0.1, 0, 0.01, 0.03))
             .useSecondaryTranslationalPIDF(true)
@@ -33,8 +37,9 @@ public class Constants {
             .useSecondaryHeadingPIDF(true)
             .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.4, 0, 0.079, .02))
 
-            ;
 
+
+            ;
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)
             .rightFrontMotorName("frontRightMotor")
@@ -45,19 +50,23 @@ public class Constants {
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(60.37)
-            .yVelocity(54.18672336368111)
+            .xVelocity(47.58399302565206)
+            .yVelocity(46.72012929841289)
             ;
+
 
     public static OTOSConstants localizerConstants = new OTOSConstants()
             .hardwareMapName("sensor_otos")
             .linearUnit(DistanceUnit.INCH)
             .angleUnit(AngleUnit.RADIANS)
-            .linearScalar(1.15)
-            .angularScalar(0.991)
+            .linearScalar(1.0627440238733985)
+            .angularScalar(0.9903437854174533)
             .offset(new SparkFunOTOS.Pose2D(0, 0, -PI/2));
 
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 10, .2);
+
+
+
+    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1.2, 1);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)

@@ -35,7 +35,7 @@ public class CarouselThread extends Thread {
     private static final double LIGHT_PURPLE = 0.722;
     private static final double LIGHTS_DURATION = 3.0;
 
-    private static final double KICK_DURATION_MS = 250;
+    private static final double KICK_DURATION_MS = BotState.SEQ_KICK_MS;
 
     // State
     private final ElapsedTime kickTimer = new ElapsedTime();

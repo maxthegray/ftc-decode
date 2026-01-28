@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.threaded;
 
-
 import com.pedropathing.geometry.Pose;
 
 public class BotState {
@@ -98,6 +97,12 @@ public class BotState {
     // Velocity tolerance
     public static double VELOCITY_TOLERANCE = 50.0;
 
+    // ========================= SHOOT SEQUENCE TIMING (tune via Dashboard) =========================
+    public static long SEQ_SPIN_UP_MS = 250;        // Wait for shooter to spin up
+    public static long SEQ_KICK_MS = 250;           // Kick duration
+    public static long SEQ_POST_KICK_MS = 1000;      // Delay after kick
+    public static long SEQ_CAROUSEL_DELAY_MS = 1000; // Delay after carousel settles
+
     // ========================= APRILTAG STATE =========================
     private volatile boolean basketTagVisible = false;
     private volatile double tagBearing = 0;
@@ -120,12 +125,11 @@ public class BotState {
     public BotState() {
     }
 
-    // ========================= AUTO-ALIGN TUNING =========================
-    public static double ALIGN_P = 0.015;           // Proportional gain
-    public static double ALIGN_D = 0.002;           // Derivative gain (dampening)
-    public static double ALIGN_DEADBAND = 2.0;      // Ignore errors smaller than this (degrees)
-    public static double ALIGN_MIN_POWER = 0.08;    // Minimum power to overcome friction
-    public static double ALIGN_MAX_POWER = 0.4;     // Maximum rotation power
+    // ========================= AUTO-ALIGN PID TUNING (Panels configurable) =========================
+    public static double ALIGN_P = 0.007;
+    public static double ALIGN_I = 0.0003;
+    public static double ALIGN_D = 0.0006;
+    public static double ALIGN_DEADBAND = 1;
 
     // ========================= THREAD CONTROL =========================
     public void endThreads() {
