@@ -128,7 +128,7 @@ public class CarouselThread extends Thread {
             case ROTATE_EMPTY_TO_INTAKE:
                 int emptyPos = state.findPositionWithColor(BallColor.EMPTY);
                 if (emptyPos != -1) {
-                    targetTicks = currentTarget + (getStepsToIntake(emptyPos) * BotState.TICKS_PER_SLOT);
+                    targetTicks = currentTarget + (-getStepsToIntake(emptyPos) * BotState.TICKS_PER_SLOT);
                 }
                 break;
 
@@ -246,19 +246,24 @@ public class CarouselThread extends Thread {
     }
 
     private void handleAutoIndex() {
-        if (!state.isAutoIndexEnabled()) return;
-        if (!state.isIntakeForward()) return;
-        if (!state.isCarouselSettled()) return;
-        if (state.isFull()) return;
-
+        // Always track ball presence at intake, regardless of other conditions
         BallColor intakeColor = state.getPositionColor(BotState.POS_INTAKE);
         boolean hasBall = (intakeColor == BallColor.GREEN || intakeColor == BallColor.PURPLE);
 
-        if (hasBall && !ballWasInIntake) {
+        // Detect rising edge: ball just arrived at intake
+        boolean ballJustArrived = hasBall && !ballWasInIntake;
+
+        // Update tracking state BEFORE any early returns
+        ballWasInIntake = hasBall;
+
+        // Now check if we should actually trigger the index
+        if (!state.isAutoIndexEnabled()) return;
+        if (!state.isCarouselSettled()) return;
+        if (state.isFull()) return;
+
+        if (ballJustArrived) {
             // Ball just arrived, rotate empty to intake
             state.setCarouselCommand(CarouselCommand.ROTATE_EMPTY_TO_INTAKE);
         }
-
-        ballWasInIntake = hasBall;
     }
 }

@@ -13,6 +13,21 @@ public class TeleOpRed extends LinearOpMode {
     // Red alliance uses tag 24
     private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
 
+    // Default shoot order if no AprilTag detected
+    private static final BallColor[] DEFAULT_SHOOT_ORDER = {
+            BallColor.GREEN, BallColor.PURPLE, BallColor.PURPLE
+    };
+
+    // Default velocity if no tag visible
+    private static final double DEFAULT_VELOCITY = 210.0;
+
+    // ========================= ROBOT MODE STATE MACHINE =========================
+    public enum RobotMode {
+        INTAKING,   // Auto-indexing ON
+        SHOOTING    // Auto-indexing OFF
+    }
+    private RobotMode currentMode = RobotMode.INTAKING;
+
     private BotState state;
     private DriveThread driveThread;
     private ControlHubI2CThread controlHubI2C;
@@ -22,12 +37,12 @@ public class TeleOpRed extends LinearOpMode {
     private CameraThread cameraThread;
     private ElapsedTime runtime;
 
+    // Shoot sequence manager
+    private ShootSequenceManager shootSequence;
+
     // Button state tracking for edge detection
-    private boolean prevDpadLeft = false;
-    private boolean prevDpadRight = false;
     private boolean prevDpadUp = false;
     private boolean prevDpadDown = false;
-    private boolean prevA = false;
     private boolean prevB = false;
     private boolean prevY = false;
     private boolean prevX = false;
@@ -37,7 +52,8 @@ public class TeleOpRed extends LinearOpMode {
     private boolean prevRBumper1 = false;
     private boolean prevBack1 = false;
 
-    // Shoot sequence
+    // Track previous carousel full state for edge detection
+    private boolean wasCarouselFull = false;
 
     @Override
     public void runOpMode() {
@@ -45,6 +61,9 @@ public class TeleOpRed extends LinearOpMode {
 
         // Initialize state
         state = new BotState();
+
+        // Initialize shoot sequence manager
+        shootSequence = new ShootSequenceManager();
 
         // Initialize threads - pass RED basket tag ID to camera
         driveThread = new DriveThread(state, hardwareMap);
@@ -75,11 +94,11 @@ public class TeleOpRed extends LinearOpMode {
 
             // Handle inputs
             handleDriveInput();
-            handleCarouselInput();
             handleShooterInput();
+            handleModeTransitions();
 
             // Update shoot sequence
-//            shootSequence.update();
+            shootSequence.update(state);
 
             // Telemetry
             updateTelemetry();
@@ -141,14 +160,14 @@ public class TeleOpRed extends LinearOpMode {
         state.setDriveInput(forward, strafe, rotate);
     }
 
-    private void handleCarouselInput() {
-        // Circle - Show lights
+    private void handleShooterInput() {
+        // Circle/B - Show lights
         if (gamepad2.b && !prevB) {
             state.requestShowLights();
         }
         prevB = gamepad2.b;
 
-        // Square - Kick (only if shooter ready)
+        // Square/X - Kick (only if shooter ready)
         if (gamepad2.x && !prevX) {
             if (state.isShooterReady()) {
                 state.requestKick();
@@ -156,44 +175,40 @@ public class TeleOpRed extends LinearOpMode {
         }
         prevX = gamepad2.x;
 
-        // D-pad Left - Rotate carousel left (one slot)
-        if (gamepad2.dpad_left && !prevDpadLeft) {
-            state.setCarouselCommand(CarouselCommand.ROTATE_LEFT);
-        }
-        prevDpadLeft = gamepad2.dpad_left;
-
-        // D-pad Right - Rotate carousel right (one slot)
-        if (gamepad2.dpad_right && !prevDpadRight) {
-            state.setCarouselCommand(CarouselCommand.ROTATE_RIGHT);
-        }
-        prevDpadRight = gamepad2.dpad_right;
-
-        // D-pad Up - Nudge carousel forward
+        // D-pad Up - Shoot green
         if (gamepad2.dpad_up && !prevDpadUp) {
-            state.setCarouselCommand(CarouselCommand.NUDGE_FORWARD);
+            if (state.hasColor(BallColor.GREEN)) {
+                switchToShootingMode();
+                startShooterMotor();
+                shootSequence.shootSingle(state, BallColor.GREEN);
+            }
         }
         prevDpadUp = gamepad2.dpad_up;
 
-        // D-pad Down - Nudge carousel backward
+        // D-pad Down - Shoot purple
         if (gamepad2.dpad_down && !prevDpadDown) {
-            state.setCarouselCommand(CarouselCommand.NUDGE_BACKWARD);
+            if (state.hasColor(BallColor.PURPLE)) {
+                switchToShootingMode();
+                startShooterMotor();
+                shootSequence.shootSingle(state, BallColor.PURPLE);
+            }
         }
         prevDpadDown = gamepad2.dpad_down;
 
-        // Cross - Index (rotate empty to intake)
-        if (gamepad2.a && !prevA) {
-            state.setCarouselCommand(CarouselCommand.ROTATE_EMPTY_TO_INTAKE);
+        // Triangle/Y - Shoot full sorted sequence
+        if (gamepad2.y && !prevY) {
+            if (state.getBallCount() >= 3) {
+                switchToShootingMode();
+                startShooterMotor();
+                // Use detected shoot order or default
+                BallColor[] order = state.hasDetectedShootOrder()
+                        ? state.getDetectedShootOrder()
+                        : DEFAULT_SHOOT_ORDER;
+                shootSequence.start(state, order);
+            }
         }
-        prevA = gamepad2.a;
+        prevY = gamepad2.y;
 
-        // Triangle - Shoot sequence
-//        if (gamepad2.y && !prevY) {
-//            shootSequence.start();
-//        }
-//        prevY = gamepad2.y;
-    }
-
-    private void handleShooterInput() {
         // L1 - Set velocity from distance
         if (gamepad2.left_bumper && !prevLBumper) {
             if (state.isBasketTagVisible()) {
@@ -209,11 +224,63 @@ public class TeleOpRed extends LinearOpMode {
         prevRBumper = gamepad2.right_bumper;
     }
 
+    private void handleModeTransitions() {
+        // Transition to SHOOTING when carousel becomes full
+        boolean isCarouselFull = state.isFull();
+        if (isCarouselFull && !wasCarouselFull) {
+            switchToShootingMode();
+        }
+        wasCarouselFull = isCarouselFull;
+
+        // Transition to INTAKING when:
+        // 1. Carousel becomes empty (but NOT while a shoot sequence is running)
+        // 2. Driver triggers intake (R2)
+        if (currentMode == RobotMode.SHOOTING) {
+            // Don't auto-switch to intaking while shoot sequence is running
+            // (sensors may momentarily read empty during carousel rotation)
+            if (state.isEmpty() && !shootSequence.isRunning()) {
+                switchToIntakingMode();
+            } else if (gamepad1.right_trigger > 0.1) {
+                switchToIntakingMode();
+            }
+        }
+    }
+
+    private void switchToShootingMode() {
+        currentMode = RobotMode.SHOOTING;
+        state.setAutoIndexEnabled(false);
+    }
+
+    private void switchToIntakingMode() {
+        currentMode = RobotMode.INTAKING;
+        state.setAutoIndexEnabled(true);
+        // Abort any running shoot sequence
+        if (shootSequence.isRunning()) {
+            shootSequence.abort();
+        }
+    }
+
+    /**
+     * Start the shooter motor - use distance-based velocity if tag visible, otherwise default
+     */
+    private void startShooterMotor() {
+        if (state.isBasketTagVisible()) {
+            state.setAdjustedVelocity(state.getTagRange());
+        } else {
+            state.setShooterTargetVelocity(DEFAULT_VELOCITY);
+        }
+    }
+
     // ========================= TELEMETRY =========================
 
     private void updateTelemetry() {
         telemetry.addData("Alliance", "RED (Tag %d)", BASKET_TAG_ID);
         telemetry.addData("Runtime", "%.1f s", runtime.seconds());
+
+        // Current mode prominently displayed
+        telemetry.addLine("=== MODE ===");
+        telemetry.addData("Current Mode", currentMode == RobotMode.INTAKING ? ">>> INTAKING <<<" : ">>> SHOOTING <<<");
+        telemetry.addData("Auto-Index", state.isAutoIndexEnabled() ? "ON" : "OFF");
 
         telemetry.addLine("=== APRIL TAG ===");
         telemetry.addData("Camera State", state.getCameraState());
@@ -241,6 +308,11 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addData("Current", "%.0f deg/s", state.getShooterCurrentVelocity());
         telemetry.addData("Ready", state.isShooterReady() ? "YES" : "NO");
 
+        // Shoot sequence status
+        if (shootSequence.isRunning()) {
+            telemetry.addData("Shoot Seq", shootSequence.getDebugString());
+        }
+
         telemetry.addLine("=== DRIVE ===");
         telemetry.addData("Pose", "(%.1f, %.1f) %.1f°",
                 state.getCurrentPose().getX(),
@@ -250,10 +322,6 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addLine("=== CAROUSEL ===");
         telemetry.addData("Ball Count", state.getBallCount() + "/3");
         telemetry.addData("Settled", state.isCarouselSettled());
-        telemetry.addData("Current Ticks", state.getCarouselCurrentTicks());
-        telemetry.addData("Target Ticks", state.getCarouselTargetTicks());
-        telemetry.addData("Error", state.getCarouselTargetTicks() - state.getCarouselCurrentTicks());
-        telemetry.addData("TICKS_PER_SLOT", BotState.TICKS_PER_SLOT);
 
         BallColor[] positions = state.getAllPositions();
         telemetry.addData("INTAKE", positions[BotState.POS_INTAKE]);
@@ -263,7 +331,6 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addLine("=== INTAKE ===");
         telemetry.addData("Running", state.isIntakeRunning());
         telemetry.addData("Kicker", state.isKickerUp() ? "UP" : "DOWN");
-
 
         telemetry.update();
     }

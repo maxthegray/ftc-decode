@@ -4,12 +4,13 @@ import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 /**
- * Dead simple go-to-point with OTOS.
+ * Simple go-to-point with OTOS and PID.
  *
  * Usage:
  *   SimpleGoToPoint goTo = new SimpleGoToPoint(hardwareMap);
@@ -20,15 +21,34 @@ public class SimpleGoToPoint {
 
     private SparkFunOTOS otos;
     private DcMotor fl, fr, bl, br;
+    private ElapsedTime timer = new ElapsedTime();
 
-    // Tuning
-    public static double DRIVE_SPEED = 0.4;
-    public static double TURN_SPEED = 0.3;
-    public static double POSITION_TOLERANCE = 5.0;
-    public static double HEADING_TOLERANCE = 3.0;
+    // Drive PID
+    public static double DRIVE_P = 0.05;
+    public static double DRIVE_I = 0.0;
+    public static double DRIVE_D = 0;
 
+    // Turn PID
+    public static double TURN_P = 0.02;
+    public static double TURN_I = 0.0;
+    public static double TURN_D = 0.0;
+
+    // Limits
+    public static double MAX_DRIVE = 0.6;
+    public static double MAX_TURN = 0.4;
+
+    // Tolerances
+    public static double POSITION_TOLERANCE = 3.0;
+    public static double HEADING_TOLERANCE = 2.0;
+
+    // Target
     private double targetX, targetY, targetH;
     private boolean running = false;
+
+    // PID state
+    private double lastErrorX, lastErrorY, lastErrorH;
+    private double integralX, integralY, integralH;
+    private double lastTime;
 
     public SimpleGoToPoint(HardwareMap hw) {
         otos = hw.get(SparkFunOTOS.class, "sensor_otos");
@@ -58,6 +78,16 @@ public class SimpleGoToPoint {
         targetY = y;
         targetH = heading;
         running = true;
+
+        // Reset PID
+        lastErrorX = 0;
+        lastErrorY = 0;
+        lastErrorH = 0;
+        integralX = 0;
+        integralY = 0;
+        integralH = 0;
+        timer.reset();
+        lastTime = 0;
     }
 
     public void update() {
@@ -79,21 +109,41 @@ public class SimpleGoToPoint {
             return;
         }
 
+        // Time delta
+        double currentTime = timer.seconds();
+        double dt = currentTime - lastTime;
+        lastTime = currentTime;
+        if (dt <= 0) dt = 0.02;
+
+        // Drive PID
+        integralX += errorX * dt;
+        integralY += errorY * dt;
+        double derivX = (errorX - lastErrorX) / dt;
+        double derivY = (errorY - lastErrorY) / dt;
+
+        double powerX = DRIVE_P * errorX + DRIVE_I * integralX + DRIVE_D * derivX;
+        double powerY = DRIVE_P * errorY + DRIVE_I * integralY + DRIVE_D * derivY;
+
+        lastErrorX = errorX;
+        lastErrorY = errorY;
+
+        // Turn PID
+        integralH += errorH * dt;
+        double derivH = (errorH - lastErrorH) / dt;
+        double turn = TURN_P * errorH + TURN_I * integralH + TURN_D * derivH;
+        lastErrorH = errorH;
+
+        // Clamp
+        powerX = Math.max(-MAX_DRIVE, Math.min(MAX_DRIVE, powerX));
+        powerY = Math.max(-MAX_DRIVE, Math.min(MAX_DRIVE, powerY));
+        turn = Math.max(-MAX_TURN, Math.min(MAX_TURN, turn));
+
+        // Field to robot centric
         double headingRad = Math.toRadians(pose.h);
-        double forward = (errorY * Math.cos(headingRad) + errorX * Math.sin(headingRad));
-        double strafe = (errorX * Math.cos(headingRad) - errorY * Math.sin(headingRad));
+        double forward = powerY * Math.cos(headingRad) + powerX * Math.sin(headingRad);
+        double strafe = powerX * Math.cos(headingRad) - powerY * Math.sin(headingRad);
 
-        double max = Math.max(Math.abs(forward), Math.abs(strafe));
-        if (max > 0) {
-            forward = (forward / max) * DRIVE_SPEED;
-            strafe = (strafe / max) * DRIVE_SPEED;
-        }
-
-        double turn = 0;
-        if (Math.abs(errorH) > HEADING_TOLERANCE) {
-            turn = (errorH > 0) ? TURN_SPEED : -TURN_SPEED;
-        }
-
+        // Mecanum
         fl.setPower(forward + strafe + turn);
         fr.setPower(forward - strafe - turn);
         bl.setPower(forward - strafe + turn);
