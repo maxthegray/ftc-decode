@@ -1,23 +1,33 @@
-package org.firstinspires.ftc.teamcode.threaded;
+package org.firstinspires.ftc.teamcode.threaded.Auto;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name = "Auto - Shoot 3 (RED)", group = "Auto")
-public class AutoRed extends LinearOpMode {
+import org.firstinspires.ftc.teamcode.threaded.BotState;
+import org.firstinspires.ftc.teamcode.threaded.CameraThread;
+import org.firstinspires.ftc.teamcode.threaded.CarouselThread;
+import org.firstinspires.ftc.teamcode.threaded.DriveThread;
+import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
+
+@Autonomous(name = "Back Red Auto)", group = "Auto")
+public class AutoRedBack extends LinearOpMode {
 
     private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
 
-    private static final double DRIVE_POWER = 0.5;         // forward speed
-    private static final double DRIVE_TIME_SEC = 1.0;      // drive duration
-    private static final double AUTO_DRIVE_TIMEOUT_SEC = 15.0; // start driving after 15 seconds
+    // Drive parameters
+    private static final double DRIVE_POWER = 0.5;
+    private static final double STRAFE_POWER = 0.5;
+    private static final double BACKUP_TIME_SEC = 1.0;      // time to drive backward
+    private static final double STRAFE_TIME_SEC = 0.75;      // time to strafe right
+    private static final double AUTO_DRIVE_TIMEOUT_SEC = 15.0; // start strafing after 15 seconds
 
-    private static final double DEFAULT_VELOCITY = 0;  // if tag not visible
-    private static final long TAG_TIMEOUT_MS = 3000;       // wait for tag
-    private static final long SPIN_UP_MS = 1500;           // time to spin up shooter
-    private static final long POST_KICK_MS = 500;          // wait after kick
-    private static final long CAROUSEL_SETTLE_MS = 800;    // wait for carousel to rotate
+    // Shooter/carousel parameters
+    private static final double DEFAULT_VELOCITY = 142;       // if tag not visible
+    private static final long TAG_TIMEOUT_MS = 3000;        // wait for tag
+    private static final long SPIN_UP_MS = 1500;            // time to spin up shooter
+    private static final long POST_KICK_MS = 500;           // wait after kick
+    private static final long CAROUSEL_SETTLE_MS = 800;     // wait for carousel to rotate
 
     private BotState state;
     private DriveThread driveThread;
@@ -38,7 +48,7 @@ public class AutoRed extends LinearOpMode {
         shooterThread = new ShooterThread(state, hardwareMap);
         cameraThread = new CameraThread(state, hardwareMap, BASKET_TAG_ID);
 
-        telemetry.addData("Alliance", "BLUE (Tag %d)", BASKET_TAG_ID);
+        telemetry.addData("Alliance", "RED (Tag %d)", BASKET_TAG_ID);
         telemetry.addData("Status", "Ready");
         telemetry.update();
 
@@ -53,10 +63,19 @@ public class AutoRed extends LinearOpMode {
         shooterThread.start();
         cameraThread.start();
 
-        // === STEP 1: Drive forward for 5 seconds ===
+        // === STEP 1: Drive BACKWARD ===
         ElapsedTime timer = new ElapsedTime();
+        timer.reset();
 
-        // Stop driving
+        while (opModeIsActive() && timer.seconds() < BACKUP_TIME_SEC) {
+            state.setDriveInput(-DRIVE_POWER, 0, 0); // Negative for backward
+
+            telemetry.addData("Step", "Driving backward");
+            telemetry.addData("Time", "%.1f / %.1f sec", timer.seconds(), BACKUP_TIME_SEC);
+            telemetry.update();
+        }
+        state.setDriveInput(0, 0, 0);
+        safeSleep(200);
 
         // === STEP 2: Wait for tag to get distance ===
         telemetry.addData("Step", "Looking for tag...");
@@ -65,7 +84,7 @@ public class AutoRed extends LinearOpMode {
         timer.reset();
         while (opModeIsActive() && !state.isBasketTagVisible()
                 && timer.milliseconds() < TAG_TIMEOUT_MS
-                && !shouldStartDriving()) {
+                && !shouldStartStrafing()) {
             telemetry.addData("Step", "Looking for tag...");
             telemetry.addData("Time", "%.1f / %.1f sec", timer.seconds(), TAG_TIMEOUT_MS / 1000.0);
             telemetry.addData("Auto Timer", "%.1f / %.1f sec", masterTimer.seconds(), AUTO_DRIVE_TIMEOUT_SEC);
@@ -73,8 +92,8 @@ public class AutoRed extends LinearOpMode {
             safeSleep(50);
         }
 
-        // Check if we should skip to driving
-        if (!shouldStartDriving()) {
+        // Check if we should skip to strafing
+        if (!shouldStartStrafing()) {
             // Set shooter velocity based on distance
             if (state.isBasketTagVisible()) {
                 double range = state.getTagRange();
@@ -86,7 +105,7 @@ public class AutoRed extends LinearOpMode {
                 safeSleep(1000);
 
             } else {
-                state.setShooterTargetVelocity(183);
+                state.setShooterTargetVelocity(DEFAULT_VELOCITY);
 
                 telemetry.addData("Range", "TAG NOT FOUND - using default");
                 telemetry.addData("Velocity", "%.0f deg/s", DEFAULT_VELOCITY);
@@ -99,7 +118,7 @@ public class AutoRed extends LinearOpMode {
             safeSleep(SPIN_UP_MS);
 
             // === STEP 4: Shoot 3 balls ===
-            for (int i = 1; i <= 3 && !shouldStartDriving(); i++) {
+            for (int i = 1; i <= 3 && !shouldStartStrafing(); i++) {
 
                 telemetry.addData("Step", "Shooting ball %d/3", i);
                 telemetry.addData("Velocity", "%.0f deg/s", state.getShooterTargetVelocity());
@@ -107,42 +126,42 @@ public class AutoRed extends LinearOpMode {
                 telemetry.update();
 
                 // Wait for shooter ready
-                while (opModeIsActive() && !state.isShooterReady() && !shouldStartDriving()) {
+                while (opModeIsActive() && !state.isShooterReady() && !shouldStartStrafing()) {
                     safeSleep(20);
                 }
 
-                if (shouldStartDriving()) break;
+                if (shouldStartStrafing()) break;
 
                 // Kick
                 state.requestKick();
 
                 // Wait for kick to complete
                 safeSleep(POST_KICK_MS);
-                while (opModeIsActive() && state.isKickerUp() && !shouldStartDriving()) {
+                while (opModeIsActive() && state.isKickerUp() && !shouldStartStrafing()) {
                     safeSleep(20);
                 }
 
                 // Rotate carousel for next ball (except after last shot)
-                if (i < 3 && !shouldStartDriving()) {
+                if (i < 3 && !shouldStartStrafing()) {
                     state.setCarouselCommand(BotState.CarouselCommand.ROTATE_RIGHT);
                     safeSleep(CAROUSEL_SETTLE_MS);
-                    while (opModeIsActive() && !state.isCarouselSettled() && !shouldStartDriving()) {
+                    while (opModeIsActive() && !state.isCarouselSettled() && !shouldStartStrafing()) {
                         safeSleep(20);
                     }
                 }
             }
         }
 
-        // === DRIVING PHASE (starts after 15 seconds or when shooting is done) ===
-        telemetry.addData("Step", "Starting drive phase at %.1f sec", masterTimer.seconds());
+        // === STEP 5: STRAFE RIGHT ===
+        telemetry.addData("Step", "Starting strafe at %.1f sec", masterTimer.seconds());
         telemetry.update();
 
         timer.reset();
-        while (opModeIsActive() && timer.seconds() < DRIVE_TIME_SEC) {
-            state.setDriveInput(DRIVE_POWER, 0, 0);
+        while (opModeIsActive() && timer.seconds() < STRAFE_TIME_SEC) {
+            state.setDriveInput(0, STRAFE_POWER, 0); // Positive strafe = right
 
-            telemetry.addData("Step", "Driving forward");
-            telemetry.addData("Time", "%.1f / %.1f sec", timer.seconds(), DRIVE_TIME_SEC);
+            telemetry.addData("Step", "Strafing right");
+            telemetry.addData("Time", "%.1f / %.1f sec", timer.seconds(), STRAFE_TIME_SEC);
             telemetry.update();
         }
         state.setDriveInput(0, 0, 0);
@@ -167,9 +186,9 @@ public class AutoRed extends LinearOpMode {
     }
 
     /**
-     * Returns true if 15 seconds have elapsed and we should start driving
+     * Returns true if 15 seconds have elapsed and we should start strafing
      */
-    private boolean shouldStartDriving() {
+    private boolean shouldStartStrafing() {
         return masterTimer.seconds() >= AUTO_DRIVE_TIMEOUT_SEC;
     }
 

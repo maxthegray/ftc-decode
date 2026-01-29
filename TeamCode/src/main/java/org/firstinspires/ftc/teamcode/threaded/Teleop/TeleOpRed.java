@@ -1,11 +1,18 @@
-package org.firstinspires.ftc.teamcode.threaded;
+package org.firstinspires.ftc.teamcode.threaded.Teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.teamcode.threaded.BotState;
 import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
-import org.firstinspires.ftc.teamcode.threaded.BotState.CarouselCommand;
+import org.firstinspires.ftc.teamcode.threaded.CameraThread;
+import org.firstinspires.ftc.teamcode.threaded.CarouselThread;
+import org.firstinspires.ftc.teamcode.threaded.ControlHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.DriveThread;
+import org.firstinspires.ftc.teamcode.threaded.ExpansionHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.ShootSequenceManager;
+import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
 
 @TeleOp(name = "TeleOp - RED", group = "TeleOp")
 public class TeleOpRed extends LinearOpMode {
@@ -169,7 +176,7 @@ public class TeleOpRed extends LinearOpMode {
 
         // Square/X - Kick (only if shooter ready)
         if (gamepad2.x && !prevX) {
-            if (state.isShooterReady()) {
+            if (state.isShooterReady() && state.isCarouselSettled()) {
                 state.requestKick();
             }
         }
@@ -177,7 +184,7 @@ public class TeleOpRed extends LinearOpMode {
 
         // D-pad Up - Shoot green
         if (gamepad2.dpad_up && !prevDpadUp) {
-            if (state.hasColor(BallColor.GREEN)) {
+            if (state.hasColor(BallColor.GREEN) && !shootSequence.isRunning()) {
                 switchToShootingMode();
                 startShooterMotor();
                 shootSequence.shootSingle(state, BallColor.GREEN);
@@ -187,7 +194,7 @@ public class TeleOpRed extends LinearOpMode {
 
         // D-pad Down - Shoot purple
         if (gamepad2.dpad_down && !prevDpadDown) {
-            if (state.hasColor(BallColor.PURPLE)) {
+            if (state.hasColor(BallColor.PURPLE) && !shootSequence.isRunning()) {
                 switchToShootingMode();
                 startShooterMotor();
                 shootSequence.shootSingle(state, BallColor.PURPLE);
@@ -283,8 +290,6 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addData("Auto-Index", state.isAutoIndexEnabled() ? "ON" : "OFF");
 
         telemetry.addLine("=== APRIL TAG ===");
-        telemetry.addData("Camera State", state.getCameraState());
-        telemetry.addData("Detections", state.getDetectionCount());
         telemetry.addData("Auto-Align", state.isAutoAlignEnabled() ? "ON" : "OFF");
         if (state.isBasketTagVisible()) {
             telemetry.addData("Basket Tag", "Bearing %.1f° | Range %.1f in",
@@ -299,8 +304,6 @@ public class TeleOpRed extends LinearOpMode {
                     order[0].toString().charAt(0),
                     order[1].toString().charAt(0),
                     order[2].toString().charAt(0));
-        } else {
-            telemetry.addData("Shoot Order", "NOT DETECTED (using default)");
         }
 
         telemetry.addLine("=== SHOOTER ===");
@@ -320,7 +323,6 @@ public class TeleOpRed extends LinearOpMode {
                 Math.toDegrees(state.getCurrentPose().getHeading()));
 
         telemetry.addLine("=== CAROUSEL ===");
-        telemetry.addData("Ball Count", state.getBallCount() + "/3");
         telemetry.addData("Settled", state.isCarouselSettled());
 
         BallColor[] positions = state.getAllPositions();

@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode.threaded;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -36,6 +35,9 @@ public class CarouselThread extends Thread {
     private static final double LIGHTS_DURATION = 3.0;
 
     private static final double KICK_DURATION_MS = BotState.SEQ_KICK_MS;
+
+    private static final double POST_KICK_DURATION_MS = BotState.SEQ_POST_KICK_MS;
+
 
     // State
     private final ElapsedTime kickTimer = new ElapsedTime();
@@ -132,20 +134,6 @@ public class CarouselThread extends Thread {
                 }
                 break;
 
-            case ROTATE_TO_KICK_GREEN:
-                int greenPos = state.findPositionWithColor(BallColor.GREEN);
-                if (greenPos != -1) {
-                    targetTicks = currentTarget + (getStepsToIntake(greenPos) * BotState.TICKS_PER_SLOT);
-                }
-                break;
-
-            case ROTATE_TO_KICK_PURPLE:
-                int purplePos = state.findPositionWithColor(BallColor.PURPLE);
-                if (purplePos != -1) {
-                    targetTicks = currentTarget + (getStepsToIntake(purplePos) * BotState.TICKS_PER_SLOT);
-                }
-                break;
-
             case ROTATE_LEFT:
                 targetTicks = currentTarget - BotState.TICKS_PER_SLOT;
                 break;
@@ -153,19 +141,13 @@ public class CarouselThread extends Thread {
             case ROTATE_RIGHT:
                 targetTicks = currentTarget + BotState.TICKS_PER_SLOT;
                 break;
-
-            case NUDGE_FORWARD:
-                targetTicks = currentTarget + BotState.NUDGE_TICKS;
-                break;
-
-            case NUDGE_BACKWARD:
-                targetTicks = currentTarget - BotState.NUDGE_TICKS;
-                break;
         }
 
-        carouselMotor.setTargetPosition(targetTicks);
-        state.setCarouselTargetTicks(targetTicks);
-        state.clearCarouselCommand();
+            carouselMotor.setTargetPosition(targetTicks);
+            state.setCarouselTargetTicks(targetTicks);
+            state.clearCarouselCommand();
+
+
     }
 
     private int getStepsToIntake(int position) {
@@ -194,6 +176,7 @@ public class CarouselThread extends Thread {
             state.setKickerUp(false);
             kicking = false;
         }
+
     }
 
     private void handleIntake() {

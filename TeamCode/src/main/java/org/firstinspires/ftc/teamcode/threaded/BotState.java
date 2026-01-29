@@ -8,7 +8,7 @@ public class BotState {
 
     // ========================= CONFIGURABLE UPDATE RATES =========================
     public static long DRIVE_UPDATE_MS = 10;
-    public static long CAROUSEL_UPDATE_MS = 50;
+    public static long CAROUSEL_UPDATE_MS = 30;
     public static long SHOOTER_UPDATE_MS = 50;
     public static long CAMERA_UPDATE_MS = 30;
     public static long I2C_UPDATE_MS = 50;
@@ -59,12 +59,9 @@ public class BotState {
     public enum CarouselCommand {
         NONE,
         ROTATE_EMPTY_TO_INTAKE,
-        ROTATE_TO_KICK_GREEN,
-        ROTATE_TO_KICK_PURPLE,
         ROTATE_LEFT,
         ROTATE_RIGHT,
-        NUDGE_FORWARD,
-        NUDGE_BACKWARD
+
     }
     private volatile CarouselCommand carouselCommand = CarouselCommand.NONE;
 
@@ -95,12 +92,12 @@ public class BotState {
 
 
     // Velocity tolerance
-    public static double VELOCITY_TOLERANCE = 50.0;
+    public static double VELOCITY_TOLERANCE = 20;
 
     // ========================= SHOOT SEQUENCE TIMING (tune via Dashboard) =========================
-    public static long SEQ_SPIN_UP_MS = 250;        // Wait for shooter to spin up
+    public static long SEQ_SPIN_UP_MS = 1000;        // Wait for shooter to spin up
     public static long SEQ_KICK_MS = 250;           // Kick duration
-    public static long SEQ_POST_KICK_MS = 1000;      // Delay after kick
+    public static long SEQ_POST_KICK_MS = 600;      // Delay after kick
     public static long SEQ_CAROUSEL_DELAY_MS = 1000; // Delay after carousel settles
 
     // ========================= APRILTAG STATE =========================
@@ -284,17 +281,11 @@ public class BotState {
     public void setShooterCurrentVelocity(double velocity) { this.shooterCurrentVelocity = velocity; }
     public double getShooterCurrentVelocity() { return shooterCurrentVelocity; }
 
-    /**
-     * Set shooter velocity based on distance using quadratic formula
-     */
     public void setAdjustedVelocity(double distance) {
         shooterTargetVelocity = COEFF_A * distance * distance * distance * distance + COEFF_B * distance * distance * distance + COEFF_C * distance * distance + COEFF_D * distance + 136.48202;
         shooterTargetVelocity = Math.max(0, shooterTargetVelocity);
     }
 
-    /**
-     * Check if shooter is at target velocity within tolerance
-     */
     public boolean isShooterReady() {
         return shooterTargetVelocity > 0 &&
                 Math.abs(shooterCurrentVelocity - shooterTargetVelocity) <= VELOCITY_TOLERANCE;
