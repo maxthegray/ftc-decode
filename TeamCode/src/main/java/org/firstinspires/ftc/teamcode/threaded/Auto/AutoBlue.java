@@ -1,8 +1,14 @@
-package org.firstinspires.ftc.teamcode.threaded;
+package org.firstinspires.ftc.teamcode.threaded.Auto;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.teamcode.threaded.BotState;
+import org.firstinspires.ftc.teamcode.threaded.CameraThread;
+import org.firstinspires.ftc.teamcode.threaded.CarouselThread;
+import org.firstinspires.ftc.teamcode.threaded.DriveThread;
+import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
 
 @Autonomous(name = "Auto - Shoot 3 (BLUE)", group = "Auto")
 public class AutoBlue extends LinearOpMode {
