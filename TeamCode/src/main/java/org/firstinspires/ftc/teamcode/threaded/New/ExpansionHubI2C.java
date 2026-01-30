@@ -29,9 +29,9 @@ public class ExpansionHubI2C extends Thread {
     @Override
     public void run() {
         while (!state.shouldKillThreads()) {
-            int sensorIndex = loopCounter % 4;
 
-            switch (sensorIndex) {
+
+            switch (loopCounter) {
                 case 0:
                     readSensor(intakeSensorA, BotState.POS_INTAKE, true);
                     break;
@@ -47,6 +47,9 @@ public class ExpansionHubI2C extends Thread {
             }
 
             loopCounter++;
+
+            loopCounter = (loopCounter + 1) % 4;
+
             sleep();
         }
     }

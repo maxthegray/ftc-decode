@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.Tests;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.threaded.Robot;
+import org.firstinspires.ftc.teamcode.old.Robot;
 
 @TeleOp(name = "CarouselTest", group = "Testing")
 public class CarouselTests extends OpMode {

@@ -3,12 +3,7 @@ package org.firstinspires.ftc.teamcode.threaded.Old;
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.threaded.Old.BotState.BallColor;
 
-/**
- * Thread for reading color sensors on Control Hub I2C bus.
- * Handles intake position sensors.
- */
 public class ControlHubI2CThread extends Thread {
 
     private final BotState state;
@@ -18,7 +13,7 @@ public class ControlHubI2CThread extends Thread {
 
     public ControlHubI2CThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;
-        this.setPriority(Thread.MIN_PRIORITY);  // Low priority - I2C is slow
+        this.setPriority(Thread.MIN_PRIORITY);
 
         intakeSensorA = hardwareMap.get(RevColorSensorV3.class, "intake_color1");
         intakeSensorB = hardwareMap.get(RevColorSensorV3.class, "intake_color2");
@@ -28,7 +23,6 @@ public class ControlHubI2CThread extends Thread {
     public void run() {
         while (!state.shouldKillThreads()) {
 
-            // Read intake sensors
             if (intakeSensorA != null) {
                 int alpha = intakeSensorA.alpha();
                 int blue = intakeSensorA.blue();
@@ -43,9 +37,8 @@ public class ControlHubI2CThread extends Thread {
                 state.setSensorValuesB(BotState.POS_INTAKE, alpha, blue, green);
             }
 
-            // Classify ball at intake position
-            BallColor color = classifyPosition(BotState.POS_INTAKE);
-            state.setPositionColor(BotState.POS_INTAKE, color);
+            state.setPositionColor(BotState.POS_INTAKE,
+                    BallClassifier.classifyPosition(state, BotState.POS_INTAKE));
 
             try {
                 Thread.sleep(BotState.I2C_UPDATE_MS);
@@ -53,32 +46,5 @@ public class ControlHubI2CThread extends Thread {
                 break;
             }
         }
-    }
-
-    private BallColor classifyPosition(int position) {
-        int thresholdA = state.getThresholdA(position);
-        int thresholdB = state.getThresholdB(position);
-
-        BallColor typeA = classifyBall(state.getAlphaA(position), state.getBlueA(position), state.getGreenA(position), thresholdA);
-        BallColor typeB = classifyBall(state.getAlphaB(position), state.getBlueB(position), state.getGreenB(position), thresholdB);
-
-        // Merge readings
-        if (typeA == typeB) return typeA;
-        if (typeA == BallColor.UNKNOWN) return typeB;
-        if (typeB == BallColor.UNKNOWN) return typeA;
-        if (typeA == BallColor.EMPTY) return typeB;
-        if (typeB == BallColor.EMPTY) return typeA;
-        return typeA;
-    }
-
-    private BallColor classifyBall(int alpha, int blue, int green, int threshold) {
-        if (alpha < threshold) return BallColor.EMPTY;
-
-        if (green == 0) {
-            return (blue > 0) ? BallColor.PURPLE : BallColor.UNKNOWN;
-        }
-
-        double ratio = (double) blue / green;
-        return (ratio > 1.0) ? BallColor.PURPLE : BallColor.GREEN;
     }
 }
