@@ -1,9 +1,9 @@
-package org.firstinspires.ftc.teamcode.threaded;
+package org.firstinspires.ftc.teamcode.threaded.Old;
 
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
-import org.firstinspires.ftc.teamcode.threaded.BotState.CarouselCommand;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState.BallColor;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState.CarouselCommand;
 
 /**
  * Manages automated shooting sequences.

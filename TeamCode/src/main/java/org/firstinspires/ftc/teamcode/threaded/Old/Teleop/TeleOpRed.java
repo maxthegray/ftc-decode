@@ -1,18 +1,18 @@
-package org.firstinspires.ftc.teamcode.threaded.Teleop;
+package org.firstinspires.ftc.teamcode.threaded.Old.Teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.threaded.BotState;
-import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
-import org.firstinspires.ftc.teamcode.threaded.CameraThread;
-import org.firstinspires.ftc.teamcode.threaded.CarouselThread;
-import org.firstinspires.ftc.teamcode.threaded.ControlHubI2CThread;
-import org.firstinspires.ftc.teamcode.threaded.DriveThread;
-import org.firstinspires.ftc.teamcode.threaded.ExpansionHubI2CThread;
-import org.firstinspires.ftc.teamcode.threaded.ShootSequenceManager;
-import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState.BallColor;
+import org.firstinspires.ftc.teamcode.threaded.Old.CameraThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.CarouselThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.ControlHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.DriveThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.ExpansionHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequenceManager;
+import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 
 @TeleOp(name = "TeleOp - RED", group = "TeleOp")
 public class TeleOpRed extends LinearOpMode {

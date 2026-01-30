@@ -1,9 +1,9 @@
-package org.firstinspires.ftc.teamcode.threaded;
+package org.firstinspires.ftc.teamcode.threaded.Old;
 
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState.BallColor;
 
 /**
  * Thread for reading color sensors on Control Hub I2C bus.

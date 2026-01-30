@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.threaded;
+package org.firstinspires.ftc.teamcode.threaded.Old;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
@@ -90,22 +90,15 @@ public class DriveThread extends Thread {
         }
     }
 
-    /**
-     * Calculate PID output for the given error.
-     * @param error The current error (bearing to target)
-     * @return The rotation power output, clamped to [-1, 1]
-     */
     private double calculatePID(double error) {
         double dt = pidTimer.seconds();
         pidTimer.reset();
 
-        // Get current gains from BotState (allows tuning via Panels)
         double kP = BotState.ALIGN_P;
         double kI = BotState.ALIGN_I;
         double kD = BotState.ALIGN_D;
         double deadband = BotState.ALIGN_DEADBAND;
 
-        // Apply deadband - if error is small enough, return 0
         if (Math.abs(error) < deadband) {
             integralSum = 0;
             lastError = error;
@@ -136,9 +129,6 @@ public class DriveThread extends Thread {
         return clamp(output, OUTPUT_MIN, OUTPUT_MAX);
     }
 
-    /**
-     * Reset PID state. Call when starting/stopping alignment.
-     */
     private void resetPID() {
         integralSum = 0;
         lastError = 0;
@@ -146,9 +136,6 @@ public class DriveThread extends Thread {
         pidTimer.reset();
     }
 
-    /**
-     * Clamp a value between min and max.
-     */
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
     }

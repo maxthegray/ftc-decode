@@ -1,19 +1,19 @@
-package org.firstinspires.ftc.teamcode.threaded.Auto;
+package org.firstinspires.ftc.teamcode.threaded.Old.Auto;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.threaded.BotState;
-import org.firstinspires.ftc.teamcode.threaded.CameraThread;
-import org.firstinspires.ftc.teamcode.threaded.CarouselThread;
-import org.firstinspires.ftc.teamcode.threaded.DriveThread;
-import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState;
+import org.firstinspires.ftc.teamcode.threaded.Old.CameraThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.CarouselThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.DriveThread;
+import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 
-@Autonomous(name = "Back Blue Auto)", group = "Auto")
-public class AutoBlueBack extends LinearOpMode {
+@Autonomous(name = "Back Red Auto)", group = "Auto")
+public class AutoRedBack extends LinearOpMode {
 
-    private static final int BASKET_TAG_ID = CameraThread.TAG_BLUE_BASKET;
+    private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
 
     // Drive parameters
     private static final double DRIVE_POWER = 0.5;
@@ -48,7 +48,7 @@ public class AutoBlueBack extends LinearOpMode {
         shooterThread = new ShooterThread(state, hardwareMap);
         cameraThread = new CameraThread(state, hardwareMap, BASKET_TAG_ID);
 
-        telemetry.addData("Alliance", "BLUE (Tag %d)", BASKET_TAG_ID);
+        telemetry.addData("Alliance", "RED (Tag %d)", BASKET_TAG_ID);
         telemetry.addData("Status", "Ready");
         telemetry.update();
 

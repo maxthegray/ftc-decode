@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.threaded;
+package org.firstinspires.ftc.teamcode.threaded.Old;
 
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -7,8 +7,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.threaded.BotState.BallColor;
-import org.firstinspires.ftc.teamcode.threaded.BotState.CarouselCommand;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState.BallColor;
+import org.firstinspires.ftc.teamcode.threaded.Old.BotState.CarouselCommand;
 
 public class CarouselThread extends Thread {
 
