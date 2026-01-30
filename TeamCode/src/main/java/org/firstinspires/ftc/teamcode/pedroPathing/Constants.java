@@ -63,9 +63,6 @@ public class Constants {
             .angularScalar(0.9903437854174533)
             .offset(new SparkFunOTOS.Pose2D(0, 0, -PI/2));
 
-
-
-
     public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1.2, 1);
 
     public static Follower createFollower(HardwareMap hardwareMap) {

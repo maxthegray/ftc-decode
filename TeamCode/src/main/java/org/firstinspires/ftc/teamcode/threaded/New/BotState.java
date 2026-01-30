@@ -79,4 +79,9 @@ public class BotState {
     public SparkFunOTOS.Pose2D getOtosPosition() {
         return otosPosition;
     }
+
+    public double getHeading() {
+        return otosPosition.h;
+    }
+
 }

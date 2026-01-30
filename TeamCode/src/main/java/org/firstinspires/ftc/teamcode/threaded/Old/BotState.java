@@ -39,7 +39,7 @@ public class BotState {
 
     // Individual sensor thresholds (calibrated)
     public static int THRESHOLD_INTAKE_A = 80;
-    public static int THRESHOLD_INTAKE_B = 120;
+    public static int THRESHOLD_INTAKE_B = 115;
     public static int THRESHOLD_BACK_LEFT_A = 300;
     public static int THRESHOLD_BACK_LEFT_B = 200;
     public static int THRESHOLD_BACK_RIGHT_A = 300;
@@ -96,8 +96,8 @@ public class BotState {
 
     // ========================= SHOOT SEQUENCE TIMING (tune via Dashboard) =========================
     public static long SEQ_SPIN_UP_MS = 1000;        // Wait for shooter to spin up
-    public static long SEQ_KICK_MS = 250;           // Kick duration
-    public static long SEQ_POST_KICK_MS = 600;      // Delay after kick
+    public static long SEQ_KICK_MS = 500;           // Kick duration
+    public static long SEQ_POST_KICK_MS = 1000;      // Delay after kick
     public static long SEQ_CAROUSEL_DELAY_MS = 1000; // Delay after carousel settles
 
     // ========================= APRILTAG STATE =========================

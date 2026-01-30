@@ -47,6 +47,7 @@ public class DriveThread extends Thread {
                 state.clearPoseUpdateRequest();
             }
 
+
             // Get drive input from state
             double forward = state.getDriveForward();
             double strafe = state.getDriveStrafe();
@@ -105,6 +106,7 @@ public class DriveThread extends Thread {
             return 0.0;
         }
 
+
         // Proportional
         double p = kP * error;
 
@@ -128,6 +130,7 @@ public class DriveThread extends Thread {
         double output = p + i + d;
         return clamp(output, OUTPUT_MIN, OUTPUT_MAX);
     }
+
 
     private void resetPID() {
         integralSum = 0;
