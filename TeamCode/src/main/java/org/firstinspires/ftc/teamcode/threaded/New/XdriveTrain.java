@@ -49,11 +49,12 @@ public class XdriveTrain extends Thread {
     public void run() {
 
         while (!state.shouldKillThreads()) {
-            x = (double) magnitude * sin(angle);
-            y = (double) magnitude * cos(angle);
 
             // need to force +/- PI
             direction += deltaDirection;
+
+            x = (double) magnitude * cos(angle - direction);
+            y = (double) magnitude * sin(angle - direction);
 
             if (magnitude < driveThreshold) {
 
