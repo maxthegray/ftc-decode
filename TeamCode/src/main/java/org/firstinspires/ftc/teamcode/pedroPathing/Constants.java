@@ -33,9 +33,9 @@ public class Constants {
             .useSecondaryTranslationalPIDF(true)
             .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.19, 0, 0.009, 0.015))
 
-            .headingPIDFCoefficients(new PIDFCoefficients(0.34, 0, 0.08, 0.2))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.9, 0, 0.08, 0))
             .useSecondaryHeadingPIDF(true)
-            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.4, 0, 0.079, .02))
+            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.6, 0, .03, .02))
 
 
 
@@ -60,7 +60,7 @@ public class Constants {
             .linearUnit(DistanceUnit.INCH)
             .angleUnit(AngleUnit.RADIANS)
             .linearScalar(1.15)
-            .angularScalar(0.9903437854174533)
+            .angularScalar(0.991)
             .offset(new SparkFunOTOS.Pose2D(0, 0, -PI/2));
 
 
