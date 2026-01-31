@@ -102,7 +102,8 @@ public class CameraThread extends Thread {
                 state.setTagData(
                         basketTag.id,
                         basketTag.ftcPose.bearing,
-                        basketTag.ftcPose.range
+                        basketTag.ftcPose.range,
+                        basketTag.ftcPose.yaw
                 );
 
                 // Calculate robot pose from tag

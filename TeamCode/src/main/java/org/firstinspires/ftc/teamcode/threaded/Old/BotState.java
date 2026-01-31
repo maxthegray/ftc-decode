@@ -105,7 +105,11 @@ public class BotState {
     private volatile boolean basketTagVisible = false;
     private volatile double tagBearing = 0;
     private volatile double tagRange = 0;
+    private volatile double tagYaw = 0;
     private volatile int tagId = -1;
+
+    // Target offset: 45.5 cm behind the AprilTag (converted to inches)
+    public static final double TARGET_OFFSET_INCHES = 45.5 / 2.54;  // ~17.9 inches
     private volatile Pose tagCalculatedPose = null;
     private volatile boolean poseUpdateRequested = false;
     private volatile int detectionCount = 0;
@@ -298,10 +302,11 @@ public class BotState {
     }
 
     // ========================= APRILTAG =========================
-    public void setTagData(int id, double bearing, double range) {
+    public void setTagData(int id, double bearing, double range, double yaw) {
         this.tagId = id;
         this.tagBearing = bearing;
         this.tagRange = range;
+        this.tagYaw = yaw;
         this.basketTagVisible = true;
     }
 
@@ -310,12 +315,55 @@ public class BotState {
         this.tagId = -1;
         this.tagBearing = 0;
         this.tagRange = 0;
+        this.tagYaw = 0;
     }
 
     public boolean isBasketTagVisible() { return basketTagVisible; }
     public double getTagBearing() { return tagBearing; }
     public double getTagRange() { return tagRange; }
+    public double getTagYaw() { return tagYaw; }
     public int getTagId() { return tagId; }
+
+    /**
+     * Calculate the bearing to the actual target point (inside the basket),
+     * accounting for the offset behind the AprilTag.
+     *
+     * Uses law of cosines and law of sines on the triangle:
+     * - Robot (R)
+     * - AprilTag (A)
+     * - Target (T) - TARGET_OFFSET_INCHES behind the tag
+     *
+     * @return corrected bearing to target in degrees
+     */
+    public double getTargetBearing() {
+        if (!basketTagVisible) return 0;
+
+        double r = tagRange;                    // Robot to AprilTag distance
+        double d = TARGET_OFFSET_INCHES;        // AprilTag to Target distance
+        double yawRad = Math.toRadians(tagYaw); // Yaw in radians
+
+        // Angle at AprilTag vertex: when yaw=0, robot is straight on, angle = 180°
+        // As yaw increases, angle decreases
+        // cos(180° - yaw) = -cos(yaw)
+
+        // Law of Cosines: find distance from Robot to Target
+        // RT² = r² + d² - 2·r·d·cos(∠TAR)
+        // Since ∠TAR = 180° - yaw, cos(∠TAR) = -cos(yaw)
+        double rtSquared = r * r + d * d + 2 * r * d * Math.cos(yawRad);
+        double rt = Math.sqrt(rtSquared);
+
+        // Law of Sines: find angle β at Robot vertex
+        // sin(β) / d = sin(∠TAR) / RT
+        // sin(180° - yaw) = sin(yaw)
+        double sinBeta = d * Math.sin(yawRad) / rt;
+
+        // Clamp to valid range for asin (handles floating point errors)
+        sinBeta = Math.max(-1.0, Math.min(1.0, sinBeta));
+        double beta = Math.toDegrees(Math.asin(sinBeta));
+
+        // Corrected bearing: add the offset angle
+        return tagBearing + beta;
+    }
 
     public void setTagCalculatedPose(Pose pose) { this.tagCalculatedPose = pose; }
     public Pose getTagCalculatedPose() { return tagCalculatedPose; }

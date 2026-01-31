@@ -330,8 +330,10 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addLine("=== APRIL TAG ===");
         telemetry.addData("Auto-Align", state.isAutoAlignEnabled() ? "ON" : "OFF");
         if (state.isBasketTagVisible()) {
-            telemetry.addData("Basket Tag", "Bearing %.1f° | Range %.1f in",
-                    state.getTagBearing(), state.getTagRange());
+            telemetry.addData("Range", "%.1f in", state.getTagRange());
+            telemetry.addData("Raw Bearing", "%.1f°", state.getTagBearing());
+            telemetry.addData("Yaw", "%.1f°", state.getTagYaw());
+            telemetry.addData("Target Bearing", "%.1f°", state.getTargetBearing());
         } else {
             telemetry.addData("Basket Tag", "NOT VISIBLE");
         }

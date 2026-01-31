@@ -62,8 +62,8 @@ public class DriveThread extends Thread {
                     resetPID();
                 }
 
-                // Error = bearing to target (positive = target is to our right)
-                double bearing = state.getTagBearing();
+                // Use corrected bearing to actual target point (accounts for offset behind tag)
+                double bearing = state.getTargetBearing();
 
                 // PID outputs rotation power to minimize bearing
                 rotate = calculatePID(bearing);
