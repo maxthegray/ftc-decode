@@ -25,17 +25,17 @@ public class Constants {
             .forwardZeroPowerAcceleration(-64)
             .lateralZeroPowerAcceleration(-63)
 
-            .drivePIDFCoefficients(new FilteredPIDFCoefficients(.1, 0, .015, 0, .5))
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(.1, 0, .001, 0, .05))
             .useSecondaryDrivePIDF(true)
-            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.2, 0, 1, 0, 0))
+            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.3, 0, .0001, 0, .3))
 
-            .translationalPIDFCoefficients(new PIDFCoefficients(0.1, 0, 0.01, 0.03))
+            .translationalPIDFCoefficients(new PIDFCoefficients(.05, 0, 0.01, 0.5))
             .useSecondaryTranslationalPIDF(true)
-            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.19, 0, 0.009, 0.015))
+            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.6, 0, 0.03, 0.02))
 
             .headingPIDFCoefficients(new PIDFCoefficients(0.9, 0, 0.08, 0))
             .useSecondaryHeadingPIDF(true)
-            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.6, 0, .03, .02))
+            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(1, 0, .09, .02))
 
 
 // hi
@@ -66,7 +66,7 @@ public class Constants {
 
 
 
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1.2, 1);
+    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 10, .7);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)
