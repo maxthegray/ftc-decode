@@ -23,9 +23,9 @@ public class ControlHubI2C extends Thread {
         this.setPriority(Thread.MIN_PRIORITY);
 
         otos = hardwareMap.get(SparkFunOTOS.class, "sensor_otos");
-        otos.setLinearUnit(DistanceUnit.METER);
+        otos.setLinearUnit(DistanceUnit.INCH);
         otos.setAngularUnit(AngleUnit.RADIANS);
-        otos.setOffset(new SparkFunOTOS.Pose2D(0, 0, 0));
+        otos.setOffset(new SparkFunOTOS.Pose2D(0, 0, -90));
         otos.setLinearScalar(1.0);
         otos.setAngularScalar(1.0);
         otos.calibrateImu();

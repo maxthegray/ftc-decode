@@ -28,6 +28,9 @@ public class TeleOpRed extends LinearOpMode {
     // Default velocity if no tag visible
     private static final double DEFAULT_VELOCITY = 210.0;
 
+    // Trigger threshold for edge detection
+    private static final float TRIGGER_THRESHOLD = 0.5f;
+
     // ========================= ROBOT MODE STATE MACHINE =========================
     public enum RobotMode {
         INTAKING,   // Auto-indexing ON
@@ -48,8 +51,6 @@ public class TeleOpRed extends LinearOpMode {
     private ShootSequenceManager shootSequence;
 
     // Button state tracking for edge detection
-    private boolean prevDpadUp = false;
-    private boolean prevDpadDown = false;
     private boolean prevB = false;
     private boolean prevY = false;
     private boolean prevX = false;
@@ -58,6 +59,16 @@ public class TeleOpRed extends LinearOpMode {
     private boolean prevLBumper1 = false;
     private boolean prevRBumper1 = false;
     private boolean prevBack1 = false;
+
+    // Trigger state tracking for edge detection (gamepad2)
+    private boolean prevLTrigger2 = false;
+    private boolean prevRTrigger2 = false;
+
+    // D-pad state tracking for manual carousel control (gamepad2)
+    private boolean prevDpadUp2 = false;
+    private boolean prevDpadDown2 = false;
+    private boolean prevDpadLeft2 = false;
+    private boolean prevDpadRight2 = false;
 
     // Track previous carousel full state for edge detection
     private boolean wasCarouselFull = false;
@@ -182,25 +193,27 @@ public class TeleOpRed extends LinearOpMode {
         }
         prevX = gamepad2.x;
 
-        // D-pad Up - Shoot green
-        if (gamepad2.dpad_up && !prevDpadUp) {
+        // Left Trigger (L2) - Shoot green
+        boolean lTriggerPressed = gamepad2.left_trigger > TRIGGER_THRESHOLD;
+        if (lTriggerPressed && !prevLTrigger2) {
             if (state.hasColor(BallColor.GREEN) && !shootSequence.isRunning()) {
                 switchToShootingMode();
                 startShooterMotor();
                 shootSequence.shootSingle(state, BallColor.GREEN);
             }
         }
-        prevDpadUp = gamepad2.dpad_up;
+        prevLTrigger2 = lTriggerPressed;
 
-        // D-pad Down - Shoot purple
-        if (gamepad2.dpad_down && !prevDpadDown) {
+        // Right Trigger (R2) - Shoot purple
+        boolean rTriggerPressed = gamepad2.right_trigger > TRIGGER_THRESHOLD;
+        if (rTriggerPressed && !prevRTrigger2) {
             if (state.hasColor(BallColor.PURPLE) && !shootSequence.isRunning()) {
                 switchToShootingMode();
                 startShooterMotor();
                 shootSequence.shootSingle(state, BallColor.PURPLE);
             }
         }
-        prevDpadDown = gamepad2.dpad_down;
+        prevRTrigger2 = rTriggerPressed;
 
         // Triangle/Y - Shoot full sorted sequence
         if (gamepad2.y && !prevY) {
@@ -229,6 +242,31 @@ public class TeleOpRed extends LinearOpMode {
             state.setShooterTargetVelocity(0);
         }
         prevRBumper = gamepad2.right_bumper;
+
+        // D-pad Up/Down - Micro-adjust carousel by NUDGE_TICKS
+        boolean canIssueCarouselCommand = state.isCarouselSettled() &&
+                state.getCarouselCommand() == BotState.CarouselCommand.NONE;
+
+        if (gamepad2.dpad_up && !prevDpadUp2 && canIssueCarouselCommand) {
+            state.setCarouselCommand(BotState.CarouselCommand.NUDGE_FORWARD);
+        }
+        prevDpadUp2 = gamepad2.dpad_up;
+
+        if (gamepad2.dpad_down && !prevDpadDown2 && canIssueCarouselCommand) {
+            state.setCarouselCommand(BotState.CarouselCommand.NUDGE_BACKWARD);
+        }
+        prevDpadDown2 = gamepad2.dpad_down;
+
+        // D-pad Left/Right - Rotate carousel by 1 slot
+        if (gamepad2.dpad_left && !prevDpadLeft2 && canIssueCarouselCommand) {
+            state.setCarouselCommand(BotState.CarouselCommand.ROTATE_LEFT);
+        }
+        prevDpadLeft2 = gamepad2.dpad_left;
+
+        if (gamepad2.dpad_right && !prevDpadRight2 && canIssueCarouselCommand) {
+            state.setCarouselCommand(BotState.CarouselCommand.ROTATE_RIGHT);
+        }
+        prevDpadRight2 = gamepad2.dpad_right;
     }
 
     private void handleModeTransitions() {
@@ -324,6 +362,8 @@ public class TeleOpRed extends LinearOpMode {
 
         telemetry.addLine("=== CAROUSEL ===");
         telemetry.addData("Settled", state.isCarouselSettled());
+        telemetry.addData("Target Ticks", state.getCarouselTargetTicks());
+        telemetry.addData("Current Ticks", state.getCarouselCurrentTicks());
 
         BallColor[] positions = state.getAllPositions();
         telemetry.addData("INTAKE", positions[BotState.POS_INTAKE]);

@@ -47,6 +47,7 @@ public class CarouselThread extends Thread {
 
     // Auto-index state
     private boolean ballWasInIntake = false;
+    private boolean manualRotationInProgress = false;
 
     public CarouselThread(BotState state, HardwareMap hardwareMap) {
         this.state = state;
@@ -136,16 +137,28 @@ public class CarouselThread extends Thread {
 
             case ROTATE_LEFT:
                 targetTicks = currentTarget - BotState.TICKS_PER_SLOT;
+                manualRotationInProgress = true;
                 break;
 
             case ROTATE_RIGHT:
                 targetTicks = currentTarget + BotState.TICKS_PER_SLOT;
+                manualRotationInProgress = true;
+                break;
+
+            case NUDGE_FORWARD:
+                targetTicks = currentTarget + BotState.NUDGE_TICKS;
+                manualRotationInProgress = true;
+                break;
+
+            case NUDGE_BACKWARD:
+                targetTicks = currentTarget - BotState.NUDGE_TICKS;
+                manualRotationInProgress = true;
                 break;
         }
 
-            carouselMotor.setTargetPosition(targetTicks);
-            state.setCarouselTargetTicks(targetTicks);
-            state.clearCarouselCommand();
+        carouselMotor.setTargetPosition(targetTicks);
+        state.setCarouselTargetTicks(targetTicks);
+        state.clearCarouselCommand();
 
 
     }
@@ -229,6 +242,14 @@ public class CarouselThread extends Thread {
     }
 
     private void handleAutoIndex() {
+        // After a manual rotation completes, update tracking state without triggering auto-index
+        if (manualRotationInProgress && state.isCarouselSettled()) {
+            BallColor intakeColor = state.getPositionColor(BotState.POS_INTAKE);
+            ballWasInIntake = (intakeColor == BallColor.GREEN || intakeColor == BallColor.PURPLE);
+            manualRotationInProgress = false;
+            return;
+        }
+
         // Always track ball presence at intake, regardless of other conditions
         BallColor intakeColor = state.getPositionColor(BotState.POS_INTAKE);
         boolean hasBall = (intakeColor == BallColor.GREEN || intakeColor == BallColor.PURPLE);

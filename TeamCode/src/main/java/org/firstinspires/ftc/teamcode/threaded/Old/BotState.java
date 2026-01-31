@@ -39,7 +39,7 @@ public class BotState {
 
     // Individual sensor thresholds (calibrated)
     public static int THRESHOLD_INTAKE_A = 80;
-    public static int THRESHOLD_INTAKE_B = 115;
+    public static int THRESHOLD_INTAKE_B = 125;
     public static int THRESHOLD_BACK_LEFT_A = 300;
     public static int THRESHOLD_BACK_LEFT_B = 200;
     public static int THRESHOLD_BACK_RIGHT_A = 300;
@@ -49,7 +49,7 @@ public class BotState {
     public static final int TICKS_PER_SLOT = 780;
     public static final int TICKS_PER_ROTATION = TICKS_PER_SLOT * 3;  // 2332
 
-    public static int NUDGE_TICKS = 50;
+    public static int NUDGE_TICKS = 10;
 
     private volatile int carouselTargetTicks = 0;
     private volatile int carouselCurrentTicks = 0;
@@ -61,7 +61,8 @@ public class BotState {
         ROTATE_EMPTY_TO_INTAKE,
         ROTATE_LEFT,
         ROTATE_RIGHT,
-
+        NUDGE_FORWARD,
+        NUDGE_BACKWARD
     }
     private volatile CarouselCommand carouselCommand = CarouselCommand.NONE;
 
