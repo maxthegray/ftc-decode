@@ -62,7 +62,7 @@ public class BlueRedTele extends LinearOpMode {
             
             // below is for Blue Alliance - DO NOT DELETE
             
-            driveVector = drive.vector(-1.0f * gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.left_trigger, gamepad1.right_trigger);
+            driveVector = drive.vector(-1.0f * gamepad1.left_stick_x, gamepad1.left_stick_y, gamepad1.left_trigger, gamepad1.right_trigger);
             //driveVector = drive.vector(-1.0f * stickX, stickY, gamepad1.left_trigger, gamepad1.right_trigger);
             if (driveVector[0] < DRIVE_THRESHOLD) {
                 driveVector[0] = 0.0f;
@@ -107,8 +107,5 @@ public class BlueRedTele extends LinearOpMode {
         driveVector[2] = 0.0f;
     }
     */
-    
-    
-    
     
 }  // end class
