@@ -26,6 +26,10 @@ public class SpinTest extends LinearOpMode {
     private double stepC = 10.0;
     private int stepThreshold = 10;
 
+    // Cycle tracking
+    private int cycleCount = 0;
+    private final int TICKS_PER_CYCLE = 780;
+
     private enum Param { B, C, THRESHOLD }
     private Param selected = Param.B;
 
@@ -40,13 +44,6 @@ public class SpinTest extends LinearOpMode {
 
         currentGamepad1 = new Gamepad();
         previousGamepad1 = new Gamepad();
-
-//        telemetry.addLine("DPAD L/R: Select param");
-//        telemetry.addLine("DPAD U/D: Adjust value");
-//        telemetry.addLine("Bumpers: L=fine, R=coarse");
-//        telemetry.addLine("Y: Run test | A: Reset encoder");
-//        telemetry.addLine("Right Stick: Manual control");
-//        telemetry.update();
 
         waitForStart();
 
@@ -88,10 +85,11 @@ public class SpinTest extends LinearOpMode {
                 carouselMotor.setPower(0.0);
             }
 
-            // Reset encoder
+            // Reset encoder and cycle count
             if (pressed(currentGamepad1.a, previousGamepad1.a)) {
                 carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
                 carouselMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                cycleCount = 0;
             }
 
             // Run Gaussian test
@@ -104,13 +102,20 @@ public class SpinTest extends LinearOpMode {
             String cMark = (selected == Param.C) ? ">> " : "   ";
             String tMark = (selected == Param.THRESHOLD) ? ">> " : "   ";
 
+            int currentPos = carouselMotor.getCurrentPosition();
+            int expectedPos = cycleCount * TICKS_PER_CYCLE;
+            int error = expectedPos - currentPos;
+
             telemetry.addLine("=== CAROUSEL TUNING ===");
             telemetry.addData(bMark + "B (center)", "%.1f", B);
             telemetry.addData(cMark + "C (width)", "%.1f", C);
             telemetry.addData(tMark + "Threshold", threshold);
             telemetry.addLine();
             telemetry.addData("Step", "%.0f", stepB);
-            telemetry.addData("Encoder", carouselMotor.getCurrentPosition());
+            telemetry.addData("Encoder", currentPos);
+            telemetry.addData("Cycle", cycleCount);
+            telemetry.addData("Expected", expectedPos);
+            telemetry.addData("Error", error);
             telemetry.addLine();
             telemetry.addLine("Y=Run | A=Reset | Stick=Manual");
             telemetry.update();
@@ -118,28 +123,36 @@ public class SpinTest extends LinearOpMode {
     }
 
     private void runGaussianTest() {
-        carouselMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        carouselMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        int startPos = carouselMotor.getCurrentPosition();
 
         while (opModeIsActive()) {
             int pos = carouselMotor.getCurrentPosition();
+            int traveledThisCycle = pos - startPos;
 
-            if (pos >= threshold) break;
+            if (traveledThisCycle >= threshold) break;
             if (gamepad1.b) break;  // Abort with B
 
             double power = gaussian(pos);
             carouselMotor.setPower(power);
 
-            telemetry.addData("Position", "%d / %d", pos, threshold);
+            int expectedPos = cycleCount * TICKS_PER_CYCLE;
+            int error = expectedPos - pos;
+
+            telemetry.addData("Position", pos);
+            telemetry.addData("Traveled", "%d / %d", traveledThisCycle, threshold);
+            telemetry.addData("Target Peak", cycleCount * TICKS_PER_CYCLE + B);
+            telemetry.addData("Error", error);
             telemetry.addData("Power", "%.3f", power);
-            telemetry.addLine(" B to abort");
+            telemetry.addLine("B to abort");
             telemetry.update();
         }
         carouselMotor.setPower(0.0);
+        cycleCount++;
     }
 
     private double gaussian(double x) {
-        return A * Math.exp(-Math.pow(x - B, 2) / (2 * Math.pow(C, 2)));
+        double target = cycleCount * TICKS_PER_CYCLE;
+        return A * Math.exp(-Math.pow(x - target - B, 2) / (2 * Math.pow(C, 2)));
     }
 
     private void adjust(boolean increase) {
