@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.pedroPathing;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.bylazar.configurables.annotations.Configurable;
@@ -10,6 +10,9 @@ import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.geometry.Pose;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import java.util.Timer;
 
 @Autonomous
 @Configurable // Panels
@@ -18,13 +21,14 @@ public class AutonTest extends OpMode {
     public Follower follower; // Pedro Pathing follower instance
     private int pathState; // Current autonomous path state (state machine)
     private Paths paths; // Paths defined in the Paths class
+    private ElapsedTime time;
 
     @Override
     public void init() {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(72, 8, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(47, 9, Math.toRadians(90)));
 
         paths = new Paths(follower); // Build paths
 
@@ -49,34 +53,12 @@ public class AutonTest extends OpMode {
     public static class Paths {
         public PathChain Path1;
         public PathChain Path2;
-        public PathChain Path3;
-
         public Paths(Follower follower) {
             Path1 = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(58.000, 9.000),
-
-                                    new Pose(60.000, 21.000)
-                            )
-                    ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(115))
-
-                    .build();
-
-            Path2 = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(60.000, 21.000),
-
-                                    new Pose(72.457, 72.411)
-                            )
-                    ).setTangentHeadingInterpolation()
-
-                    .build();
-
-            Path3 = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(72.457, 72.411),
-
-                                    new Pose(72.321, 23.989)
+                            new BezierCurve(
+                                    new Pose(47.573, 8.876),
+                                    new Pose(47.038, 72.457),
+                                    new Pose(71.917, 71.367)
                             )
                     ).setTangentHeadingInterpolation()
 
@@ -84,24 +66,12 @@ public class AutonTest extends OpMode {
         }
     }
 
-
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
                 follower.followPath(paths.Path1, true);
-                pathState = 1;
-                break;
-            case 1:
-                if (!follower.isBusy()) {
-                    follower.followPath(paths.Path2, true);
-                    pathState = 2;
-                }
-                break;
-            case 2:
-                if (!follower.isBusy()) {
-                    follower.followPath(paths.Path3, true);
-                    pathState = -1;
-                }
+                pathState = -1;
+
                 break;
         }
     }

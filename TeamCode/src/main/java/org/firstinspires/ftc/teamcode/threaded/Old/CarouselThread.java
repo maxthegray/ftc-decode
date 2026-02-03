@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.threaded.Old;
 
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -19,6 +20,7 @@ public class CarouselThread extends Thread {
     private final DcMotorEx leftIntake;
     private final DcMotorEx rightIntake;
     private final Servo kickerServo;
+    private final AnalogInput kickerFeedback;
     private final CRServo intakeServo;
     private final Servo light1, light2, light3;
 
@@ -33,10 +35,6 @@ public class CarouselThread extends Thread {
     private static final double LIGHT_GREEN = 0.500;
     private static final double LIGHT_PURPLE = 0.722;
     private static final double LIGHTS_DURATION = 3.0;
-
-    private static final double KICK_DURATION_MS = BotState.SEQ_KICK_MS;
-
-    private static final double POST_KICK_DURATION_MS = BotState.SEQ_POST_KICK_MS;
 
 
     // State
@@ -71,6 +69,7 @@ public class CarouselThread extends Thread {
         // Kicker
         kickerServo = hardwareMap.get(Servo.class, "flicker_servo");
         kickerServo.setPosition(KICKER_DOWN);
+        kickerFeedback = hardwareMap.get(AnalogInput.class, "flick");
 
         // Intake CR servo
         intakeServo = hardwareMap.get(CRServo.class, "intake_servo");
@@ -88,7 +87,10 @@ public class CarouselThread extends Thread {
     public void run() {
         while (!state.shouldKillThreads()) {
 
-            // Handle carousel commands
+            // Read kicker voltage feedback
+            state.setKickerVoltage(kickerFeedback.getVoltage());
+
+            // Handle carousel commands (blocked if kicker not down)
             handleCarouselCommand();
 
             // Handle kick request
@@ -100,7 +102,7 @@ public class CarouselThread extends Thread {
             // Handle lights
             handleLights();
 
-            // Auto-index logic
+            // Auto-index logic (blocked if kicker not down)
             handleAutoIndex();
 
             // Update state
@@ -123,6 +125,11 @@ public class CarouselThread extends Thread {
     private void handleCarouselCommand() {
         CarouselCommand cmd = state.getCarouselCommand();
         if (cmd == CarouselCommand.NONE) return;
+
+        // Block carousel movement unless kicker is down
+        if (!state.isKickerDown()) {
+            return;  // Don't clear command - will retry next loop
+        }
 
         int currentTarget = carouselMotor.getTargetPosition();
         int targetTicks = currentTarget;
@@ -173,8 +180,8 @@ public class CarouselThread extends Thread {
     }
 
     private void handleKick() {
-        // Only kick if shooter is ready
-        if (state.isKickRequested() && !kicking && state.isCarouselSettled() && state.isShooterReady()) {
+        // Only kick if shooter is ready and kicker is currently down
+        if (state.isKickRequested() && !kicking && state.isCarouselSettled() && state.isShooterReady() && state.isKickerDown()) {
             // Start kick
             kickerServo.setPosition(KICKER_UP);
             state.setKickerUp(true);
@@ -183,13 +190,13 @@ public class CarouselThread extends Thread {
             state.clearKickRequest();
         }
 
-        if (kicking && kickTimer.milliseconds() >= KICK_DURATION_MS) {
-            // End kick
+        // Command servo back down after brief kick (250ms)
+        // Voltage feedback will track when it's actually down
+        if (kicking && kickTimer.milliseconds() >= 250) {
             kickerServo.setPosition(KICKER_DOWN);
             state.setKickerUp(false);
             kicking = false;
         }
-
     }
 
     private void handleIntake() {
@@ -263,6 +270,7 @@ public class CarouselThread extends Thread {
         // Now check if we should actually trigger the index
         if (!state.isAutoIndexEnabled()) return;
         if (!state.isCarouselSettled()) return;
+        if (!state.isKickerDown()) return;  // Don't index while kicker is up
         if (state.isFull()) return;
 
         if (ballJustArrived) {

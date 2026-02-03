@@ -374,7 +374,9 @@ public class TeleOpRed extends LinearOpMode {
 
         telemetry.addLine("=== INTAKE ===");
         telemetry.addData("Running", state.isIntakeRunning());
-        telemetry.addData("Kicker", state.isKickerUp() ? "UP" : "DOWN");
+        telemetry.addData("Kicker Voltage", "%.3f V (%s)",
+                state.getKickerVoltage(),
+                state.isKickerDown() ? "DOWN" : "UP");
 
         telemetry.update();
     }

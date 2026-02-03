@@ -8,6 +8,9 @@ import org.firstinspires.ftc.teamcode.threaded.Old.BotState.CarouselCommand;
 /**
  * Manages automated shooting sequences.
  *
+ * Simplified version using kicker voltage feedback instead of timing delays.
+ * Carousel movement is blocked until kicker voltage indicates it's down.
+ *
  * Usage:
  *   ShootSequenceManager seq = new ShootSequenceManager();
  *
@@ -20,8 +23,6 @@ import org.firstinspires.ftc.teamcode.threaded.Old.BotState.CarouselCommand;
  *
  *   // Call every loop:
  *   seq.update(state);
- *
- * Timing constants are in BotState for easy Dashboard tuning.
  */
 public class ShootSequenceManager {
 
@@ -30,10 +31,8 @@ public class ShootSequenceManager {
         IDLE,           // Waiting for start
         SPIN_UP,        // Waiting for shooter velocity
         ROTATING,       // Issuing carousel rotation
-        WAIT_SETTLE,    // Waiting for carousel to finish
-        CAROUSEL_DELAY, // Delay after carousel settles
-        KICKING,        // Kick in progress
-        POST_KICK,      // Delay after kick
+        WAIT_SETTLE,    // Waiting for carousel to finish AND kicker to be down
+        KICKING,        // Kick in progress, waiting for kicker to return down
         COMPLETE,       // All done
         ERROR           // Something went wrong
     }
@@ -42,9 +41,9 @@ public class ShootSequenceManager {
     private final ElapsedTime timer = new ElapsedTime();
 
     // The plan
-    private int[] rotationPlan = null;      // e.g., [-1, -1, +1]
-    private BallColor[] targetOrder = null; // e.g., [GREEN, PURPLE, PURPLE]
-    private int ballIndex = 0;              // 0, 1, 2
+    private int[] rotationPlan = null;
+    private BallColor[] targetOrder = null;
+    private int ballIndex = 0;
 
     // Debug info
     private String errorMessage = "";
@@ -54,22 +53,19 @@ public class ShootSequenceManager {
 
     /**
      * Start the shooting sequence.
-     * @param state Current BotState
+     * @param botState Current BotState
      * @param targetOrder Array of 3 colors in the order to shoot them
      * @return true if sequence started, false if invalid
      */
-    public boolean start(BotState state, BallColor[] targetOrder) {
-        // Validate input
+    public boolean start(BotState botState, BallColor[] targetOrder) {
         if (targetOrder == null || targetOrder.length != 3) {
             errorMessage = "Invalid target order";
             this.state = State.ERROR;
             return false;
         }
 
-        // Snapshot current positions
-        startingPositions = state.getAllPositions();
+        startingPositions = botState.getAllPositions();
 
-        // Validate we have 3 balls
         int ballCount = 0;
         for (BallColor c : startingPositions) {
             if (c == BallColor.GREEN || c == BallColor.PURPLE) ballCount++;
@@ -80,7 +76,6 @@ public class ShootSequenceManager {
             return false;
         }
 
-        // Calculate the rotation plan
         this.targetOrder = targetOrder.clone();
         this.rotationPlan = calculatePlan(startingPositions, targetOrder);
 
@@ -90,7 +85,6 @@ public class ShootSequenceManager {
             return false;
         }
 
-        // Start the sequence
         ballIndex = 0;
         this.state = State.SPIN_UP;
         timer.reset();
@@ -100,19 +94,12 @@ public class ShootSequenceManager {
 
     /**
      * Shoot a single ball of the specified color.
-     * Finds the ball, rotates it to intake, and kicks it.
-     *
-     * @param state Current BotState
-     * @param color The color to shoot (GREEN or PURPLE)
-     * @return true if started, false if color not found
      */
-    public boolean shootSingle(BotState state, BallColor color) {
-        // Snapshot current positions
-        startingPositions = state.getAllPositions();
+    public boolean shootSingle(BotState botState, BallColor color) {
+        startingPositions = botState.getAllPositions();
 
-        // Find where the color is
-        BallColor intake    = startingPositions[0];
-        BallColor backLeft  = startingPositions[1];
+        BallColor intake = startingPositions[0];
+        BallColor backLeft = startingPositions[1];
         BallColor backRight = startingPositions[2];
 
         int rotation;
@@ -128,11 +115,9 @@ public class ShootSequenceManager {
             return false;
         }
 
-        // Create single-shot plan
         this.rotationPlan = new int[] { rotation };
         this.targetOrder = new BallColor[] { color };
 
-        // Start the sequence
         ballIndex = 0;
         this.state = State.SPIN_UP;
         timer.reset();
@@ -143,36 +128,27 @@ public class ShootSequenceManager {
     /**
      * Call this every loop to run the state machine.
      */
-    public void update(BotState state) {
+    public void update(BotState botState) {
         switch (this.state) {
             case IDLE:
             case COMPLETE:
             case ERROR:
-                // Nothing to do
                 break;
 
             case SPIN_UP:
-                handleSpinUp(state);
+                handleSpinUp(botState);
                 break;
 
             case ROTATING:
-                handleRotating(state);
+                handleRotating(botState);
                 break;
 
             case WAIT_SETTLE:
-                handleWaitSettle(state);
-                break;
-
-            case CAROUSEL_DELAY:
-                handleCarouselDelay(state);
+                handleWaitSettle(botState);
                 break;
 
             case KICKING:
-                handleKicking(state);
-                break;
-
-            case POST_KICK:
-                handlePostKick(state);
+                handleKicking(botState);
                 break;
         }
     }
@@ -196,70 +172,56 @@ public class ShootSequenceManager {
 
     // ========================= STATE HANDLERS =========================
 
-    private void handleSpinUp(BotState state) {
+    private void handleSpinUp(BotState botState) {
         // Wait for shooter to be ready OR timeout
-        if (state.isShooterReady() || timer.milliseconds() >= BotState.SEQ_SPIN_UP_MS) {
-            // Move to rotating
+        if (botState.isShooterReady() || timer.milliseconds() >= BotState.SEQ_SPIN_UP_MS) {
             this.state = State.ROTATING;
             timer.reset();
         }
     }
 
-    private void handleRotating(BotState state) {
-        // Issue the rotation command
+    private void handleRotating(BotState botState) {
         int rotation = rotationPlan[ballIndex];
 
         if (rotation == 0) {
-            // No rotation needed, skip to carousel delay (which will immediately transition to kick)
-            this.state = State.CAROUSEL_DELAY;
+            // No rotation needed, go straight to waiting for settle/kicker
+            this.state = State.WAIT_SETTLE;
             timer.reset();
         } else if (rotation == -1) {
-            state.setCarouselCommand(CarouselCommand.ROTATE_LEFT);
+            botState.setCarouselCommand(CarouselCommand.ROTATE_LEFT);
             this.state = State.WAIT_SETTLE;
+            timer.reset();
         } else if (rotation == 1) {
-            state.setCarouselCommand(CarouselCommand.ROTATE_RIGHT);
+            botState.setCarouselCommand(CarouselCommand.ROTATE_RIGHT);
             this.state = State.WAIT_SETTLE;
-        }
-    }
-
-    private void handleWaitSettle(BotState state) {
-        // Wait for carousel to report settled
-        if (state.isCarouselSettled()) {
-            // Carousel just settled, start the delay timer
-            this.state = State.CAROUSEL_DELAY;
             timer.reset();
         }
     }
 
-    private void handleCarouselDelay(BotState state) {
-        // Wait for delay after carousel settles
-        if (timer.milliseconds() >= BotState.SEQ_CAROUSEL_DELAY_MS) {
-            // Request kick
-            state.requestKick();
+    private void handleWaitSettle(BotState botState) {
+        // Wait for carousel to settle AND kicker to be down
+        if (botState.isCarouselSettled() && botState.isKickerDown()) {
+            // Ready to kick
+            botState.requestKick();
             this.state = State.KICKING;
             timer.reset();
         }
     }
 
-    private void handleKicking(BotState state) {
-        // Wait for kick to complete
-        if (timer.milliseconds() >= BotState.SEQ_KICK_MS) {
-            this.state = State.POST_KICK;
-            timer.reset();
-        }
-    }
+    private void handleKicking(BotState botState) {
+        // Wait for kicker to return to down position (voltage feedback)
+        // OR timeout as safety
+        boolean kickerReturned = botState.isKickerDown() && timer.milliseconds() > 100; // Min 100ms to avoid false trigger
+        boolean timeout = timer.milliseconds() >= BotState.SEQ_KICK_TIMEOUT_MS;
 
-    private void handlePostKick(BotState state) {
-        // Wait for post-kick delay
-        if (timer.milliseconds() >= BotState.SEQ_POST_KICK_MS) {
+        if (kickerReturned || timeout) {
             // Move to next ball
             ballIndex++;
 
             if (ballIndex >= rotationPlan.length) {
-                // All done!
                 this.state = State.COMPLETE;
             } else {
-                // Next shot - go back to rotating
+                // Next shot
                 this.state = State.ROTATING;
                 timer.reset();
             }
@@ -268,53 +230,34 @@ public class ShootSequenceManager {
 
     // ========================= PLANNING LOGIC =========================
 
-    /**
-     * Calculate the rotation plan for shooting 3 balls in a specific order.
-     *
-     * @param positions   Current balls: [intake, backLeft, backRight]
-     * @param targetOrder Desired shoot order: [first, second, third]
-     * @return Rotations for each shot: -1=left, 0=none, +1=right, or null if impossible
-     */
     private int[] calculatePlan(BallColor[] positions, BallColor[] targetOrder) {
-
-        // Working state - what's in each position right now?
-        BallColor intake    = positions[0];
-        BallColor backLeft  = positions[1];
+        BallColor intake = positions[0];
+        BallColor backLeft = positions[1];
         BallColor backRight = positions[2];
 
         int[] plan = new int[3];
 
         for (int shot = 0; shot < 3; shot++) {
-
             BallColor need = targetOrder[shot];
 
-            // Where is the ball we need?
             if (intake == need) {
-                // Already at intake - no rotation needed
                 plan[shot] = 0;
-
             } else if (backLeft == need) {
-                // Rotate LEFT to bring backLeft to intake
                 plan[shot] = 1;
                 BallColor temp = intake;
                 intake = backLeft;
                 backLeft = backRight;
                 backRight = temp;
-
             } else if (backRight == need) {
-                // Rotate RIGHT to bring backRight to intake
                 plan[shot] = -1;
                 BallColor temp = intake;
                 intake = backRight;
                 backRight = backLeft;
                 backLeft = temp;
-
             } else {
-                // Ball not found - impossible plan
                 return null;
             }
 
-            // Kick the ball (intake becomes empty)
             intake = BallColor.EMPTY;
         }
 
@@ -351,9 +294,6 @@ public class ShootSequenceManager {
         return startingPositions;
     }
 
-    /**
-     * Get a debug string for telemetry.
-     */
     public String getDebugString() {
         StringBuilder sb = new StringBuilder();
         sb.append("State: ").append(state);
@@ -376,37 +316,6 @@ public class ShootSequenceManager {
         if (state == State.ERROR) {
             sb.append("\nERROR: ").append(errorMessage);
         }
-
-        return sb.toString();
-    }
-
-    /**
-     * Get detailed plan info for debugging.
-     */
-    public String getPlanDebugString() {
-        if (startingPositions == null || targetOrder == null || rotationPlan == null) {
-            return "No plan";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("Starting: [")
-                .append(startingPositions[0]).append(", ")
-                .append(startingPositions[1]).append(", ")
-                .append(startingPositions[2]).append("]\n");
-
-        sb.append("Target:   [");
-        for (int i = 0; i < targetOrder.length; i++) {
-            sb.append(targetOrder[i]);
-            if (i < targetOrder.length - 1) sb.append(", ");
-        }
-        sb.append("]\n");
-
-        sb.append("Plan:     [");
-        for (int i = 0; i < rotationPlan.length; i++) {
-            sb.append(rotationPlan[i]);
-            if (i < rotationPlan.length - 1) sb.append(", ");
-        }
-        sb.append("]");
 
         return sb.toString();
     }

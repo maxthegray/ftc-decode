@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.Shooter;
 import android.util.Size;
 
 import com.pedropathing.follower.Follower;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -17,6 +18,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.concurrent.TimeUnit;
 
+@Disabled
 @TeleOp(name = "Shooter Calibration", group = "Calibration")
 public class Calibrate extends LinearOpMode {
 

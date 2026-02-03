@@ -69,6 +69,8 @@ public class BotState {
     // Kicker state
     private volatile boolean kickerUp = false;
     private volatile boolean kickRequested = false;
+    private volatile double kickerVoltage = 0;
+    public static final double KICKER_DOWN_VOLTAGE_THRESHOLD = 1.3;  // Kicker is "down" when voltage <= this
 
     // Intake state
     private volatile boolean intakeForward = false;
@@ -95,11 +97,9 @@ public class BotState {
     // Velocity tolerance
     public static double VELOCITY_TOLERANCE = 20;
 
-    // ========================= SHOOT SEQUENCE TIMING (tune via Dashboard) =========================
-    public static long SEQ_SPIN_UP_MS = 1000;        // Wait for shooter to spin up
-    public static long SEQ_KICK_MS = 500;           // Kick duration
-    public static long SEQ_POST_KICK_MS = 1000;      // Delay after kick
-    public static long SEQ_CAROUSEL_DELAY_MS = 1000; // Delay after carousel settles
+    // ========================= SHOOT SEQUENCE TIMING =========================
+    public static long SEQ_SPIN_UP_MS = 1000;        // Max wait for shooter to spin up
+    public static long SEQ_KICK_TIMEOUT_MS = 1000;   // Safety timeout for kick (normally uses voltage feedback)
 
     // ========================= APRILTAG STATE =========================
     private volatile boolean basketTagVisible = false;
@@ -262,6 +262,9 @@ public class BotState {
     public void clearKickRequest() { this.kickRequested = false; }
     public void setKickerUp(boolean up) { this.kickerUp = up; }
     public boolean isKickerUp() { return kickerUp; }
+    public void setKickerVoltage(double voltage) { this.kickerVoltage = voltage; }
+    public double getKickerVoltage() { return kickerVoltage; }
+    public boolean isKickerDown() { return kickerVoltage <= KICKER_DOWN_VOLTAGE_THRESHOLD; }
 
     // Intake
     public void setIntakeForward(boolean forward) { this.intakeForward = forward; }

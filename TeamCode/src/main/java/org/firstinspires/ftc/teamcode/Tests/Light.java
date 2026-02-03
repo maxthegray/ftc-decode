@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.Tests;
 
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 
+@Disabled
 @TeleOp(name = "Light", group = "TeleOp")
 public class Light extends OpMode {
     private Servo light1; //right
