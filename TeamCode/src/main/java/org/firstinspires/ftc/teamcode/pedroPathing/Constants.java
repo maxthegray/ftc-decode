@@ -37,7 +37,7 @@ public class Constants {
             .useSecondaryHeadingPIDF(true)
             .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(1, 0, .09, .02))
 
-            //.centripetalScaling(.0002)
+            .centripetalScaling(0.00009)
 
 
 // hi
