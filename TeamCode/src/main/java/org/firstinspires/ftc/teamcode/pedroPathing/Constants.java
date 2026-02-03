@@ -22,20 +22,22 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(17.35)
-            .forwardZeroPowerAcceleration(-64)
-            .lateralZeroPowerAcceleration(-63)
+            .forwardZeroPowerAcceleration(-76)
+            .lateralZeroPowerAcceleration(-68)
 
-            .drivePIDFCoefficients(new FilteredPIDFCoefficients(.1, 0, .001, 0, .05))
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.005, 0, .00006, .6, .1))
             .useSecondaryDrivePIDF(true)
-            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.3, 0, .0001, 0, .3))
+            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.005, 0, .00003, .6, 0))
 
-            .translationalPIDFCoefficients(new PIDFCoefficients(.05, 0, 0.01, 0.5))
+            .translationalPIDFCoefficients(new PIDFCoefficients(.2, 0, 0.022, 0))
             .useSecondaryTranslationalPIDF(true)
-            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.6, 0, 0.03, 0.02))
+            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.5, 0, 0.025, 0.01))
 
-            .headingPIDFCoefficients(new PIDFCoefficients(0.9, 0, 0.08, 0))
+            .headingPIDFCoefficients(new PIDFCoefficients(1, 0, 0.1, 0))
             .useSecondaryHeadingPIDF(true)
             .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(1, 0, .09, .02))
+
+            //.centripetalScaling(.0002)
 
 
 // hi
@@ -50,8 +52,8 @@ public class Constants {
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(49.5)
-            .yVelocity(52.5)
+            .xVelocity(65)
+            .yVelocity(64)
             ;
 
 
@@ -59,14 +61,14 @@ public class Constants {
             .hardwareMapName("sensor_otos")
             .linearUnit(DistanceUnit.INCH)
             .angleUnit(AngleUnit.RADIANS)
-            .linearScalar(1.15)
-            .angularScalar(0.991)
+            .linearScalar(1.01)
+            .angularScalar(0.9935)
             .offset(new SparkFunOTOS.Pose2D(0, 0, -PI/2));
 
 
 
 
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 10, .7);
+    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1.5, 1);
 
     public static Follower createFollower(HardwareMap hardwareMap) {
         return new FollowerBuilder(followerConstants, hardwareMap)
