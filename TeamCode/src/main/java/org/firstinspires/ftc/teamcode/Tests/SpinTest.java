@@ -17,7 +17,7 @@ public class SpinTest extends LinearOpMode {
     private Gamepad currentGamepad1, previousGamepad1;
 
     // Gaussian constants (tunable)
-    private final double A = 0.9;
+    private final double A = 0.96;
     private double B = 380;
     private double C = 200.0;
     private int threshold = 760;
@@ -132,8 +132,9 @@ public class SpinTest extends LinearOpMode {
             if (traveledThisCycle >= threshold) break;
             if (gamepad1.b) break;  // Abort with B
 
-            double power = gaussian(pos);
-            carouselMotor.setPower(power);
+            //double power = gaussian(pos);
+            //carouselMotor.setPower(power);
+            carouselMotor.setPower(gaussian(pos));
 
             int expectedPos = cycleCount * TICKS_PER_CYCLE;
             int error = expectedPos - pos;
