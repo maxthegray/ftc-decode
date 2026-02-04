@@ -23,53 +23,58 @@ public class AutonTest extends OpMode {
     private int pathState; // Current autonomous path state (state machine)
     private ElapsedTime time;
 
-    private final Pose startPose = new Pose(57, 9, Math.toRadians(90)); // Start Pose of our robot.
-    private final Pose scorePose = new Pose(68, 19, Math.toRadians(115)); // Scoring Pose of our robot. It is facing the goal at a 135 degree angle.
-    private final Pose pickup3Pose = new Pose(36, 85, Math.toRadians(90)); // Highest (First Set) of Artifacts from the Spike Mark.
-    private final Pose pickup2Pose = new Pose(36, 60, Math.toRadians(90)); // Middle (Second Set) of Artifacts from the Spike Mark.
-    private final Pose pickup1Pose = new Pose(36, 35, Math.toRadians(90)); // Lowest (Third Set) of Artifacts from the Spike Mark.
+    private final Pose startPose = new Pose(47, 9, Math.toRadians(90)); // Start Pose of our robot.
+    private final Pose scorePose = new Pose(60, 19, Math.toRadians(115)); // Scoring Pose of our robot. It is facing the goal at a 135 degree angle.
+    private final Pose pickup3Pose = new Pose(36, 82, Math.toRadians(180)); // Highest (First Set) of Artifacts from the Spike Mark.
+    private final Pose pickup2Pose = new Pose(36, 57, Math.toRadians(180)); // Middle (Second Set) of Artifacts from the Spike Mark.
+    private final Pose pickup1Pose = new Pose(36, 35, Math.toRadians(180)); // Lowest (Third Set) of Artifacts from the Spike Mark.
     private final Pose control1Pose = new Pose(57,40);
-    private final Pose control2Pose = new Pose(57,57);
-    private final Pose control3Pose = new Pose(57,85);
+    private final Pose control2Pose = new Pose(57,52);
+    private final Pose control3Pose = new Pose(57,82);
+
+
+    // New Set
+    private final Pose startPose2 = new Pose(48, 9, Math.toRadians(90)); //starting pose
+    private final Pose pose2 = new Pose(72, 23, Math.toRadians(115)); //first shoot
+    private final Pose pose3 = new Pose(37, 59, Math.toRadians(180)); //middle balls
+    private final Pose pose4 = new Pose(58, 83, Math.toRadians(135)); //second shoot
+    private final Pose pose5 = new Pose(35, 83, Math.toRadians(180)); //far balls
+    private final Pose pose6 = new Pose(47, 95, Math.toRadians(135)); //third shoot
+    private final Pose pose21 = new Pose (71.5,58); //control 1
+    private final Pose pose31 = new Pose(56,68); //control 2
+
+
+
 
     private Path preShoot;
     private PathChain grabPickup1, scorePickup1, grabPickup2, scorePickup2, grabPickup3, scorePickup3;
     public void buildPaths() {
         /* This is our scorePreload path. We are using a BezierLine, which is a straight line. */
-        preShoot = new Path(new BezierLine(startPose, scorePose));
-        preShoot.setLinearHeadingInterpolation(startPose.getHeading(), scorePose.getHeading());
+        preShoot = new Path(new BezierLine(startPose2, pose2));
+        preShoot.setLinearHeadingInterpolation(startPose2.getHeading(), pose2.getHeading());
         /* Here is an example for Constant Interpolation
         scorePreload.setConstantInterpolation(startPose.getHeading()); */
         /* This is our grabPickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         grabPickup1 = follower.pathBuilder()
-                .addPath(new BezierCurve(scorePose, control1Pose, pickup1Pose))
-                .setLinearHeadingInterpolation(scorePose.getHeading(), pickup1Pose.getHeading())
+                .addPath(new BezierCurve(pose2, pose21, pose3))
+                .setLinearHeadingInterpolation(pose2.getHeading(), pose3.getHeading())
                 .build();
         /* This is our scorePickup1 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         scorePickup1 = follower.pathBuilder()
-                .addPath(new BezierCurve(pickup1Pose,control1Pose, scorePose))
-                .setLinearHeadingInterpolation(pickup1Pose.getHeading(), scorePose.getHeading())
+                .addPath(new BezierCurve(pose3,pose31, pose4))
+                .setLinearHeadingInterpolation(pose3.getHeading(), pose4.getHeading())
                 .build();
         /* This is our grabPickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         grabPickup2 = follower.pathBuilder()
-                .addPath(new BezierCurve(scorePose,control2Pose, pickup2Pose))
-                .setLinearHeadingInterpolation(scorePose.getHeading(), pickup2Pose.getHeading())
+                .addPath(new BezierLine(pose4, pose5))
+                .setLinearHeadingInterpolation(pose4.getHeading(), pose5.getHeading())
                 .build();
         /* This is our scorePickup2 PathChain. We are using a single path with a BezierLine, which is a straight line. */
         scorePickup2 = follower.pathBuilder()
-                .addPath(new BezierCurve(pickup2Pose,control2Pose, scorePose))
-                .setLinearHeadingInterpolation(pickup2Pose.getHeading(), scorePose.getHeading())
+                .addPath(new BezierLine(pose5,pose6))
+                .setLinearHeadingInterpolation(pose5.getHeading(), pose6.getHeading())
                 .build();
         /* This is our grabPickup3 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        grabPickup3 = follower.pathBuilder()
-                .addPath(new BezierCurve(scorePose, control3Pose,pickup3Pose))
-                .setLinearHeadingInterpolation(scorePose.getHeading(), pickup3Pose.getHeading())
-                .build();
-        /* This is our scorePickup3 PathChain. We are using a single path with a BezierLine, which is a straight line. */
-        scorePickup3 = follower.pathBuilder()
-                .addPath(new BezierCurve(pickup3Pose, control3Pose,scorePose))
-                .setLinearHeadingInterpolation(pickup3Pose.getHeading(), scorePose.getHeading())
-                .build();
     }
     @Override
     public void init() {
