@@ -42,7 +42,7 @@ public class BlueRedTele extends LinearOpMode {
         controlHubI2C = new ControlHubI2C(state, hardwareMap);
         expansionHubI2C = new ExpansionHubI2C(state, hardwareMap);
 
-        xDrive = new XdriveTrain(0.0, DRIVE_THRESHOLD, hardwareMap, state);
+        xDrive = new XdriveTrain(0.0, DRIVE_THRESHOLD, state, hardwareMap);
         
         telemetry.addData("Status", "Initialized");
         telemetry.update();
