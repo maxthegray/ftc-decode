@@ -29,7 +29,7 @@ public class XdriveTrain extends Thread {
     
     private DcMotorEx frontRightMotor, frontLeftMotor, backRightMotor, backLeftMotor;
     
-    public XdriveTrain(double direction, float threshold, HardwareMap hardwareMap, BotState state) {
+    public XdriveTrain(double direction, float threshold, BotState state, HardwareMap hardwareMap) {
         
         this.magnitude = 0.0f;
         this.angle = 0.0f;
