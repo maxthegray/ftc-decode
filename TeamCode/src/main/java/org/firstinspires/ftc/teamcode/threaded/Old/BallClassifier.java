@@ -1,21 +1,22 @@
 package org.firstinspires.ftc.teamcode.threaded.Old;
 
-import org.firstinspires.ftc.teamcode.threaded.Old.BotState.BallColor;
-
+/**
+ * Classifies ball color from sensor readings.
+ */
 public class BallClassifier {
 
-    public static BallColor classifyPosition(BotState state, int position) {
+    public static ShootSequence.BallColor classifyPosition(       SensorState state, int position) {
         int thresholdA = state.getThresholdA(position);
         int thresholdB = state.getThresholdB(position);
 
-        BallColor typeA = classifyBall(
+               ShootSequence.BallColor typeA = classifyBall(
                 state.getAlphaA(position),
                 state.getBlueA(position),
                 state.getGreenA(position),
                 thresholdA
         );
 
-        BallColor typeB = classifyBall(
+               ShootSequence.BallColor typeB = classifyBall(
                 state.getAlphaB(position),
                 state.getBlueB(position),
                 state.getGreenB(position),
@@ -25,30 +26,28 @@ public class BallClassifier {
         return mergeReadings(typeA, typeB);
     }
 
-    public static BallColor classifyBall(int alpha, int blue, int green, int threshold) {
+    public static        ShootSequence.BallColor classifyBall(int alpha, int blue, int green, int threshold) {
         if (alpha < threshold) {
-            return BallColor.EMPTY;
+            return        ShootSequence.BallColor.EMPTY;
         }
 
         if (green == 0) {
-            return (blue > 0) ? BallColor.PURPLE : BallColor.UNKNOWN;
+            return (blue > 0) ?        ShootSequence.BallColor.PURPLE :        ShootSequence.BallColor.UNKNOWN;
         }
 
         double ratio = (double) blue / green;
-        return (ratio > 1.0) ? BallColor.PURPLE : BallColor.GREEN;
+        return (ratio > 1.0) ?        ShootSequence.BallColor.PURPLE :        ShootSequence.BallColor.GREEN;
     }
 
-    public static BallColor mergeReadings(BallColor typeA, BallColor typeB) {
-        if (typeA == typeB) {
-            return typeA;
-        }
+    public static        ShootSequence.BallColor mergeReadings(       ShootSequence.BallColor a,        ShootSequence.BallColor b) {
+        if (a == b) return a;
 
-        if (typeA == BallColor.UNKNOWN) return typeB;
-        if (typeB == BallColor.UNKNOWN) return typeA;
+        if (a ==        ShootSequence.BallColor.UNKNOWN) return b;
+        if (b ==        ShootSequence.BallColor.UNKNOWN) return a;
 
-        if (typeA == BallColor.EMPTY) return typeB;
-        if (typeB == BallColor.EMPTY) return typeA;
+        if (a ==        ShootSequence.BallColor.EMPTY) return b;
+        if (b ==        ShootSequence.BallColor.EMPTY) return a;
 
-        return typeA;
+        return a;  // If conflicting, prefer A
     }
 }

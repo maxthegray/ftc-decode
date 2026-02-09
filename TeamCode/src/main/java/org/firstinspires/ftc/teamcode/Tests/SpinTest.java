@@ -22,15 +22,20 @@ public class SpinTest extends LinearOpMode {
     private double C = 200.0;
     private int threshold = 760;
 
+    // P-loop correction (tunable)
+    private double kP = 0.01;
+    private static final int TOLERANCE = 5;
+
     private double stepB = 10.0;
     private double stepC = 10.0;
     private int stepThreshold = 10;
+    private double stepKP = 0.001;
 
     // Cycle tracking
     private int cycleCount = 0;
     private final int TICKS_PER_CYCLE = 780;
 
-    private enum Param { B, C, THRESHOLD }
+    private enum Param { B, C, THRESHOLD, KP }
     private Param selected = Param.B;
 
     @Override
@@ -54,19 +59,19 @@ public class SpinTest extends LinearOpMode {
 
             // Select parameter
             if (pressed(currentGamepad1.dpad_left, previousGamepad1.dpad_left)) {
-                selected = Param.values()[(selected.ordinal() + 2) % 3];
+                selected = Param.values()[(selected.ordinal() + 3) % 4];
             }
             if (pressed(currentGamepad1.dpad_right, previousGamepad1.dpad_right)) {
-                selected = Param.values()[(selected.ordinal() + 1) % 3];
+                selected = Param.values()[(selected.ordinal() + 1) % 4];
             }
 
             // Step size: L bumper = fine, R bumper = coarse, neither = medium
             if (gamepad1.left_bumper) {
-                stepB = 1.0; stepC = 1.0; stepThreshold = 1;
+                stepB = 1.0; stepC = 1.0; stepThreshold = 1; stepKP = 0.0001;
             } else if (gamepad1.right_bumper) {
-                stepB = 50.0; stepC = 50.0; stepThreshold = 50;
+                stepB = 50.0; stepC = 50.0; stepThreshold = 50; stepKP = 0.01;
             } else {
-                stepB = 10.0; stepC = 10.0; stepThreshold = 10;
+                stepB = 10.0; stepC = 10.0; stepThreshold = 10; stepKP = 0.001;
             }
 
             // Adjust value
@@ -101,6 +106,7 @@ public class SpinTest extends LinearOpMode {
             String bMark = (selected == Param.B) ? ">> " : "   ";
             String cMark = (selected == Param.C) ? ">> " : "   ";
             String tMark = (selected == Param.THRESHOLD) ? ">> " : "   ";
+            String kpMark = (selected == Param.KP) ? ">> " : "   ";
 
             int currentPos = carouselMotor.getCurrentPosition();
             int expectedPos = cycleCount * TICKS_PER_CYCLE;
@@ -110,8 +116,8 @@ public class SpinTest extends LinearOpMode {
             telemetry.addData(bMark + "B (center)", "%.1f", B);
             telemetry.addData(cMark + "C (width)", "%.1f", C);
             telemetry.addData(tMark + "Threshold", threshold);
+            telemetry.addData(kpMark + "kP", "%.4f", kP);
             telemetry.addLine();
-            telemetry.addData("Step", "%.0f", stepB);
             telemetry.addData("Encoder", currentPos);
             telemetry.addData("Cycle", cycleCount);
             telemetry.addData("Expected", expectedPos);
@@ -125,30 +131,51 @@ public class SpinTest extends LinearOpMode {
     private void runGaussianTest() {
         int startPos = carouselMotor.getCurrentPosition();
 
+        // Phase 1: Gaussian curve
         while (opModeIsActive()) {
             int pos = carouselMotor.getCurrentPosition();
             int traveledThisCycle = pos - startPos;
 
             if (traveledThisCycle >= threshold) break;
-            if (gamepad1.b) break;  // Abort with B
+            if (gamepad1.b) break;
 
             //double power = gaussian(pos);
             //carouselMotor.setPower(power);
             carouselMotor.setPower(gaussian(pos));
 
-            int expectedPos = cycleCount * TICKS_PER_CYCLE;
-            int error = expectedPos - pos;
-
+            telemetry.addLine("=== GAUSSIAN PHASE ===");
             telemetry.addData("Position", pos);
             telemetry.addData("Traveled", "%d / %d", traveledThisCycle, threshold);
-            telemetry.addData("Target Peak", cycleCount * TICKS_PER_CYCLE + B);
+            telemetry.addData("Power", "%.3f", carouselMotor.getPower() );
+            telemetry.addLine("B to abort");
+            telemetry.update();
+        }
+
+        // Increment cycle count now - this is our target
+        cycleCount++;
+        int targetPos = cycleCount * TICKS_PER_CYCLE;
+
+        // Phase 2: P-loop correction
+        while (opModeIsActive()) {
+            int pos = carouselMotor.getCurrentPosition();
+            int error = targetPos - pos;
+
+            if (abs(error) <= TOLERANCE) break;
+            if (gamepad1.b) break;
+
+            double power = Range.clip(kP * error, -1.0, 1.0);
+            carouselMotor.setPower(power);
+
+            telemetry.addLine("=== P-LOOP PHASE ===");
+            telemetry.addData("Position", pos);
+            telemetry.addData("Target", targetPos);
             telemetry.addData("Error", error);
             telemetry.addData("Power", "%.3f", power);
             telemetry.addLine("B to abort");
             telemetry.update();
         }
+
         carouselMotor.setPower(0.0);
-        cycleCount++;
     }
 
     private double gaussian(double x) {
@@ -169,6 +196,10 @@ public class SpinTest extends LinearOpMode {
             case THRESHOLD:
                 threshold += increase ? stepThreshold : -stepThreshold;
                 threshold = Math.max(1, threshold);
+                break;
+            case KP:
+                kP += increase ? stepKP : -stepKP;
+                kP = Math.max(0, kP);
                 break;
         }
     }

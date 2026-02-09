@@ -1,9 +1,10 @@
-package org.firstinspires.ftc.teamcode.old;
+package org.firstinspires.ftc.teamcode.Tests;
 
 import com.qualcomm.hardware.rev.RevColorSensorV3;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
+@Disabled
 @TeleOp(name = "Color Sensor Calibration", group = "Calibration")
 public class ColorSensorTest extends LinearOpMode {
 

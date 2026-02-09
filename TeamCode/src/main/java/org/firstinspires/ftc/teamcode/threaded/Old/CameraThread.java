@@ -12,42 +12,41 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
 
+/**
+ * Handles AprilTag detection.
+ */
 public class CameraThread extends Thread {
 
-    private final BotState state;
+    private final       SensorState state;
     private final int basketTagId;
 
     private AprilTagProcessor aprilTagProcessor;
     private VisionPortal visionPortal;
 
-    // Tag 24 field position (Red Basket)
+    // Tag positions
     private static final double TAG_24_X = -58.35 - 72;
     private static final double TAG_24_Y = 55.63 - 72;
     private static final double TAG_24_HEADING = -54.0;
 
-    // Tag 20 field position (Blue Basket)
     private static final double TAG_20_X = 58.35 + 72;
     private static final double TAG_20_Y = 55.63 - 72;
     private static final double TAG_20_HEADING = -126.0;
 
     // Shoot order tags
-    private static final int TAG_GPP = 21;  // Green, Purple, Purple
-    private static final int TAG_PGP = 22;  // Purple, Green, Purple
-    private static final int TAG_PPG = 23;  // Purple, Purple, Green
+    private static final int TAG_GPP = 21;
+    private static final int TAG_PGP = 22;
+    private static final int TAG_PPG = 23;
 
-    // Alliance basket tags
+    // Alliance tags
     public static final int TAG_BLUE_BASKET = 20;
     public static final int TAG_RED_BASKET = 24;
 
-    public CameraThread(BotState state, HardwareMap hardwareMap, int basketTagId) {
+    public CameraThread(      SensorState state, HardwareMap hardwareMap, int basketTagId) {
         this.state = state;
         this.basketTagId = basketTagId;
 
-        // Initialize AprilTag processor
-        aprilTagProcessor = new AprilTagProcessor.Builder()
-                .build();
+        aprilTagProcessor = new AprilTagProcessor.Builder().build();
 
-        // Initialize vision portal
         visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "hsc"))
                 .addProcessor(aprilTagProcessor)
@@ -60,15 +59,11 @@ public class CameraThread extends Thread {
 
     @Override
     public void run() {
-        // Wait for camera to be streaming
+        // Wait for camera
         while (!state.shouldKillThreads()) {
-            VisionPortal.CameraState cameraState = visionPortal.getCameraState();
-            state.setCameraState(cameraState.toString());
-
-            if (cameraState == VisionPortal.CameraState.STREAMING) {
+            if (visionPortal.getCameraState() == VisionPortal.CameraState.STREAMING) {
                 break;
             }
-
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -76,28 +71,22 @@ public class CameraThread extends Thread {
             }
         }
 
-        // Main detection loop
+        // Main loop
         while (!state.shouldKillThreads()) {
-
-            // Get detections
             List<AprilTagDetection> detections = aprilTagProcessor.getDetections();
 
-            // Update detection count for debugging
-            state.setDetectionCount(detections.size());
-
-            // Find relevant tags
             AprilTagDetection basketTag = null;
             AprilTagDetection shootOrderTag = null;
 
-            for (AprilTagDetection detection : detections) {
-                if (detection.id == basketTagId && detection.ftcPose != null) {
-                    basketTag = detection;
-                } else if (detection.id == TAG_GPP || detection.id == TAG_PGP || detection.id == TAG_PPG) {
-                    shootOrderTag = detection;
+            for (AprilTagDetection det : detections) {
+                if (det.id == basketTagId && det.ftcPose != null) {
+                    basketTag = det;
+                } else if (det.id == TAG_GPP || det.id == TAG_PGP || det.id == TAG_PPG) {
+                    shootOrderTag = det;
                 }
             }
 
-            // Update basket tag state (Tag 24)
+            // Update basket tag
             if (basketTag != null) {
                 state.setTagData(
                         basketTag.id,
@@ -106,7 +95,6 @@ public class CameraThread extends Thread {
                         basketTag.ftcPose.yaw
                 );
 
-                // Calculate robot pose from tag
                 Pose robotPose = calculateRobotPose(basketTag);
                 if (robotPose != null) {
                     state.setTagCalculatedPose(robotPose);
@@ -116,20 +104,18 @@ public class CameraThread extends Thread {
                 state.setTagCalculatedPose(null);
             }
 
-            // Update shoot order from tags 21, 22, 23
+            // Update shoot order
             if (shootOrderTag != null) {
-                BotState.BallColor[] order = getShootOrderFromTag(shootOrderTag.id);
-                state.setDetectedShootOrder(order, shootOrderTag.id);
+                state.setDetectedShootOrder(getShootOrderFromTag(shootOrderTag.id));
             }
 
             try {
-                Thread.sleep(BotState.CAMERA_UPDATE_MS);
+                Thread.sleep(      SensorState.CAMERA_UPDATE_MS);
             } catch (InterruptedException e) {
                 break;
             }
         }
 
-        // Cleanup
         if (visionPortal != null) {
             visionPortal.close();
         }
@@ -138,7 +124,6 @@ public class CameraThread extends Thread {
     private Pose calculateRobotPose(AprilTagDetection tag) {
         if (tag == null || tag.ftcPose == null) return null;
 
-        // Get tag position based on which basket we're tracking
         double tagX, tagY, tagHeading;
         if (basketTagId == TAG_BLUE_BASKET) {
             tagX = TAG_20_X;
@@ -165,32 +150,31 @@ public class CameraThread extends Thread {
 
         double cameraHeadingRad = Math.toRadians(tagHeading - yaw);
 
-        // Normalize heading
         while (cameraHeadingRad > Math.PI) cameraHeadingRad -= 2 * Math.PI;
         while (cameraHeadingRad < -Math.PI) cameraHeadingRad += 2 * Math.PI;
 
         return new Pose(cameraFieldX, cameraFieldY, cameraHeadingRad);
     }
 
-    private BotState.BallColor[] getShootOrderFromTag(int tagId) {
+    private       ShootSequence.BallColor[] getShootOrderFromTag(int tagId) {
         switch (tagId) {
-            case TAG_GPP:  // 21
-                return new BotState.BallColor[] {
-                        BotState.BallColor.GREEN,
-                        BotState.BallColor.PURPLE,
-                        BotState.BallColor.PURPLE
+            case TAG_GPP:
+                return new       ShootSequence.BallColor[] {
+                              ShootSequence.BallColor.GREEN,
+                              ShootSequence.BallColor.PURPLE,
+                              ShootSequence.BallColor.PURPLE
                 };
-            case TAG_PGP:  // 22
-                return new BotState.BallColor[] {
-                        BotState.BallColor.PURPLE,
-                        BotState.BallColor.GREEN,
-                        BotState.BallColor.PURPLE
+            case TAG_PGP:
+                return new       ShootSequence.BallColor[] {
+                              ShootSequence.BallColor.PURPLE,
+                              ShootSequence.BallColor.GREEN,
+                              ShootSequence.BallColor.PURPLE
                 };
-            case TAG_PPG:  // 23
-                return new BotState.BallColor[] {
-                        BotState.BallColor.PURPLE,
-                        BotState.BallColor.PURPLE,
-                        BotState.BallColor.GREEN
+            case TAG_PPG:
+                return new       ShootSequence.BallColor[] {
+                              ShootSequence.BallColor.PURPLE,
+                              ShootSequence.BallColor.PURPLE,
+                              ShootSequence.BallColor.GREEN
                 };
             default:
                 return null;
