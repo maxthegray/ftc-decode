@@ -13,11 +13,9 @@ public class CarouselController {
     private int targetTicks = 0;
     private int startTicks = 0;
 
-    // Gaussian constants (from SpinTest)
-    private static final double A = 0.96;
-    private static final double B = 380.0;
-    private static final double C = 200.0;
-    private static final int THRESHOLD = 760;
+    // Gaussian constants
+    private static final double A = 0.96;           // Peak power
+    private static final int THRESHOLD = 760;        // Switch to P-loop when this close to target
 
     // P-loop correction
     private static final double KP = 0.01;
@@ -46,11 +44,10 @@ public class CarouselController {
 
     /**
      * Move carousel by delta ticks.
+     * Always snapshots current position so the Gaussian ramps from wherever we are now.
      */
     public void move(int deltaTicks) {
-        if (isSettled()) {
-            startTicks = motor.getCurrentPosition();
-        }
+        startTicks = motor.getCurrentPosition();
         targetTicks += deltaTicks;
         currentPhase = Phase.GAUSSIAN;
     }
@@ -85,14 +82,8 @@ public class CarouselController {
                     break;
                 }
 
-                // Apply Gaussian curve
+                // Apply Gaussian curve (direction-aware, no sign flip needed)
                 double gaussianPower = gaussian(currentPos);
-
-                // Reverse direction if moving backward
-                if (targetTicks < startTicks) {
-                    gaussianPower = -gaussianPower;
-                }
-
                 motor.setPower(gaussianPower);
                 break;
 
@@ -123,12 +114,32 @@ public class CarouselController {
     }
 
     /**
-     * Gaussian curve centered at startTicks + B.
-     * This creates a smooth ramp that peaks partway through the movement.
+     * Direction-aware Gaussian ramp.
+     *
+     * Normalizes position to a [0..1] fraction of total movement, then applies
+     * a Gaussian that peaks near the midpoint.  Works identically for forward
+     * and backward moves and scales to any distance.
+     *
+     * The tuning ratios are preserved from the original constants:
+     *   peak  = B / TICKS_PER_SLOT ≈ 0.487  (slightly before midpoint)
+     *   width = C / TICKS_PER_SLOT ≈ 0.256
      */
     private double gaussian(double x) {
-        double center = startTicks + B;
-        return A * Math.exp(-Math.pow(x - center, 2) / (2 * Math.pow(C, 2)));
+        double totalDistance = targetTicks - startTicks;
+        if (Math.abs(totalDistance) < 1) return 0;
+
+        // How far through the movement are we? (0 = start, 1 = target)
+        double progress = (x - startTicks) / totalDistance;
+
+        double normalizedCenter = 0.487;   // was B / TICKS_PER_SLOT
+        double normalizedSigma  = 0.256;   // was C / TICKS_PER_SLOT
+
+        double magnitude = A * Math.exp(
+                -Math.pow(progress - normalizedCenter, 2)
+                        / (2 * normalizedSigma * normalizedSigma));
+
+        // Positive power for forward moves, negative for backward
+        return (totalDistance >= 0) ? magnitude : -magnitude;
     }
 
     /**

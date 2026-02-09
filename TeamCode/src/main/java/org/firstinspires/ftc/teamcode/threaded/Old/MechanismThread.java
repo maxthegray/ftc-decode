@@ -14,7 +14,7 @@ public class MechanismThread extends Thread {
     private final ConcurrentLinkedQueue<Command> commandQueue = new ConcurrentLinkedQueue<>();
     private volatile boolean killThread = false;
 
-    // --- Intake Request (volatile field — never queued) ---
+    // --- Intake Request (volatile field – never queued) ---
     public enum IntakeRequest { STOP, IN, OUT }
     private volatile IntakeRequest intakeRequest = IntakeRequest.STOP;
 
@@ -26,30 +26,31 @@ public class MechanismThread extends Thread {
     //
     //  IDLE ──► INTAKE_REVERSING ──► CAROUSEL_MOVING ──► IDLE
     //    │                                                 ▲
-    //    ├──► CAROUSEL_MOVING ─────────────────────────────┤  (manual rotate)
+    //    ├──► CAROUSEL_MOVING ─────────────────────────────┤  (manual rotate / nudge)
     //    │                                                 │
-    //    ├──► KICKER_UP ──► KICKER_DOWN ───────────────────┤  (manual kick)
+    //    ├──► KICKER_UP ──► KICKER_DOWN ──────────────────┤  (manual kick)
     //    │                                                 │
-    //    └──► SHOOT_WAIT_SHOOTER ──► SHOOT_ROTATING ──►    │  (shoot-single: wait, rotate, kick)
-    //         (or skip rotate)       SHOOT_KICKER_UP       │
-    //                                ──► SHOOT_KICKER_DOWN─┘
+    //    └──► SHOOT_WAIT_SHOOTER ──► SHOOT_ROTATING ──►   │  (single OR multi-shot)
+    //         (or skip rotate)       SHOOT_KICKER_UP      │
+    //                                 ──► SHOOT_KICKER_DOWN┘
+    //                                      (loops back for next shot, or → IDLE)
     //
     private enum HardwareState {
         IDLE,
 
         // Auto-index states
-        INTAKE_REVERSING,   // Kickback pulse (200ms reverse)
-        CAROUSEL_MOVING,    // Waiting for carousel to settle (auto-index or manual rotate)
+        INTAKE_REVERSING,
+        CAROUSEL_MOVING,
 
         // Manual kick states
-        KICKER_UP,          // Kicker servo commanded up
-        KICKER_DOWN,        // Waiting for kicker to physically return down
+        KICKER_UP,
+        KICKER_DOWN,
 
-        // Shoot-single states (wait for shooter, rotate to color, then kick)
-        SHOOT_WAIT_SHOOTER, // Waiting for shooter to reach target velocity
-        SHOOT_ROTATING,     // Carousel rotating to bring target color to intake
-        SHOOT_KICKER_UP,    // Kicker fired after rotation settled
-        SHOOT_KICKER_DOWN   // Waiting for kicker to return after shot
+        // Shoot states (handles both single and multi-shot sequences)
+        SHOOT_WAIT_SHOOTER,
+        SHOOT_ROTATING,
+        SHOOT_KICKER_UP,
+        SHOOT_KICKER_DOWN
     }
 
     private HardwareState hardwareState = HardwareState.IDLE;
@@ -59,12 +60,14 @@ public class MechanismThread extends Thread {
     private int pendingRotation = 0;
     private static final long KICKBACK_MS = 200;
 
-    // Shoot-single: rotation to apply after shooter is ready
-    private int shootSingleRotation = 0;
+    // Shoot plan (works for single shots and full sequences)
+    private int[] shotPlan = null;
+    private int currentShotIndex = 0;
     private static final long SHOOTER_WAIT_TIMEOUT_MS = 2000;
 
-    // Safety timeout for kicker return (prevents permanent lockup if servo stalls)
-    private static final long KICKER_DOWN_TIMEOUT_MS = 1000;
+    // Kicker safety delays
+    private static final long KICKER_SAFETY_DELAY_MS = 200;  // Minimum time after commanding down
+    private static final long KICKER_TIMEOUT_MS = 1500;       // Maximum time to wait (failsafe)
 
     // Robot State
     private volatile ShootSequence.BallColor[] ballPositions = {
@@ -75,7 +78,7 @@ public class MechanismThread extends Thread {
     private boolean ballWasInIntake = false;
     private boolean autoIndexEnabled = true;
 
-    // Sensor state (needed for shooter-ready checks)
+    // Sensor state
     private volatile SensorState sensorState = null;
 
     public MechanismThread(HardwareMap hardwareMap) {
@@ -92,12 +95,13 @@ public class MechanismThread extends Thread {
     @Override
     public void run() {
         while (!killThread) {
-            // 1. Drain ALL queued commands
-            processAllCommands();
-
+            // 1. Update carousel controller (for Gaussian ramping)
             carousel.update();
 
-            // 2. Run state machine
+            // 2. Drain ALL queued commands
+            processAllCommands();
+
+            // 3. Run state machine
             switch (hardwareState) {
 
                 // ---- IDLE: apply intake, check auto-index ----
@@ -130,34 +134,31 @@ public class MechanismThread extends Thread {
                     }
                     break;
 
-                case KICKER_DOWN:
-                    if (kicker.isDown() || stateTimer.milliseconds() > KICKER_DOWN_TIMEOUT_MS) {
+                case KICKER_DOWN: {
+                    // Wait for BOTH kicker physically down AND safety delay
+                    boolean kickerPhysicallyDown = kicker.isDown();
+                    boolean safetyDelayPassed = stateTimer.milliseconds() >= KICKER_SAFETY_DELAY_MS;
+                    boolean timedOut = stateTimer.milliseconds() >= KICKER_TIMEOUT_MS;
+
+                    if ((kickerPhysicallyDown && safetyDelayPassed) || timedOut) {
                         hardwareState = HardwareState.IDLE;
                     }
                     break;
+                }
 
-                // ---- SHOOT SINGLE: wait for shooter, rotate to color, then kick ----
-                case SHOOT_WAIT_SHOOTER:
+                // ---- SHOOT (single or sequence) ----
+                case SHOOT_WAIT_SHOOTER: {
                     boolean shooterReady = sensorState != null && sensorState.isShooterReady();
                     boolean timedOut = stateTimer.milliseconds() >= SHOOTER_WAIT_TIMEOUT_MS;
 
                     if (shooterReady || timedOut) {
-                        if (shootSingleRotation == 0) {
-                            // Already at intake — kick immediately
-                            kicker.up();
-                            stateTimer.reset();
-                            hardwareState = HardwareState.SHOOT_KICKER_UP;
-                        } else {
-                            // Rotate first, then kick
-                            carousel.rotateSlots(shootSingleRotation);
-                            hardwareState = HardwareState.SHOOT_ROTATING;
-                        }
+                        advanceToNextShot();
                     }
                     break;
+                }
 
                 case SHOOT_ROTATING:
                     if (carousel.isSettled()) {
-                        // Rotation done — now kick
                         kicker.up();
                         stateTimer.reset();
                         hardwareState = HardwareState.SHOOT_KICKER_UP;
@@ -172,11 +173,26 @@ public class MechanismThread extends Thread {
                     }
                     break;
 
-                case SHOOT_KICKER_DOWN:
-                    if (kicker.isDown() || stateTimer.milliseconds() > KICKER_DOWN_TIMEOUT_MS) {
-                        hardwareState = HardwareState.IDLE;
+                case SHOOT_KICKER_DOWN: {
+                    // Wait for BOTH kicker physically down AND safety delay
+                    boolean kickerPhysicallyDown = kicker.isDown();
+                    boolean safetyDelayPassed = stateTimer.milliseconds() >= KICKER_SAFETY_DELAY_MS;
+                    boolean timedOut = stateTimer.milliseconds() >= KICKER_TIMEOUT_MS;
+
+                    if ((kickerPhysicallyDown && safetyDelayPassed) || timedOut) {
+                        currentShotIndex++;
+                        if (shotPlan == null || currentShotIndex >= shotPlan.length) {
+                            // All shots fired
+                            shotPlan = null;
+                            currentShotIndex = 0;
+                            hardwareState = HardwareState.IDLE;
+                        } else {
+                            // Next shot — shooter already spinning, go straight to rotate/kick
+                            advanceToNextShot();
+                        }
                     }
                     break;
+                }
             }
 
             lights.update();
@@ -189,7 +205,7 @@ public class MechanismThread extends Thread {
         }
     }
 
-    // ==================== INTAKE (volatile, not queued) ====================
+    // ==================== INTAKE ====================
 
     private void applyIntakeRequest() {
         switch (intakeRequest) {
@@ -233,25 +249,60 @@ public class MechanismThread extends Thread {
                 }
                 break;
 
+            case NUDGE:
+                if (hardwareState == HardwareState.IDLE && carousel.isSettled()
+                        && cmd.value instanceof Integer) {
+                    carousel.nudge((Integer) cmd.value);
+                    hardwareState = HardwareState.CAROUSEL_MOVING;
+                }
+                break;
+
             case SHOOT_SINGLE:
                 if (hardwareState == HardwareState.IDLE
                         && carousel.isSettled()
                         && cmd.value instanceof ShootSequence.BallColor) {
 
                     ShootSequence.BallColor target = (ShootSequence.BallColor) cmd.value;
-                    int rotation = findRotationForColor(ballPositions, target);
+                    int rotation = ShootSequence.findRotationForColor(ballPositions, target);
 
                     if (rotation == Integer.MIN_VALUE) {
-                        // Color not found in carousel — do nothing
                         break;
                     }
 
-                    intake.stop();  // Stop intake before any rotation/kick
-
-                    // Store rotation and wait for shooter to reach speed
-                    shootSingleRotation = rotation;
+                    intake.stop();
+                    shotPlan = new int[] { rotation };
+                    currentShotIndex = 0;
                     stateTimer.reset();
                     hardwareState = HardwareState.SHOOT_WAIT_SHOOTER;
+                }
+                break;
+
+            case SHOOT_SEQUENCE:
+                if (hardwareState == HardwareState.IDLE
+                        && carousel.isSettled()
+                        && cmd.value instanceof ShootSequence.BallColor[]) {
+
+                    ShootSequence.BallColor[] targetOrder = (ShootSequence.BallColor[]) cmd.value;
+                    int[] plan = ShootSequence.calculatePlan(ballPositions, targetOrder);
+
+                    if (plan == null) {
+                        break;  // Can't build plan for given positions/order
+                    }
+
+                    intake.stop();
+                    shotPlan = plan;
+                    currentShotIndex = 0;
+                    stateTimer.reset();
+                    hardwareState = HardwareState.SHOOT_WAIT_SHOOTER;
+                }
+                break;
+
+            case ABORT_SEQUENCE:
+                if (isInShootState()) {
+                    kicker.down();
+                    shotPlan = null;
+                    currentShotIndex = 0;
+                    hardwareState = HardwareState.IDLE;
                 }
                 break;
 
@@ -259,6 +310,30 @@ public class MechanismThread extends Thread {
                 this.autoIndexEnabled = (boolean) cmd.value;
                 break;
         }
+    }
+
+    // ==================== SHOOT HELPERS ====================
+
+    /**
+     * Start the next shot in the plan: rotate if needed, otherwise kick directly.
+     */
+    private void advanceToNextShot() {
+        int rotation = shotPlan[currentShotIndex];
+        if (rotation == 0) {
+            kicker.up();
+            stateTimer.reset();
+            hardwareState = HardwareState.SHOOT_KICKER_UP;
+        } else {
+            carousel.rotateSlots(rotation);
+            hardwareState = HardwareState.SHOOT_ROTATING;
+        }
+    }
+
+    private boolean isInShootState() {
+        return hardwareState == HardwareState.SHOOT_WAIT_SHOOTER
+                || hardwareState == HardwareState.SHOOT_ROTATING
+                || hardwareState == HardwareState.SHOOT_KICKER_UP
+                || hardwareState == HardwareState.SHOOT_KICKER_DOWN;
     }
 
     // ==================== AUTO-INDEX ====================
@@ -277,19 +352,17 @@ public class MechanismThread extends Thread {
             ShootSequence.BallColor[] pos = ballPositions;
             int rotation = 0;
 
-            // Directional logic (hardware-specific mapping)
-            // Left (-1): slot 2 → intake | Right (1): slot 1 → intake
             if (pos[1] == ShootSequence.BallColor.EMPTY && pos[2] == ShootSequence.BallColor.EMPTY) {
-                rotation = -1;  // Store first ball in Slot 1
+                rotation = -1;
             } else if (pos[1] != ShootSequence.BallColor.EMPTY && pos[2] == ShootSequence.BallColor.EMPTY) {
-                rotation = -1;  // Bring Slot 2 to Intake
+                rotation = -1;
             } else if (pos[1] == ShootSequence.BallColor.EMPTY && pos[2] != ShootSequence.BallColor.EMPTY) {
-                rotation = 1;   // Bring Slot 1 to Intake
+                rotation = 1;
             }
 
             if (rotation != 0) {
                 pendingRotation = rotation;
-                intake.reverse();       // Start kickback pulse
+                intake.reverse();
                 stateTimer.reset();
                 hardwareState = HardwareState.INTAKE_REVERSING;
             }
@@ -297,17 +370,6 @@ public class MechanismThread extends Thread {
     }
 
     // ==================== HELPERS ====================
-
-    /**
-     * Find which rotation brings the target color to the intake (position 0).
-     * Returns: 0 if already at intake, 1 for right, -1 for left, MIN_VALUE if not found.
-     */
-    private int findRotationForColor(ShootSequence.BallColor[] positions, ShootSequence.BallColor color) {
-        if (positions[0] == color) return 0;          // Already at intake
-        if (positions[1] == color) return 1;           // Back-left → rotate right
-        if (positions[2] == color) return -1;          // Back-right → rotate left
-        return Integer.MIN_VALUE;                      // Not found
-    }
 
     public void setBallPositions(ShootSequence.BallColor[] positions) {
         this.ballPositions = positions.clone();
@@ -327,7 +389,23 @@ public class MechanismThread extends Thread {
     }
 
     public String getStateDebug() {
+        if (isInShootState() && shotPlan != null && shotPlan.length > 1) {
+            return String.format("%s | Shot %d/%d | Plan: %s",
+                    hardwareState.name(), currentShotIndex + 1, shotPlan.length, planToString());
+        }
         return hardwareState.name();
+    }
+
+    private String planToString() {
+        if (shotPlan == null) return "[]";
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < shotPlan.length; i++) {
+            if (i == currentShotIndex) sb.append(">");
+            sb.append(shotPlan[i]);
+            if (i < shotPlan.length - 1) sb.append(", ");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     public void enqueueCommand(Command cmd) {
@@ -342,11 +420,14 @@ public class MechanismThread extends Thread {
 
     public static class Command {
         public enum Type {
-            KICK,               // Manual single kick
-            ROTATE_LEFT,        // Manual carousel rotate left 1 slot
-            ROTATE_RIGHT,       // Manual carousel rotate right 1 slot
-            SHOOT_SINGLE,       // Find color, rotate to intake, kick (value = BallColor)
-            SET_AUTO_INDEX      // Enable/disable auto-indexing (value = Boolean)
+            KICK,
+            ROTATE_LEFT,
+            ROTATE_RIGHT,
+            NUDGE,              // value = Integer (signed tick count)
+            SHOOT_SINGLE,       // value = BallColor
+            SHOOT_SEQUENCE,     // value = BallColor[3] target order
+            ABORT_SEQUENCE,     // abort running sequence
+            SET_AUTO_INDEX      // value = Boolean
         }
 
         public final Type type;

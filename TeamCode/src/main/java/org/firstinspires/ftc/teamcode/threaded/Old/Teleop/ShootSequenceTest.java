@@ -14,17 +14,11 @@ import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 
-@TeleOp(name = "TeleOp - RED", group = "TeleOp")
-public class TeleOpRed extends LinearOpMode {
+@TeleOp(name = "ShootSequence Test", group = "Test")
+public class ShootSequenceTest extends LinearOpMode {
 
     private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
     private static final double DEFAULT_VELOCITY = 10.0;
-
-    public enum RobotMode {
-        INTAKING,   // Auto-index ON
-        SHOOTING    // Auto-index OFF
-    }
-    private RobotMode currentMode = RobotMode.INTAKING;
 
     private MechanismThread mechanismThread;
     private DriveThread driveThread;
@@ -41,13 +35,14 @@ public class TeleOpRed extends LinearOpMode {
     private boolean prevRBumper1 = false;
 
     // Gamepad 2 edge detection
+    private boolean prevA2 = false;
+    private boolean prevB2 = false;
     private boolean prevX2 = false;
-    private boolean prevDpadLeft2 = false;
-    private boolean prevDpadRight2 = false;
+    private boolean prevY2 = false;
     private boolean prevDpadUp2 = false;
     private boolean prevDpadDown2 = false;
-    private boolean prevLTrigger2 = false;  // Shoot green
-    private boolean prevRTrigger2 = false;  // Shoot purple
+    private boolean prevLTrigger2 = false;
+    private boolean prevRTrigger2 = false;
 
     @Override
     public void runOpMode() {
@@ -56,14 +51,33 @@ public class TeleOpRed extends LinearOpMode {
 
         // Initialize threads
         mechanismThread = new MechanismThread(hardwareMap);
-        mechanismThread.setSensorState(sensorState);  // Needed for shooter-ready checks
+        mechanismThread.setSensorState(sensorState);
         driveThread = new DriveThread(sensorState, hardwareMap);
         shooterThread = new ShooterThread(sensorState, hardwareMap);
         cameraThread = new CameraThread(sensorState, hardwareMap, BASKET_TAG_ID);
         controlHubI2C = new ControlHubI2CThread(sensorState, hardwareMap);
         expansionHubI2C = new ExpansionHubI2CThread(sensorState, hardwareMap);
 
-        telemetry.addData("Status", "Initialized");
+        telemetry.addLine("=== SHOOT SEQUENCE TEST ===");
+        telemetry.addLine();
+        telemetry.addLine("DRIVER (GP1):");
+        telemetry.addLine("  Sticks = Drive");
+        telemetry.addLine("  LB = Toggle Auto-Align");
+        telemetry.addLine("  RB = Reset Pose from Tag");
+        telemetry.addLine("  RT = Intake In");
+        telemetry.addLine("  LT = Intake Out");
+        telemetry.addLine();
+        telemetry.addLine("GUNNER (GP2):");
+        telemetry.addLine("  RB = Shooter Spin Up");
+        telemetry.addLine("  LB = Shooter Stop");
+        telemetry.addLine("  A = Shoot GPP Sequence");
+        telemetry.addLine("  B = Shoot PGP Sequence");
+        telemetry.addLine("  X = Shoot PPG Sequence");
+        telemetry.addLine("  Y = Abort Sequence");
+        telemetry.addLine("  LT = Shoot GREEN Single");
+        telemetry.addLine("  RT = Shoot PURPLE Single");
+        telemetry.addLine("  D-Up = Nudge Carousel +");
+        telemetry.addLine("  D-Down = Nudge Carousel -");
         telemetry.update();
 
         waitForStart();
@@ -81,7 +95,6 @@ public class TeleOpRed extends LinearOpMode {
 
             handleDriverControls();
             handleGunnerControls();
-            handleAutoModeSwitching();
 
             updateTelemetry();
         }
@@ -102,20 +115,23 @@ public class TeleOpRed extends LinearOpMode {
                 -gamepad1.right_stick_x * 0.5
         );
 
-        // LB — Toggle auto-align
-        if (gamepad1.left_bumper && !prevLBumper1) sensorState.toggleAutoAlign();
+        // LB – Toggle auto-align
+        if (gamepad1.left_bumper && !prevLBumper1) {
+            sensorState.toggleAutoAlign();
+        }
         prevLBumper1 = gamepad1.left_bumper;
 
-        // RB — Reset Pose from AprilTag
+        // RB – Reset Pose from AprilTag
         if (gamepad1.right_bumper && !prevRBumper1) {
-            if (sensorState.isBasketTagVisible()) sensorState.requestPoseUpdate();
+            if (sensorState.isBasketTagVisible()) {
+                sensorState.requestPoseUpdate();
+            }
         }
         prevRBumper1 = gamepad1.right_bumper;
 
-        // Intake control — volatile state, not queued
+        // Intake control
         if (gamepad1.right_trigger > 0.1) {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
-            if (currentMode != RobotMode.INTAKING) switchMode(RobotMode.INTAKING);
         } else if (gamepad1.left_trigger > 0.1) {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.OUT);
         } else {
@@ -126,58 +142,60 @@ public class TeleOpRed extends LinearOpMode {
     // ======================== GUNNER (Gamepad 2) ========================
 
     private void handleGunnerControls() {
-        // Bumpers — Shooter spin-up / spin-down
+        // Bumpers – Shooter spin-up / spin-down
         if (gamepad2.right_bumper) {
             sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
         } else if (gamepad2.left_bumper) {
             sensorState.setShooterTargetVelocity(0);
         }
 
-        // X — Manual kick (whatever is at intake position)
-        if (gamepad2.x && !prevX2) {
-            switchMode(RobotMode.SHOOTING);
+        // A – Shoot GPP sequence (GREEN, PURPLE, PURPLE)
+        if (gamepad2.a && !prevA2) {
             ensureShooterSpinning();
+            ShootSequence.BallColor[] gppOrder = {
+                    ShootSequence.BallColor.GREEN,
+                    ShootSequence.BallColor.PURPLE,
+                    ShootSequence.BallColor.PURPLE
+            };
             mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.KICK));
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SEQUENCE, gppOrder));
+        }
+        prevA2 = gamepad2.a;
+
+        // B – Shoot PGP sequence (PURPLE, GREEN, PURPLE)
+        if (gamepad2.b && !prevB2) {
+            ensureShooterSpinning();
+            ShootSequence.BallColor[] pgpOrder = {
+                    ShootSequence.BallColor.PURPLE,
+                    ShootSequence.BallColor.GREEN,
+                    ShootSequence.BallColor.PURPLE
+            };
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SEQUENCE, pgpOrder));
+        }
+        prevB2 = gamepad2.b;
+
+        // X – Shoot PPG sequence (PURPLE, PURPLE, GREEN)
+        if (gamepad2.x && !prevX2) {
+            ensureShooterSpinning();
+            ShootSequence.BallColor[] ppgOrder = {
+                    ShootSequence.BallColor.PURPLE,
+                    ShootSequence.BallColor.PURPLE,
+                    ShootSequence.BallColor.GREEN
+            };
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SEQUENCE, ppgOrder));
         }
         prevX2 = gamepad2.x;
 
-        // Left Trigger — Shoot GREEN (find green, rotate to intake, kick)
-        boolean ltPressed = gamepad2.left_trigger > 0.1;
-        if (ltPressed && !prevLTrigger2) {
-            switchMode(RobotMode.SHOOTING);
-            ensureShooterSpinning();
+        // Y – Abort sequence
+        if (gamepad2.y && !prevY2) {
             mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SINGLE,
-                            ShootSequence.BallColor.GREEN));
+                    new MechanismThread.Command(MechanismThread.Command.Type.ABORT_SEQUENCE));
         }
-        prevLTrigger2 = ltPressed;
+        prevY2 = gamepad2.y;
 
-        // Right Trigger — Shoot PURPLE (find purple, rotate to intake, kick)
-        boolean rtPressed = gamepad2.right_trigger > 0.1;
-        if (rtPressed && !prevRTrigger2) {
-            switchMode(RobotMode.SHOOTING);
-            ensureShooterSpinning();
-            mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SINGLE,
-                            ShootSequence.BallColor.PURPLE));
-        }
-        prevRTrigger2 = rtPressed;
-
-        // D-Pad Left / Right — Manual carousel rotation (1 full slot)
-        if (gamepad2.dpad_left && !prevDpadLeft2) {
-            mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.ROTATE_LEFT));
-        }
-        prevDpadLeft2 = gamepad2.dpad_left;
-
-        if (gamepad2.dpad_right && !prevDpadRight2) {
-            mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.ROTATE_RIGHT));
-        }
-        prevDpadRight2 = gamepad2.dpad_right;
-
-        // D-Pad Up / Down — Nudge carousel (small adjustment)
+        // D-Pad Up / Down – Nudge carousel (small adjustment)
         if (gamepad2.dpad_up && !prevDpadUp2) {
             mechanismThread.enqueueCommand(
                     new MechanismThread.Command(MechanismThread.Command.Type.NUDGE,
@@ -192,54 +210,71 @@ public class TeleOpRed extends LinearOpMode {
         }
         prevDpadDown2 = gamepad2.dpad_down;
 
+        // Left Trigger – Shoot GREEN single
+        boolean ltPressed = gamepad2.left_trigger > 0.1;
+        if (ltPressed && !prevLTrigger2) {
+            ensureShooterSpinning();
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SINGLE,
+                            ShootSequence.BallColor.GREEN));
+        }
+        prevLTrigger2 = ltPressed;
+
+        // Right Trigger – Shoot PURPLE single
+        boolean rtPressed = gamepad2.right_trigger > 0.1;
+        if (rtPressed && !prevRTrigger2) {
+            ensureShooterSpinning();
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SINGLE,
+                            ShootSequence.BallColor.PURPLE));
+        }
+        prevRTrigger2 = rtPressed;
+
         // Auto-scale shooter velocity from AprilTag distance
         if (sensorState.getShooterTargetVelocity() > 0 && sensorState.isBasketTagVisible()) {
             sensorState.setVelocityFromDistance(sensorState.getTagRange());
         }
     }
 
-    /**
-     * Ensure the shooter is spinning at least at DEFAULT_VELOCITY.
-     * If the tag is visible, the distance-based scaler will refine it next loop.
-     */
     private void ensureShooterSpinning() {
         if (sensorState.getShooterTargetVelocity() <= 0) {
             sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
         }
     }
 
-    // ======================== AUTO MODE SWITCHING ========================
-
-    private void handleAutoModeSwitching() {
-        int ballCount = 0;
-        for (ShootSequence.BallColor c : sensorState.getAllPositions()) {
-            if (c != ShootSequence.BallColor.EMPTY) ballCount++;
-        }
-
-        if (ballCount >= 3 && currentMode == RobotMode.INTAKING) {
-            switchMode(RobotMode.SHOOTING);
-        }
-    }
-
-    private void switchMode(RobotMode mode) {
-        currentMode = mode;
-        boolean enableAuto = (mode == RobotMode.INTAKING);
-        mechanismThread.enqueueCommand(
-                new MechanismThread.Command(MechanismThread.Command.Type.SET_AUTO_INDEX, enableAuto));
-    }
-
     // ======================== TELEMETRY ========================
 
     private void updateTelemetry() {
-        telemetry.addData("Mode", currentMode);
-        telemetry.addData("Balls", "%s|%s|%s",
+        telemetry.addData("Runtime", "%.1f", runtime.seconds());
+        telemetry.addLine();
+
+        // Ball positions
+        telemetry.addData("Carousel", "%s | %s | %s",
                 shortName(sensorState.getPositionColor(0)),
                 shortName(sensorState.getPositionColor(1)),
                 shortName(sensorState.getPositionColor(2)));
-        telemetry.addData("Shooter", "%.0f / %.0f RPM",
+
+        // Shooter status
+        telemetry.addData("Shooter", "%.0f / %.0f RPM %s",
                 sensorState.getShooterCurrentVelocity(),
-                sensorState.getShooterTargetVelocity());
-        telemetry.addData("MechState", mechanismThread.getStateDebug());
+                sensorState.getShooterTargetVelocity(),
+                sensorState.isShooterReady() ? "✓" : "");
+
+        // Mechanism state
+        telemetry.addData("State", mechanismThread.getStateDebug());
+
+        // AprilTag
+        if (sensorState.isBasketTagVisible()) {
+            telemetry.addData("Tag", "Range: %.1f | Bearing: %.1f",
+                    sensorState.getTagRange(),
+                    sensorState.getTargetBearing());
+        } else {
+            telemetry.addData("Tag", "Not Visible");
+        }
+
+        // Auto-align status
+        telemetry.addData("Auto-Align", sensorState.isAutoAlignEnabled() ? "ON" : "OFF");
+
         telemetry.update();
     }
 
