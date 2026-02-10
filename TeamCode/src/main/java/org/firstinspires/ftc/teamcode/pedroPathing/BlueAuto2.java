@@ -1,37 +1,39 @@
 package org.firstinspires.ftc.teamcode.pedroPathing;
-import com.pedropathing.paths.Path;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+
 import com.bylazar.configurables.annotations.Configurable;
-import com.bylazar.telemetry.TelemetryManager;
 import com.bylazar.telemetry.PanelsTelemetry;
+import com.bylazar.telemetry.TelemetryManager;
+import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
-import com.pedropathing.follower.Follower;
-import com.pedropathing.paths.PathChain;
 import com.pedropathing.geometry.Pose;
-import com.qualcomm.robotcore.util.ElapsedTime;
+import com.pedropathing.paths.Path;
+import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 @Autonomous
 @Configurable // Panels
-public class BlueAuto extends OpMode {
+public class BlueAuto2 extends OpMode {
     private TelemetryManager panelsTelemetry; // Panels Telemetry instance
     public Follower follower; // Pedro Pathing follower instance
     private Timer pathTimer, actionTimer, opmodeTimer;
     private int pathState; // Current autonomous path state (state machine)
     private ElapsedTime time;
 
-
     // New Set
-    private final Pose startPose = new Pose(48, 9, Math.toRadians(90)); //starting pose
-    private final Pose pose2 = new Pose(62, 16, Math.toRadians(115)); //first shoot
-    private final Pose pose3 = new Pose(37, 59, Math.toRadians(180)); //middle balls
-    private final Pose pose4 = new Pose(58, 83, Math.toRadians(140)); //second shoot
-    private final Pose pose5 = new Pose(35, 83, Math.toRadians(180)); //far balls
-    private final Pose pose6 = new Pose(45, 95, Math.toRadians(140)); //third shoot
-    private final Pose pose21 = new Pose (71.5,58); //control 1
-    private final Pose pose31 = new Pose(56,68); //control 2
+    private final Pose startPose = new Pose(22, 123, Math.toRadians(90)); //starting pose
+    private final Pose pose2 = new Pose(44, 98, Math.toRadians(145)); //first shoot
+    private final Pose pose3 = new Pose(24, 84, Math.toRadians(180)); //middle balls
+    private final Pose pose4 = new Pose(44, 96, Math.toRadians(140)); //second shoot
+    private final Pose pose5 = new Pose(24, 36, Math.toRadians(180)); //far balls
+    private final Pose pose6 = new Pose(60, 13, Math.toRadians(140)); //third shoot
+    private final Pose pose21 = new Pose (74.3,77.8); //control 1
+    private final Pose pose31 = new Pose(99.5,26.2); //control 2
+
+
 
 
     private Path preShoot;
