@@ -170,7 +170,7 @@ public class SpinTest extends LinearOpMode {
             telemetry.addData("Position", pos);
             telemetry.addData("Target", targetPos);
             telemetry.addData("Error", error);
-            telemetry.addData("Power", "%.3f", power);
+            //telemetry.addData("Power", "%.3f", power);
             telemetry.addLine("B to abort");
             telemetry.update();
         }

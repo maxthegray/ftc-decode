@@ -30,7 +30,7 @@ public class RedAuto extends OpMode {
     private final Pose pose3 = new Pose(115, 59, Math.toRadians(0)); //middle balls
     private final Pose pose4 = new Pose(100, 96, Math.toRadians(45)); //second shoot
     private final Pose pose5 = new Pose(115, 83, Math.toRadians(0)); //far balls
-    private final Pose pose6 = new Pose(111, 110, Math.toRadians(45)); //third shoot
+    private final Pose pose6 = new Pose(111, 105, Math.toRadians(45)); //third shoot
     private final Pose pose21 = new Pose (80,52); //control 1
     private final Pose pose31 = new Pose(96,80); //control 2
 

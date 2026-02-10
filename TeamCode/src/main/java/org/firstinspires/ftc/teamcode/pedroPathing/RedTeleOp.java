@@ -32,7 +32,7 @@ public class RedTeleOp extends OpMode {
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
         pathChain = () -> follower.pathBuilder() //Lazy Curve Generation
-                .addPath(new Path(new BezierLine(follower::getPose, new Pose(17, 18))))
+                .addPath(new Path(new BezierLine(follower::getPose, new Pose(22, 18))))
                 .setHeadingInterpolation(HeadingInterpolator.linearFromPoint(follower::getHeading, Math.toRadians(0), 0.8))
                 .build();
     }
@@ -60,16 +60,14 @@ public class RedTeleOp extends OpMode {
                     -gamepad1.left_stick_y,
                     -gamepad1.left_stick_x,
                     -gamepad1.right_stick_x,
-                    false,          // Field centric
-                    Math.PI         // 180 degree offset
+                    false          // Field centric
             );
 
             else follower.setTeleOpDrive(
                     -gamepad1.left_stick_y * slowModeMultiplier,
                     -gamepad1.left_stick_x * slowModeMultiplier,
                     -gamepad1.right_stick_x * slowModeMultiplier,
-                    false,
-                    Math.PI
+                    false
             );
         }
 
