@@ -18,7 +18,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 public class TeleOpRed extends LinearOpMode {
 
     private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
-    private static final double DEFAULT_VELOCITY = 10.0;
+    private static final double DEFAULT_VELOCITY = 150;
 
     public enum RobotMode {
         INTAKING,   // Auto-index ON
@@ -48,6 +48,7 @@ public class TeleOpRed extends LinearOpMode {
     private boolean prevDpadDown2 = false;
     private boolean prevLTrigger2 = false;  // Shoot green
     private boolean prevRTrigger2 = false;  // Shoot purple
+    private boolean prevB2 = false;         // Show lights
 
     @Override
     public void runOpMode() {
@@ -113,11 +114,14 @@ public class TeleOpRed extends LinearOpMode {
         prevRBumper1 = gamepad1.right_bumper;
 
         // Intake control — volatile state, not queued
+        // Intake takes priority over shooter — they must never run simultaneously
         if (gamepad1.right_trigger > 0.1) {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+            sensorState.setShooterTargetVelocity(0);  // Kill shooter when intaking
             if (currentMode != RobotMode.INTAKING) switchMode(RobotMode.INTAKING);
         } else if (gamepad1.left_trigger > 0.1) {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.OUT);
+            sensorState.setShooterTargetVelocity(0);  // Kill shooter when reversing
         } else {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
         }
@@ -126,10 +130,12 @@ public class TeleOpRed extends LinearOpMode {
     // ======================== GUNNER (Gamepad 2) ========================
 
     private void handleGunnerControls() {
-        // Bumpers — Shooter spin-up / spin-down
-        if (gamepad2.right_bumper) {
+        boolean intakeActive = gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1;
+
+        // Bumpers — Shooter spin-up / spin-down (blocked while intake is running)
+        if (gamepad2.right_bumper && !intakeActive) {
             sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
-        } else if (gamepad2.left_bumper) {
+        } else if (gamepad2.left_bumper || intakeActive) {
             sensorState.setShooterTargetVelocity(0);
         }
 
@@ -192,8 +198,15 @@ public class TeleOpRed extends LinearOpMode {
         }
         prevDpadDown2 = gamepad2.dpad_down;
 
-        // Auto-scale shooter velocity from AprilTag distance
-        if (sensorState.getShooterTargetVelocity() > 0 && sensorState.isBasketTagVisible()) {
+        // Circle (B) — Show ball colors on lights
+        if (gamepad2.circle && !prevB2) {
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOW_LIGHTS));
+        }
+        prevB2 = gamepad2.circle;
+
+        // Auto-scale shooter velocity from AprilTag distance (skip if intake active)
+        if (!intakeActive && sensorState.getShooterTargetVelocity() > 0 && sensorState.isBasketTagVisible()) {
             sensorState.setVelocityFromDistance(sensorState.getTagRange());
         }
     }
@@ -201,9 +214,11 @@ public class TeleOpRed extends LinearOpMode {
     /**
      * Ensure the shooter is spinning at least at DEFAULT_VELOCITY.
      * If the tag is visible, the distance-based scaler will refine it next loop.
+     * Does nothing if the intake is currently active (intake takes priority).
      */
     private void ensureShooterSpinning() {
-        if (sensorState.getShooterTargetVelocity() <= 0) {
+        boolean intakeActive = gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1;
+        if (!intakeActive && sensorState.getShooterTargetVelocity() <= 0) {
             sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
         }
     }
@@ -240,6 +255,9 @@ public class TeleOpRed extends LinearOpMode {
                 sensorState.getShooterCurrentVelocity(),
                 sensorState.getShooterTargetVelocity());
         telemetry.addData("MechState", mechanismThread.getStateDebug());
+        telemetry.addData("Carousel", "curr: %d / target: %d",
+                mechanismThread.getCarouselCurrentTicks(),
+                mechanismThread.getCarouselTargetTicks());
         telemetry.update();
     }
 

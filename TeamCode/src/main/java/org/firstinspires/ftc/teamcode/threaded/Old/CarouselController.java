@@ -15,14 +15,14 @@ public class CarouselController {
 
     // Gaussian constants
     private static final double A = 0.96;           // Peak power
-    private static final int THRESHOLD = 760;        // Switch to P-loop when this close to target
+    private static final int THRESHOLD = 80;        // Switch to P-loop when this close to target
 
     // P-loop correction
     private static final double KP = 0.01;
-    private static final int TOLERANCE = 5;
+    private static final int TOLERANCE = 1;
 
     // Small constant correction for drift
-    private static final double DRIFT_CORRECTION_POWER = 0.05;
+    private static final double DRIFT_CORRECTION_POWER = 0.07;
 
     public static final int TICKS_PER_SLOT = 780;
     public static final int NUDGE_TICKS = 10;
@@ -121,8 +121,8 @@ public class CarouselController {
      * and backward moves and scales to any distance.
      *
      * The tuning ratios are preserved from the original constants:
-     *   peak  = B / TICKS_PER_SLOT ≈ 0.487  (slightly before midpoint)
-     *   width = C / TICKS_PER_SLOT ≈ 0.256
+     *   peak  = B / TICKS_PER_SLOT â‰ˆ 0.487  (slightly before midpoint)
+     *   width = C / TICKS_PER_SLOT â‰ˆ 0.256
      */
     private double gaussian(double x) {
         double totalDistance = targetTicks - startTicks;

@@ -23,6 +23,9 @@ public class CameraThread extends Thread {
     private AprilTagProcessor aprilTagProcessor;
     private VisionPortal visionPortal;
 
+    // Camera mounting offset (radians) — negate if heading goes the wrong way
+    private static final double CAMERA_HEADING_OFFSET = Math.PI / 2;  // 90° correction
+
     // Tag positions
     private static final double TAG_24_X = -58.35 - 72;
     private static final double TAG_24_Y = 55.63 - 72;
@@ -148,7 +151,7 @@ public class CameraThread extends Thread {
         double cameraFieldX = tagX - (cameraToTagX * Math.cos(tagHeadingRad) - cameraToTagY * Math.sin(tagHeadingRad));
         double cameraFieldY = tagY - (cameraToTagX * Math.sin(tagHeadingRad) + cameraToTagY * Math.cos(tagHeadingRad));
 
-        double cameraHeadingRad = Math.toRadians(tagHeading - yaw);
+        double cameraHeadingRad = Math.toRadians(tagHeading - yaw) + CAMERA_HEADING_OFFSET;
 
         while (cameraHeadingRad > Math.PI) cameraHeadingRad -= 2 * Math.PI;
         while (cameraHeadingRad < -Math.PI) cameraHeadingRad += 2 * Math.PI;
@@ -160,21 +163,21 @@ public class CameraThread extends Thread {
         switch (tagId) {
             case TAG_GPP:
                 return new       ShootSequence.BallColor[] {
-                              ShootSequence.BallColor.GREEN,
-                              ShootSequence.BallColor.PURPLE,
-                              ShootSequence.BallColor.PURPLE
+                        ShootSequence.BallColor.GREEN,
+                        ShootSequence.BallColor.PURPLE,
+                        ShootSequence.BallColor.PURPLE
                 };
             case TAG_PGP:
                 return new       ShootSequence.BallColor[] {
-                              ShootSequence.BallColor.PURPLE,
-                              ShootSequence.BallColor.GREEN,
-                              ShootSequence.BallColor.PURPLE
+                        ShootSequence.BallColor.PURPLE,
+                        ShootSequence.BallColor.GREEN,
+                        ShootSequence.BallColor.PURPLE
                 };
             case TAG_PPG:
                 return new       ShootSequence.BallColor[] {
-                              ShootSequence.BallColor.PURPLE,
-                              ShootSequence.BallColor.PURPLE,
-                              ShootSequence.BallColor.GREEN
+                        ShootSequence.BallColor.PURPLE,
+                        ShootSequence.BallColor.PURPLE,
+                        ShootSequence.BallColor.GREEN
                 };
             default:
                 return null;

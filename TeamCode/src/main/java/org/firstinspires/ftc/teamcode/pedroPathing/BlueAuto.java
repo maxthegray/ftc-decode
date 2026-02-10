@@ -26,7 +26,7 @@ public class BlueAuto extends OpMode {
     // New Set
     private final Pose startPose = new Pose(48, 9, Math.toRadians(90)); //starting pose
     private final Pose pose2 = new Pose(62, 16, Math.toRadians(115)); //first shoot
-    private final Pose pose3 = new Pose(37, 59, Math.toRadians(180)); //middle balls
+    private final Pose pose3 = new Pose(48, 59, Math.toRadians(180)); //middle balls
     private final Pose pose4 = new Pose(58, 83, Math.toRadians(140)); //second shoot
     private final Pose pose5 = new Pose(35, 83, Math.toRadians(180)); //far balls
     private final Pose pose6 = new Pose(45, 95, Math.toRadians(140)); //third shoot

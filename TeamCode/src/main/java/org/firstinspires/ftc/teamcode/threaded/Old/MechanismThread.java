@@ -58,12 +58,12 @@ public class MechanismThread extends Thread {
 
     // Auto-Index
     private int pendingRotation = 0;
-    private static final long KICKBACK_MS = 200;
+    private static final long KICKBACK_MS = 50;
 
     // Shoot plan (works for single shots and full sequences)
     private int[] shotPlan = null;
     private int currentShotIndex = 0;
-    private static final long SHOOTER_WAIT_TIMEOUT_MS = 2000;
+    private static final long SHOOTER_WAIT_TIMEOUT_MS = 23000;
 
     // Kicker safety delays
     private static final long KICKER_SAFETY_DELAY_MS = 200;  // Minimum time after commanding down
@@ -309,6 +309,14 @@ public class MechanismThread extends Thread {
             case SET_AUTO_INDEX:
                 this.autoIndexEnabled = (boolean) cmd.value;
                 break;
+
+            case SHOW_LIGHTS:
+                lights.show(
+                        ballColorToLight(ballPositions[0]),
+                        ballColorToLight(ballPositions[1]),
+                        ballColorToLight(ballPositions[2])
+                );
+                break;
         }
     }
 
@@ -388,6 +396,14 @@ public class MechanismThread extends Thread {
         return count >= 3;
     }
 
+    private LightsController.Color ballColorToLight(ShootSequence.BallColor c) {
+        switch (c) {
+            case GREEN:  return LightsController.Color.GREEN;
+            case PURPLE: return LightsController.Color.PURPLE;
+            default:     return LightsController.Color.OFF;
+        }
+    }
+
     public String getStateDebug() {
         if (isInShootState() && shotPlan != null && shotPlan.length > 1) {
             return String.format("%s | Shot %d/%d | Plan: %s",
@@ -412,6 +428,14 @@ public class MechanismThread extends Thread {
         commandQueue.add(cmd);
     }
 
+    public int getCarouselCurrentTicks() {
+        return carousel.getCurrentTicks();
+    }
+
+    public int getCarouselTargetTicks() {
+        return carousel.getTargetTicks();
+    }
+
     public void kill() {
         this.killThread = true;
     }
@@ -427,7 +451,8 @@ public class MechanismThread extends Thread {
             SHOOT_SINGLE,       // value = BallColor
             SHOOT_SEQUENCE,     // value = BallColor[3] target order
             ABORT_SEQUENCE,     // abort running sequence
-            SET_AUTO_INDEX      // value = Boolean
+            SET_AUTO_INDEX,     // value = Boolean
+            SHOW_LIGHTS         // show ball colors on lights
         }
 
         public final Type type;
