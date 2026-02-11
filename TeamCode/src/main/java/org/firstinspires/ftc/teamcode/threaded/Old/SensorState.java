@@ -10,6 +10,16 @@ import com.pedropathing.geometry.Pose;
  */
 public class SensorState {
 
+    // ==================== ALLIANCE ====================
+    public enum Alliance { RED, BLUE }
+    private final Alliance alliance;
+
+    public SensorState(Alliance alliance) {
+        this.alliance = alliance;
+    }
+
+    public Alliance getAlliance() { return alliance; }
+
     // ==================== THREAD CONTROL ====================
     private volatile boolean killThreads = false;
 
@@ -28,9 +38,9 @@ public class SensorState {
     public static final int POS_BACK_RIGHT = 2;
 
     private volatile   ShootSequence.BallColor[] positions = {
-              ShootSequence.BallColor.EMPTY,
-              ShootSequence.BallColor.EMPTY,
-              ShootSequence.BallColor.EMPTY
+            ShootSequence.BallColor.EMPTY,
+            ShootSequence.BallColor.EMPTY,
+            ShootSequence.BallColor.EMPTY
     };
 
     public void setPositionColor(int position,   ShootSequence.BallColor color) {
@@ -110,7 +120,7 @@ public class SensorState {
     // ==================== SHOOTER ====================
     private volatile double shooterTargetVelocity = 0;
     private volatile double shooterCurrentVelocity = 0;
-    public static double VELOCITY_TOLERANCE = 20;
+    public static double VELOCITY_TOLERANCE = 10;
 
     // Distance-to-velocity polynomial
     private static final double COEFF_A = 0.00000043;
@@ -192,7 +202,7 @@ public class SensorState {
         if (!basketTagVisible) return 0;
 
         double r = tagRange;
-        double d = TARGET_OFFSET_INCHES;
+        double d = TARGET_OFFSET_INCHES;  // Peak is directly behind tag center for both goals
         double yawRad = Math.toRadians(tagYaw);
 
         double rtSquared = r*r + d*d + 2*r*d*Math.cos(yawRad);

@@ -47,7 +47,7 @@ public class ShootSequenceTest extends LinearOpMode {
     @Override
     public void runOpMode() {
         runtime = new ElapsedTime();
-        sensorState = new SensorState();
+        sensorState = new SensorState(SensorState.Alliance.BLUE);
 
         // Initialize threads
         mechanismThread = new MechanismThread(hardwareMap);

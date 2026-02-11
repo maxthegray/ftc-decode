@@ -53,7 +53,7 @@ public class TeleOpRed extends LinearOpMode {
     @Override
     public void runOpMode() {
         runtime = new ElapsedTime();
-        sensorState = new SensorState();
+        sensorState = new SensorState(SensorState.Alliance.RED);
 
         // Initialize threads
         mechanismThread = new MechanismThread(hardwareMap);
