@@ -69,12 +69,12 @@ public class SensorState {
     private volatile int[] greenB = { 0, 0, 0 };
 
     // Thresholds
-    public static int THRESHOLD_INTAKE_A = 80;
-    public static int THRESHOLD_INTAKE_B = 125;
-    public static int THRESHOLD_BACK_LEFT_A = 300;
-    public static int THRESHOLD_BACK_LEFT_B = 200;
-    public static int THRESHOLD_BACK_RIGHT_A = 300;
-    public static int THRESHOLD_BACK_RIGHT_B = 200;
+    public static int THRESHOLD_INTAKE_A = 70; //32 idle, 140 purple
+    public static int THRESHOLD_INTAKE_B = 130; //110 idle 134 purple
+    public static int THRESHOLD_BACK_LEFT_A = 400; //200
+    public static int THRESHOLD_BACK_LEFT_B = 100;
+    public static int THRESHOLD_BACK_RIGHT_A = 400;
+    public static int THRESHOLD_BACK_RIGHT_B = 150;
 
     public void setSensorValuesA(int position, int alpha, int blue, int green) {
         if (position >= 0 && position < 3) {

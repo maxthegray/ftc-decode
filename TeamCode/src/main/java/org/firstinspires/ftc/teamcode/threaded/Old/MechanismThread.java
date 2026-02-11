@@ -58,6 +58,7 @@ public class MechanismThread extends Thread {
 
     // Auto-Index
     private int pendingRotation = 0;
+    private boolean autoIndexMove = false;  // true when CAROUSEL_MOVING was triggered by auto-index
     private static final long KICKBACK_MS = 50;
 
     // Shoot plan (works for single shots and full sequences)
@@ -66,7 +67,7 @@ public class MechanismThread extends Thread {
     private static final long SHOOTER_WAIT_TIMEOUT_MS = 1000;
 
     // Kicker safety delays
-    private static final long KICKER_SAFETY_DELAY_MS = 150;  // Minimum time after commanding down
+    private static final long KICKER_SAFETY_DELAY_MS = 100;  // Minimum time after commanding down
     private static final long KICKER_TIMEOUT_MS = 500;       // Maximum time to wait (failsafe)
 
     // Robot State
@@ -115,19 +116,26 @@ public class MechanismThread extends Thread {
                     if (stateTimer.milliseconds() >= KICKBACK_MS) {
                         intake.stop();
                         carousel.rotateSlots(pendingRotation);
+                        autoIndexMove = true;
                         hardwareState = HardwareState.CAROUSEL_MOVING;
                     }
                     break;
 
                 case CAROUSEL_MOVING:
-                    if (carousel.isSettled()) {
+                    // Auto-index moves: resume intake as soon as main ramp is done
+                    // Manual moves: wait for full settling
+                    boolean done = autoIndexMove
+                            ? carousel.isMainMovementDone()
+                            : carousel.isSettled();
+                    if (done) {
+                        autoIndexMove = false;
                         hardwareState = HardwareState.IDLE;
                     }
                     break;
 
                 // ---- MANUAL KICK ----
                 case KICKER_UP:
-                    if (stateTimer.milliseconds() > 250) {
+                    if (stateTimer.milliseconds() > 100) {
                         kicker.down();
                         stateTimer.reset();
                         hardwareState = HardwareState.KICKER_DOWN;
@@ -165,7 +173,7 @@ public class MechanismThread extends Thread {
                     break;
 
                 case SHOOT_KICKER_UP:
-                    if (stateTimer.milliseconds() > 250) {
+                    if (stateTimer.milliseconds() > 100) {
                         kicker.down();
                         stateTimer.reset();
                         hardwareState = HardwareState.SHOOT_KICKER_DOWN;
@@ -404,6 +412,11 @@ public class MechanismThread extends Thread {
     }
 
     public String getStateDebug() {
+        if (hardwareState == HardwareState.SHOOT_WAIT_SHOOTER) {
+            boolean shooterReady = sensorState != null && sensorState.isShooterReady();
+            return String.format("SHOOT_WAIT_SHOOTER | waiting %.0fms | ready=%b",
+                    stateTimer.milliseconds(), shooterReady);
+        }
         if (isInShootState() && shotPlan != null && shotPlan.length > 1) {
             return String.format("%s | Shot %d/%d | Plan: %s",
                     hardwareState.name(), currentShotIndex + 1, shotPlan.length, planToString());
@@ -433,6 +446,14 @@ public class MechanismThread extends Thread {
 
     public int getCarouselTargetTicks() {
         return carousel.getTargetTicks();
+    }
+
+    public boolean isCarouselSettled() {
+        return carousel.isSettled();
+    }
+
+    public boolean isIdle() {
+        return hardwareState == HardwareState.IDLE;
     }
 
     public void kill() {

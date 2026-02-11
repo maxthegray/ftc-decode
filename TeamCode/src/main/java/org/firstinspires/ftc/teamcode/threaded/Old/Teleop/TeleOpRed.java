@@ -251,13 +251,30 @@ public class TeleOpRed extends LinearOpMode {
                 shortName(sensorState.getPositionColor(0)),
                 shortName(sensorState.getPositionColor(1)),
                 shortName(sensorState.getPositionColor(2)));
-        telemetry.addData("Shooter", "%.0f / %.0f RPM",
-                sensorState.getShooterCurrentVelocity(),
-                sensorState.getShooterTargetVelocity());
-        telemetry.addData("MechState", mechanismThread.getStateDebug());
-        telemetry.addData("Carousel", "curr: %d / target: %d",
+
+        // Shooter diagnostics
+        double current = sensorState.getShooterCurrentVelocity();
+        double target = sensorState.getShooterTargetVelocity();
+        double error = Math.abs(current - target);
+        boolean ready = sensorState.isShooterReady();
+        telemetry.addData("Shooter", "%.0f / %.0f RPM (err %.0f) %s",
+                current, target, error, ready ? "READY" : "NOT READY");
+
+        // Mechanism state + shoot diagnostics
+        String mechState = mechanismThread.getStateDebug();
+        telemetry.addData("MechState", mechState);
+
+        // Carousel diagnostics
+        boolean settled = mechanismThread.isCarouselSettled();
+        telemetry.addData("Carousel", "curr: %d / target: %d | %s",
                 mechanismThread.getCarouselCurrentTicks(),
-                mechanismThread.getCarouselTargetTicks());
+                mechanismThread.getCarouselTargetTicks(),
+                settled ? "SETTLED" : "MOVING");
+
+        // Command acceptance diagnostics
+        telemetry.addData("CmdReady", "idle=%b settled=%b",
+                mechanismThread.isIdle(), settled);
+
         telemetry.update();
     }
 

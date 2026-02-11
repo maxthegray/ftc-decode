@@ -25,7 +25,7 @@ public class CarouselController {
     private static final double DRIFT_CORRECTION_POWER = 0.07;
 
     public static final int TICKS_PER_SLOT = 780;
-    public static final int NUDGE_TICKS = 10;
+    public static final int NUDGE_TICKS = 60;
 
     private enum Phase {
         GAUSSIAN,   // Ramping with Gaussian curve
@@ -132,7 +132,7 @@ public class CarouselController {
         double progress = (x - startTicks) / totalDistance;
 
         double normalizedCenter = 0.487;   // was B / TICKS_PER_SLOT
-        double normalizedSigma  = .4;   // was C / TICKS_PER_SLOT
+        double normalizedSigma  = 0.256;   // was C / TICKS_PER_SLOT
 
         double magnitude = A * Math.exp(
                 -Math.pow(progress - normalizedCenter, 2)
@@ -148,6 +148,15 @@ public class CarouselController {
     public boolean isSettled() {
         return currentPhase == Phase.SETTLED &&
                 Math.abs(targetTicks - motor.getCurrentPosition()) <= TOLERANCE;
+    }
+
+    /**
+     * Has the main movement finished (Gaussian ramp complete)?
+     * P-loop fine-tuning may still be running, but the carousel is close enough
+     * for the intake to safely resume.
+     */
+    public boolean isMainMovementDone() {
+        return currentPhase != Phase.GAUSSIAN;
     }
 
     public int getCurrentTicks() {
