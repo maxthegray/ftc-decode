@@ -63,11 +63,11 @@ public class MechanismThread extends Thread {
     // Shoot plan (works for single shots and full sequences)
     private int[] shotPlan = null;
     private int currentShotIndex = 0;
-    private static final long SHOOTER_WAIT_TIMEOUT_MS = 23000;
+    private static final long SHOOTER_WAIT_TIMEOUT_MS = 1000;
 
     // Kicker safety delays
-    private static final long KICKER_SAFETY_DELAY_MS = 200;  // Minimum time after commanding down
-    private static final long KICKER_TIMEOUT_MS = 1500;       // Maximum time to wait (failsafe)
+    private static final long KICKER_SAFETY_DELAY_MS = 150;  // Minimum time after commanding down
+    private static final long KICKER_TIMEOUT_MS = 500;       // Maximum time to wait (failsafe)
 
     // Robot State
     private volatile ShootSequence.BallColor[] ballPositions = {
@@ -149,9 +149,8 @@ public class MechanismThread extends Thread {
                 // ---- SHOOT (single or sequence) ----
                 case SHOOT_WAIT_SHOOTER: {
                     boolean shooterReady = sensorState != null && sensorState.isShooterReady();
-                    boolean timedOut = stateTimer.milliseconds() >= SHOOTER_WAIT_TIMEOUT_MS;
 
-                    if (shooterReady || timedOut) {
+                    if (shooterReady) {
                         advanceToNextShot();
                     }
                     break;

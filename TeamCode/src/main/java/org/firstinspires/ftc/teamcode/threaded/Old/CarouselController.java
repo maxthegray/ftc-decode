@@ -132,7 +132,7 @@ public class CarouselController {
         double progress = (x - startTicks) / totalDistance;
 
         double normalizedCenter = 0.487;   // was B / TICKS_PER_SLOT
-        double normalizedSigma  = 0.256;   // was C / TICKS_PER_SLOT
+        double normalizedSigma  = .4;   // was C / TICKS_PER_SLOT
 
         double magnitude = A * Math.exp(
                 -Math.pow(progress - normalizedCenter, 2)

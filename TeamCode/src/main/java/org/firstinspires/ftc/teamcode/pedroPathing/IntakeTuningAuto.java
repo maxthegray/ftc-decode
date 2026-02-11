@@ -25,11 +25,12 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  * FULL AUTO (Blue Alliance)
  *
  * Flow:
- *   Shoot 0: Start preloaded → drive to pose2 → auto-align → shoot 3
- *   Intake 0: Drive to pose3 (Y=57) → pick up 3 balls (row 1)
- *   Shoot 1: Drive to pose4 → auto-align → shoot 3
- *   Intake 1: Drive to pose5 (Y=83) → pick up 3 balls (row 2, same X as row 1)
- *   Shoot 2: Drive to pose4 → auto-align → shoot 3
+ *   ReadTagAndGoToShoot: Drive curved path while camera reads shoot order tag, ending at shoot position
+ *   Shoot 0: auto-align → shoot 3
+ *   Intake 0: GoToBall1Position → pick up 3 balls (Ball1, Ball2, Ball3)
+ *   Shoot 1: Shoot2 → auto-align → shoot 3
+ *   Intake 1: GoToBall4 → pick up 3 balls (Ball4, Ball5, Ball6)
+ *   Shoot 2: GoShoot3 → auto-align → shoot 3
  *   Done.
  *
  * During all shoot phases, the robot uses AprilTag auto-align PID (same as teleop)
@@ -51,34 +52,116 @@ public class IntakeTuningAuto extends OpMode {
 
     // ======================== ROUTE POSES ========================
 
-    private final Pose startPose = new Pose(48, 9, Math.toRadians(90));
-    private final Pose pose2 = new Pose(58, 83, Math.toRadians(140));      // first shoot REPLACING WITH second
-    private final Pose pose3 = new Pose(48, 57, Math.toRadians(180));      // ball area row 1
-    private final Pose pose4 = new Pose(58, 83, Math.toRadians(140));      // second/third shoot
-    private final Pose pose5 = new Pose(50, 83, Math.toRadians(180));      // ball area row 2
+    private final Pose startPose = new Pose(15.5, 115, Math.toRadians(0));
 
-    // ======================== TUNABLE BALL PICKUP POSES ========================
+    // ======================== PRE-BUILT PATHS ========================
 
-    // Row 1 (Y = 57)
-    public static Pose BALL_1 = new Pose(43, 57, Math.toRadians(180));
-    public static Pose BALL_2 = new Pose(38, 57, Math.toRadians(180));
-    public static Pose BALL_3 = new Pose(23, 57, Math.toRadians(180));
+    public static class Paths {
+        public PathChain ReadTagAndGoToShoot;
+        public PathChain GoToBall1Position;
+        public PathChain Ball1;
+        public PathChain Ball2;
+        public PathChain Ball3;
+        public PathChain Shoot2;
+        public PathChain GoToBall4;
+        public PathChain Ball4;
+        public PathChain Ball5;
+        public PathChain Ball6;
+        public PathChain GoShoot3;
 
-    // Row 2 (Y = 83, same X values)
-    public static Pose BALL_4 = new Pose(43, 83, Math.toRadians(180));
-    public static Pose BALL_5 = new Pose(38, 83, Math.toRadians(180));
-    public static Pose BALL_6 = new Pose(30, 83, Math.toRadians(180));
+        public Paths(Follower follower) {
+            ReadTagAndGoToShoot = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(15.500, 115.000),
+                                    new Pose(45.828, 101.809),
+                                    new Pose(50.713, 92.287)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(115))
+                    .build();
 
-    // ======================== TUNABLE CURVED PATH CONTROL POINTS ========================
+            GoToBall1Position = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(50.713, 92.287),
+                                    new Pose(62.498, 49.801),
+                                    new Pose(43.000, 63.000)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(115), Math.toRadians(180))
+                    .build();
 
-    /** Control point for the BezierCurve from start → pose2 */
-    public static Pose START_TO_SHOOT0_CONTROL = new Pose(75, 39);
+            Ball1 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(43.000, 63.000),
+                                    new Pose(37.000, 63.000)
+                            )
+                    ).setTangentHeadingInterpolation()
+                    .build();
 
-    /** Control point for the BezierCurve from row 1 → pose4 */
-    public static Pose ROW1_TO_SHOOT_CONTROL = new Pose(45, 44);
+            Ball2 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(37.000, 63.000),
+                                    new Pose(32, 63.000)
+                            )
+                    ).setTangentHeadingInterpolation()
+                    .build();
 
-    /** Control point for the BezierCurve from first shoot → ball area row 1 */
-    public static Pose SHOOT1_TO_ROW1_CONTROL = new Pose(61, 50);
+            Ball3 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(32, 63.000),
+                                    new Pose(20.000, 63.000)
+                            )
+                    ).setTangentHeadingInterpolation()
+                    .build();
+
+            Shoot2 = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(20.000, 63.000),
+                                    new Pose(45.000, 44.000),
+                                    new Pose(58.000, 83.000)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
+                    .build();
+
+            GoToBall4 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(58.000, 86.000),
+                                    new Pose(42.000, 86.000)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(140), Math.toRadians(180))
+                    .build();
+
+            Ball4 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(42.000, 86.000),
+                                    new Pose(37.000, 86.000)
+                            )
+                    ).setTangentHeadingInterpolation()
+                    .build();
+
+            Ball5 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(37.000, 86.000),
+                                    new Pose(32.000, 86.000)
+                            )
+                    ).setTangentHeadingInterpolation()
+                    .build();
+
+            Ball6 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(32.000, 86.000),
+                                    new Pose(24.000, 86.000)
+                            )
+                    ).setTangentHeadingInterpolation()
+                    .build();
+
+            GoShoot3 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(24.000, 86.000),
+                                    new Pose(58.000, 83.000)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
+                    .build();
+        }
+    }
 
     // ======================== TUNABLE TIMING ========================
 
@@ -96,6 +179,9 @@ public class IntakeTuningAuto extends OpMode {
     // ======================== STATE MACHINE ========================
 
     private enum State {
+        // --- Tag reading + drive to first shoot ---
+        TAG_READING_AND_DRIVE,
+
         // --- Shoot phase (reused for all 3 shoots) ---
         DRIVE_TO_SHOOT,
         ALIGN_AND_SPINUP,       // Teleop mode: PID aligns heading + shooter spins up
@@ -113,16 +199,11 @@ public class IntakeTuningAuto extends OpMode {
         DONE
     }
 
-    private State state = State.DRIVE_TO_SHOOT;
+    private State state = State.TAG_READING_AND_DRIVE;
 
     // Cycle tracking
-    private int shootCycle = 0;     // 0 = from pose2, 1 = from pose4, 2 = from pose4
-    private int intakeCycle = 0;    // 0 = row 1 (Y=57), 1 = row 2 (Y=83)
-
-    // Shoot poses per cycle
-    private final Pose[] shootPoses = new Pose[3];
-    private final Pose[] ballAreaPoses = new Pose[2];
-    private final Pose[][] ballPoseRows = new Pose[2][3];
+    private int shootCycle = 0;     // 0 = first shoot, 1 = second, 2 = third
+    private int intakeCycle = 0;    // 0 = row 1 (Y=60), 1 = row 2 (Y=83)
 
     // Current intake ball index within a row (0, 1, 2)
     private int currentBall = 0;
@@ -133,6 +214,7 @@ public class IntakeTuningAuto extends OpMode {
     private ShootSequence.BallColor[] shootOrder = null;
 
     private Follower follower;
+    private Paths paths;
     private MechanismThread mechanismThread;
     private SensorState sensorState;
     private CameraThread cameraThread;
@@ -167,6 +249,9 @@ public class IntakeTuningAuto extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
+        // Build all paths after follower is initialized
+        paths = new Paths(follower);
+
         sensorState = new SensorState(SensorState.Alliance.BLUE);
         mechanismThread = new MechanismThread(hardwareMap);
         mechanismThread.setSensorState(sensorState);
@@ -174,7 +259,7 @@ public class IntakeTuningAuto extends OpMode {
         expansionHubI2C = new ExpansionHubI2CThread(sensorState, hardwareMap);
         shooterThread = new ShooterThread(sensorState, hardwareMap);
 
-        // Start camera early so it can read the shoot-order tag from startPose
+        // Start camera early so it can attempt to read the shoot-order tag during init
         cameraThread = new CameraThread(sensorState, hardwareMap, BASKET_TAG_ID);
         cameraThread.start();
 
@@ -187,6 +272,7 @@ public class IntakeTuningAuto extends OpMode {
 
     @Override
     public void init_loop() {
+        // Fallback: attempt to read shoot order tag while waiting for start
         boolean hasOrder = sensorState.hasDetectedShootOrder();
         panelsTelemetry.debug("Shoot Order Tag", hasOrder ? "DETECTED" : "waiting...");
         if (hasOrder) {
@@ -199,23 +285,6 @@ public class IntakeTuningAuto extends OpMode {
 
     @Override
     public void start() {
-        shootPoses[0] = pose2;
-        shootPoses[1] = pose4;
-        shootPoses[2] = pose4;
-
-        ballAreaPoses[0] = pose3;
-        ballAreaPoses[1] = pose5;
-
-        ballPoseRows[0] = new Pose[] { BALL_1, BALL_2, BALL_3 };
-        ballPoseRows[1] = new Pose[] { BALL_4, BALL_5, BALL_6 };
-
-        // Capture shoot order
-        if (sensorState.hasDetectedShootOrder()) {
-            shootOrder = sensorState.getDetectedShootOrder();
-        } else {
-            shootOrder = DEFAULT_SHOOT_ORDER.clone();
-        }
-
         opmodeTimer.resetTimer();
         stateTimer.resetTimer();
 
@@ -225,14 +294,19 @@ public class IntakeTuningAuto extends OpMode {
         expansionHubI2C.start();
         shooterThread.start();
 
-        // Start spinning up shooter immediately while driving to first shoot
+        // Start spinning up shooter immediately while driving
         sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
 
         shootCycle = 0;
         intakeCycle = 0;
         inTeleOpMode = false;
-        driveCurvedToFirstShoot(shootPoses[0]);
-        state = State.DRIVE_TO_SHOOT;
+
+        // Shoot order not locked in yet — ReadTagAndGoToShoot gives the camera
+        // a second chance to read the tag (fallback from init_loop).
+        shootOrder = null;
+
+        follower.followPath(paths.ReadTagAndGoToShoot, true);
+        state = State.TAG_READING_AND_DRIVE;
     }
 
     @Override
@@ -240,6 +314,25 @@ public class IntakeTuningAuto extends OpMode {
         mechanismThread.setBallPositions(sensorState.getAllPositions());
 
         switch (state) {
+
+            // ==================== TAG READING + FIRST SHOOT DRIVE ====================
+
+            case TAG_READING_AND_DRIVE:
+                updateShooterFromTag();
+                if (!follower.isBusy()) {
+                    // Lock in shoot order now — tag reading window is over
+                    if (sensorState.hasDetectedShootOrder()) {
+                        shootOrder = sensorState.getDetectedShootOrder();
+                    } else {
+                        shootOrder = DEFAULT_SHOOT_ORDER.clone();
+                    }
+
+                    // Already at shoot position — go straight to align
+                    enterTeleOpMode();
+                    stateTimer.resetTimer();
+                    state = State.ALIGN_AND_SPINUP;
+                }
+                break;
 
             // ==================== SHOOT PHASE ====================
 
@@ -284,12 +377,7 @@ public class IntakeTuningAuto extends OpMode {
                         mechanismThread.enqueueCommand(
                                 new MechanismThread.Command(
                                         MechanismThread.Command.Type.SET_AUTO_INDEX, true));
-                        // Use curved path from first shoot to ball area row 1
-                        if (intakeCycle == 0) {
-                            driveCurvedToBallArea(ballAreaPoses[intakeCycle]);
-                        } else {
-                            driveToPose(ballAreaPoses[intakeCycle]);
-                        }
+                        follower.followPath(getBallAreaPath(), true);
                         state = State.DRIVE_TO_BALL_AREA;
                     }
                 }
@@ -315,7 +403,7 @@ public class IntakeTuningAuto extends OpMode {
 
             case SPIN_UP_INTAKE:
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= INTAKE_SPIN_UP_MS) {
-                    driveToBall(currentBall);
+                    follower.followPath(getBallPath(intakeCycle, currentBall), true);
                     state = State.DRIVE_TO_BALL;
                 }
                 break;
@@ -382,6 +470,14 @@ public class IntakeTuningAuto extends OpMode {
         follower.update();
 
         // ======================== TELEMETRY ========================
+        panelsTelemetry.debug("State", state.name());
+        panelsTelemetry.debug("Shoot Cycle", String.valueOf(shootCycle));
+        panelsTelemetry.debug("Intake Cycle", String.valueOf(intakeCycle));
+        panelsTelemetry.debug("Current Ball", String.valueOf(currentBall));
+        panelsTelemetry.debug("Shoot Order",
+                shootOrder != null
+                        ? shortColor(shootOrder[0]) + " " + shortColor(shootOrder[1]) + " " + shortColor(shootOrder[2])
+                        : "not locked in");
         panelsTelemetry.debug("Tag Range",
                 sensorState.isBasketTagVisible()
                         ? String.format("%.1f in", sensorState.getTagRange()) : "n/a");
@@ -408,6 +504,48 @@ public class IntakeTuningAuto extends OpMode {
         } catch (InterruptedException ignored) {}
     }
 
+    // ======================== PATH SELECTION ========================
+
+    /**
+     * Returns the correct ball area approach path for the current intake cycle.
+     *   intakeCycle 0 → GoToBall1Position
+     *   intakeCycle 1 → GoToBall4
+     */
+    private PathChain getBallAreaPath() {
+        return intakeCycle == 0 ? paths.GoToBall1Position : paths.GoToBall4;
+    }
+
+    /**
+     * Returns the correct shoot approach path for the current shoot cycle.
+     *   shootCycle 1 → Shoot2
+     *   shootCycle 2 → GoShoot3
+     */
+    private PathChain getShootPath(int cycle) {
+        return cycle == 1 ? paths.Shoot2 : paths.GoShoot3;
+    }
+
+    /**
+     * Returns the correct individual ball pickup path.
+     *   cycle 0, ball 0/1/2 → Ball1/Ball2/Ball3
+     *   cycle 1, ball 0/1/2 → Ball4/Ball5/Ball6
+     */
+    private PathChain getBallPath(int cycle, int ball) {
+        if (cycle == 0) {
+            switch (ball) {
+                case 0: return paths.Ball1;
+                case 1: return paths.Ball2;
+                case 2: return paths.Ball3;
+            }
+        } else {
+            switch (ball) {
+                case 0: return paths.Ball4;
+                case 1: return paths.Ball5;
+                case 2: return paths.Ball6;
+            }
+        }
+        return paths.Ball1; // fallback, shouldn't happen
+    }
+
     // ======================== AUTO-ALIGN ========================
 
     /** Switch follower to teleop drive mode and reset PID state. */
@@ -417,7 +555,7 @@ public class IntakeTuningAuto extends OpMode {
         inTeleOpMode = true;
     }
 
-    /** Exit teleop mode. Next driveToPose() call will resume path following. */
+    /** Exit teleop mode. Next followPath() call will resume path following. */
     private void exitTeleOpMode() {
         // Stop any residual drive
         follower.setTeleOpDrive(0, 0, 0, false);
@@ -513,72 +651,6 @@ public class IntakeTuningAuto extends OpMode {
 
     // ======================== INTAKE HELPERS ========================
 
-    private void driveToPose(Pose target) {
-        PathChain path = follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), target))
-                .setLinearHeadingInterpolation(
-                        follower.getPose().getHeading(), target.getHeading())
-                .build();
-        follower.followPath(path, true);
-    }
-
-    /**
-     * Drive from startPose to the first shoot pose using a curved path
-     * through START_TO_SHOOT0_CONTROL.
-     */
-    private void driveCurvedToFirstShoot(Pose target) {
-        PathChain path = follower.pathBuilder()
-                .addPath(new BezierCurve(
-                        follower.getPose(),
-                        START_TO_SHOOT0_CONTROL,
-                        target))
-                .setLinearHeadingInterpolation(
-                        follower.getPose().getHeading(), target.getHeading())
-                .build();
-        follower.followPath(path, true);
-    }
-
-    /**
-     * Drive from the end of intake row 1 to the shoot pose using a curved path.
-     * The curve avoids obstacles by routing through a control point.
-     */
-    private void driveCurvedToShoot(Pose target) {
-        PathChain path = follower.pathBuilder()
-                .addPath(new BezierCurve(
-                        follower.getPose(),
-                        ROW1_TO_SHOOT_CONTROL,
-                        target))
-                .setLinearHeadingInterpolation(
-                        follower.getPose().getHeading(), Math.toRadians(115))
-                .build();
-        follower.followPath(path, true);
-    }
-
-    /**
-     * Drive from the first shoot position to ball area row 1 using a curved path.
-     */
-    private void driveCurvedToBallArea(Pose target) {
-        PathChain path = follower.pathBuilder()
-                .addPath(new BezierCurve(
-                        follower.getPose(),
-                        SHOOT1_TO_ROW1_CONTROL,
-                        target))
-                .setLinearHeadingInterpolation(
-                        follower.getPose().getHeading(), target.getHeading())
-                .build();
-        follower.followPath(path, true);
-    }
-
-    private void driveToBall(int index) {
-        Pose target = ballPoseRows[intakeCycle][index];
-        PathChain path = follower.pathBuilder()
-                .addPath(new BezierLine(follower.getPose(), target))
-                .setLinearHeadingInterpolation(
-                        follower.getPose().getHeading(), target.getHeading())
-                .build();
-        follower.followPath(path, true);
-    }
-
     private boolean checkBallDetected() {
         ShootSequence.BallColor c = sensorState.getPositionColor(SensorState.POS_INTAKE);
         return c == ShootSequence.BallColor.GREEN || c == ShootSequence.BallColor.PURPLE;
@@ -590,12 +662,7 @@ public class IntakeTuningAuto extends OpMode {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
             sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
 
-            // Use curved path when transitioning from intake row 1 → shoot pose
-            if (intakeCycle == 0) {
-                driveCurvedToShoot(shootPoses[shootCycle]);
-            } else {
-                driveToPose(shootPoses[shootCycle]);
-            }
+            follower.followPath(getShootPath(shootCycle), true);
 
             intakeCycle++;
             state = State.DRIVE_TO_SHOOT;
