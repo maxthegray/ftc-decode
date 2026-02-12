@@ -3,6 +3,8 @@ package org.firstinspires.ftc.teamcode.threaded.Old;
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+
 /**
  * Reads intake position color sensors (Control Hub I2C bus).
  */
@@ -25,16 +27,16 @@ public class ControlHubI2CThread extends Thread {
         while (!state.shouldKillThreads()) {
             if (sensorA != null) {
                 state.setSensorValuesA(      SensorState.POS_INTAKE,
-                        sensorA.alpha(), sensorA.blue(), sensorA.green());
+                        sensorA.getDistance(DistanceUnit.MM), sensorA.blue(), sensorA.green());
             }
 
             if (sensorB != null) {
                 state.setSensorValuesB(      SensorState.POS_INTAKE,
-                        sensorB.alpha(), sensorB.blue(), sensorB.green());
+                        sensorB.getDistance(DistanceUnit.MM), sensorB.blue(), sensorB.green());
             }
 
             state.setPositionColor(      SensorState.POS_INTAKE,
-                          BallClassifier.classifyPosition(state,       SensorState.POS_INTAKE));
+                    BallClassifier.classifyPosition(state,       SensorState.POS_INTAKE));
 
             try {
                 Thread.sleep(      SensorState.I2C_UPDATE_MS);

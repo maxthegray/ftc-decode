@@ -14,7 +14,7 @@ public class IntakeController {
     private final DcMotorEx rightMotor;
     private final CRServo servo;
 
-    private static final double MOTOR_POWER = 0.5;
+    private static final double MOTOR_POWER = 0.6;
     private static final double SERVO_POWER = 1.0;
 
     private boolean running = false;

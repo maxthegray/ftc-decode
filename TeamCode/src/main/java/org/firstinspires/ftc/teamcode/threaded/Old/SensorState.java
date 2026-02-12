@@ -61,59 +61,60 @@ public class SensorState {
     }
 
     // ==================== RAW SENSOR VALUES ====================
-    private volatile int[] alphaA = { 0, 0, 0 };
-    private volatile int[] alphaB = { 0, 0, 0 };
+    private volatile double[] distanceA = { 0, 0, 0 };  // mm
+    private volatile double[] distanceB = { 0, 0, 0 };  // mm
     private volatile int[] blueA = { 0, 0, 0 };
     private volatile int[] blueB = { 0, 0, 0 };
     private volatile int[] greenA = { 0, 0, 0 };
     private volatile int[] greenB = { 0, 0, 0 };
 
-    // Thresholds
-    public static int THRESHOLD_INTAKE_A = 70; //32 idle, 140 purple
-    public static int THRESHOLD_INTAKE_B = 130; //110 idle 134 purple
-    public static int THRESHOLD_BACK_LEFT_A = 400; //200
-    public static int THRESHOLD_BACK_LEFT_B = 100;
-    public static int THRESHOLD_BACK_RIGHT_A = 400;
-    public static int THRESHOLD_BACK_RIGHT_B = 150;
+    // Distance thresholds (mm) — ball is present when distance < threshold
+    // TODO: Tune these values on the actual robot
+    public static double THRESHOLD_INTAKE_A = 60.0; //120 idle 33
+    public static double THRESHOLD_INTAKE_B = 40.0; //93 idle  33
+    public static double THRESHOLD_BACK_LEFT_A = 40;
+    public static double THRESHOLD_BACK_LEFT_B = 40;
+    public static double THRESHOLD_BACK_RIGHT_A = 40; //87 idle 17 with ball
+    public static double THRESHOLD_BACK_RIGHT_B = 50; //147 idle 12 with ball
 
-    public void setSensorValuesA(int position, int alpha, int blue, int green) {
+    public void setSensorValuesA(int position, double distance, int blue, int green) {
         if (position >= 0 && position < 3) {
-            alphaA[position] = alpha;
+            distanceA[position] = distance;
             blueA[position] = blue;
             greenA[position] = green;
         }
     }
 
-    public void setSensorValuesB(int position, int alpha, int blue, int green) {
+    public void setSensorValuesB(int position, double distance, int blue, int green) {
         if (position >= 0 && position < 3) {
-            alphaB[position] = alpha;
+            distanceB[position] = distance;
             blueB[position] = blue;
             greenB[position] = green;
         }
     }
 
-    public int getAlphaA(int pos) { return alphaA[pos]; }
-    public int getAlphaB(int pos) { return alphaB[pos]; }
+    public double getDistanceA(int pos) { return distanceA[pos]; }
+    public double getDistanceB(int pos) { return distanceB[pos]; }
     public int getBlueA(int pos) { return blueA[pos]; }
     public int getBlueB(int pos) { return blueB[pos]; }
     public int getGreenA(int pos) { return greenA[pos]; }
     public int getGreenB(int pos) { return greenB[pos]; }
 
-    public int getThresholdA(int position) {
+    public double getThresholdA(int position) {
         switch (position) {
             case POS_INTAKE: return THRESHOLD_INTAKE_A;
             case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_A;
             case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_A;
-            default: return 200;
+            default: return 50.0;
         }
     }
 
-    public int getThresholdB(int position) {
+    public double getThresholdB(int position) {
         switch (position) {
             case POS_INTAKE: return THRESHOLD_INTAKE_B;
             case POS_BACK_LEFT: return THRESHOLD_BACK_LEFT_B;
             case POS_BACK_RIGHT: return THRESHOLD_BACK_RIGHT_B;
-            default: return 200;
+            default: return 50.0;
         }
     }
 

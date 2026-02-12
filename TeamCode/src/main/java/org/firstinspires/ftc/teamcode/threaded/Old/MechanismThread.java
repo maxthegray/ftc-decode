@@ -67,7 +67,7 @@ public class MechanismThread extends Thread {
     private static final long SHOOTER_WAIT_TIMEOUT_MS = 1000;
 
     // Kicker safety delays
-    private static final long KICKER_SAFETY_DELAY_MS = 100;  // Minimum time after commanding down
+    private static final long KICKER_SAFETY_DELAY_MS = 200;  // Minimum time after commanding down
     private static final long KICKER_TIMEOUT_MS = 500;       // Maximum time to wait (failsafe)
 
     // Robot State
@@ -135,7 +135,7 @@ public class MechanismThread extends Thread {
 
                 // ---- MANUAL KICK ----
                 case KICKER_UP:
-                    if (stateTimer.milliseconds() > 100) {
+                    if (stateTimer.milliseconds() > 200) {
                         kicker.down();
                         stateTimer.reset();
                         hardwareState = HardwareState.KICKER_DOWN;

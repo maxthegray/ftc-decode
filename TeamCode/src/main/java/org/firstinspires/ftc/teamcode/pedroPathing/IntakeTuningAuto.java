@@ -74,39 +74,39 @@ public class IntakeTuningAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(15.500, 115.000),
                                     new Pose(45.828, 101.809),
-                                    new Pose(50.713, 92.287)
+                                    new Pose(48, 90)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(115))
                     .build();
 
             GoToBall1Position = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(50.713, 92.287),
+                                    new Pose(48, 90),
                                     new Pose(62.498, 49.801),
-                                    new Pose(43.000, 63.000)
+                                    new Pose(41.000, 63.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(115), Math.toRadians(180))
                     .build();
 
             Ball1 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(43.000, 63.000),
-                                    new Pose(37.000, 63.000)
+                                    new Pose(41.000, 63.000),
+                                    new Pose(35.000, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
             Ball2 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(37.000, 63.000),
-                                    new Pose(32, 63.000)
+                                    new Pose(35.000, 63.000),
+                                    new Pose(30, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
             Ball3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(32, 63.000),
+                                    new Pose(30, 63.000),
                                     new Pose(20.000, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
@@ -116,7 +116,7 @@ public class IntakeTuningAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(20.000, 63.000),
                                     new Pose(45.000, 44.000),
-                                    new Pose(58.000, 83.000)
+                                    new Pose(48, 93)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
                     .build();
@@ -156,7 +156,7 @@ public class IntakeTuningAuto extends OpMode {
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(24.000, 86.000),
-                                    new Pose(58.000, 83.000)
+                                    new Pose(48.000, 92.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
                     .build();
@@ -165,11 +165,11 @@ public class IntakeTuningAuto extends OpMode {
 
     // ======================== TUNABLE TIMING ========================
 
-    public static long BALL_LINGER_TIMEOUT_MS = 1500;
-    public static long PAUSE_AFTER_INDEX_MS = 300;
+    public static long BALL_LINGER_TIMEOUT_MS = 25000;
+    public static long PAUSE_AFTER_INDEX_MS = 500;
     public static long INTAKE_SPIN_UP_MS = 1000;
     public static double DEFAULT_SHOOTER_VELOCITY = 130;
-    public static long BALL_AREA_SETTLE_DELAY_MS = 500;
+    public static long BALL_AREA_SETTLE_DELAY_MS = 1000;
     public static long SHOOTER_SPINUP_TIMEOUT_MS = 3000;
     public static long SHOOT_SEQUENCE_TIMEOUT_MS = 15000;
 

@@ -1,10 +1,10 @@
 package org.firstinspires.ftc.teamcode.Tests;
 
 import com.qualcomm.hardware.rev.RevColorSensorV3;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-//@Disabled
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+
 @TeleOp(name = "Color Sensor Calibration", group = "Calibration")
 public class ColorSensorTest extends LinearOpMode {
 
@@ -14,7 +14,6 @@ public class ColorSensorTest extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        // Initialize sensors
         intakeA = hardwareMap.get(RevColorSensorV3.class, "intake_color1");
         intakeB = hardwareMap.get(RevColorSensorV3.class, "intake_color2");
         backLeftA = hardwareMap.get(RevColorSensorV3.class, "BL_color");
@@ -29,30 +28,26 @@ public class ColorSensorTest extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            // Intake position
             telemetry.addLine("=== INTAKE ===");
-            telemetry.addData("A: alpha", intakeA.alpha());
+            telemetry.addData("A: dist (mm)", String.format("%.1f", intakeA.getDistance(DistanceUnit.MM)));
             telemetry.addData("A: blue/green", String.format("%.2f", ratio(intakeA)));
 
-            telemetry.addData("B: alpha", intakeB.alpha());
+            telemetry.addData("B: dist (mm)", String.format("%.1f", intakeB.getDistance(DistanceUnit.MM)));
             telemetry.addData("B: blue/green", String.format("%.2f", ratio(intakeB)));
 
-            // Back Left position
             telemetry.addLine("=== BACK LEFT ===");
-            telemetry.addData("A: alpha", backLeftA.alpha());
+            telemetry.addData("A: dist (mm)", String.format("%.1f", backLeftA.getDistance(DistanceUnit.MM)));
             telemetry.addData("A: blue/green", String.format("%.2f", ratio(backLeftA)));
 
-            telemetry.addData("B: alpha", backLeftB.alpha());
+            telemetry.addData("B: dist (mm)", String.format("%.1f", backLeftB.getDistance(DistanceUnit.MM)));
             telemetry.addData("B: blue/green", String.format("%.2f", ratio(backLeftB)));
 
-            // Back Right position
             telemetry.addLine("=== BACK RIGHT ===");
-            telemetry.addData("A: alpha", backRightA.alpha());
+            telemetry.addData("A: dist (mm)", String.format("%.1f", backRightA.getDistance(DistanceUnit.MM)));
             telemetry.addData("A: blue/green", String.format("%.2f", ratio(backRightA)));
 
-            telemetry.addData("B: alpha", backRightB.alpha());
+            telemetry.addData("B: dist (mm)", String.format("%.1f", backRightB.getDistance(DistanceUnit.MM)));
             telemetry.addData("B: blue/green", String.format("%.2f", ratio(backRightB)));
-
 
             telemetry.update();
         }
