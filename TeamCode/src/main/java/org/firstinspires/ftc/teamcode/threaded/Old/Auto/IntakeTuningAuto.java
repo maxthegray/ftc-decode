@@ -53,7 +53,7 @@ public class IntakeTuningAuto extends OpMode {
 
     // ======================== ROUTE POSES ========================
 
-    private final Pose startPose = new Pose(15.5, 115, Math.toRadians(0));
+    private final Pose startPose = new Pose(25.5, 129, Math.toRadians(0));
 
     // ======================== PRE-BUILT PATHS ========================
 
@@ -73,7 +73,7 @@ public class IntakeTuningAuto extends OpMode {
         public Paths(Follower follower) {
             ReadTagAndGoToShoot = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(15.500, 115.000),
+                                    new Pose(25.5, 125),
                                     new Pose(45.828, 101.809),
                                     new Pose(48, 90)
                             )
@@ -83,10 +83,11 @@ public class IntakeTuningAuto extends OpMode {
             GoToBall1Position = follower.pathBuilder().addPath( //short once, long once, potentially reduce speed/brake distance
                             new BezierCurve(
                                     new Pose(48, 90),
-                                    new Pose(62.498, 49.801),
+                                    new Pose(55.131339401820576, 75.6176853055917),
                                     new Pose(41.000, 63.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(115), Math.toRadians(180))
+
                     .build();
 
             Ball1 = follower.pathBuilder().addPath(
