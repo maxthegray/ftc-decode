@@ -80,7 +80,7 @@ public class IntakeTuningAuto extends OpMode {
                     ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(115))
                     .build();
 
-            GoToBall1Position = follower.pathBuilder().addPath(
+            GoToBall1Position = follower.pathBuilder().addPath( //short once, long once, potentially reduce speed/brake distance
                             new BezierCurve(
                                     new Pose(48, 90),
                                     new Pose(62.498, 49.801),
@@ -125,31 +125,31 @@ public class IntakeTuningAuto extends OpMode {
             GoToBall4 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(58.000, 86.000),
-                                    new Pose(42.000, 86.000)
+                                    new Pose(40.500, 86.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(140), Math.toRadians(180))
                     .build();
 
             Ball4 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(42.000, 86.000),
-                                    new Pose(37.000, 86.000)
+                                    new Pose(40.500, 86.000),
+                                    new Pose(36.500, 86.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
             Ball5 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(37.000, 86.000),
-                                    new Pose(32.000, 86.000)
+                                    new Pose(36.500, 86.000),
+                                    new Pose(31.500, 86.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
             Ball6 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(32.000, 86.000),
-                                    new Pose(24.000, 86.000)
+                                    new Pose(31.500, 86.000),
+                                    new Pose(21.000, 86.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
@@ -157,7 +157,7 @@ public class IntakeTuningAuto extends OpMode {
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(24.000, 86.000),
-                                    new Pose(48.000, 92.000)
+                                    new Pose(48.000, 110.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
                     .build();
@@ -166,16 +166,16 @@ public class IntakeTuningAuto extends OpMode {
 
     // ======================== TUNABLE TIMING ========================
 
-    public static long BALL_LINGER_TIMEOUT_MS = 25000;
+    public static long BALL_LINGER_TIMEOUT_MS = 750; //changed from 25000
     public static long PAUSE_AFTER_INDEX_MS = 500;
-    public static long INTAKE_SPIN_UP_MS = 1000;
+    public static long INTAKE_SPIN_UP_MS = 200; //changed from 1000
     public static double DEFAULT_SHOOTER_VELOCITY = 130;
     public static long BALL_AREA_SETTLE_DELAY_MS = 1000;
     public static long SHOOTER_SPINUP_TIMEOUT_MS = 3000;
     public static long SHOOT_SEQUENCE_TIMEOUT_MS = 15000;
 
     /** Max time to wait for auto-align before shooting anyway (ms). */
-    public static long ALIGN_TIMEOUT_MS = 2000;
+    public static long ALIGN_TIMEOUT_MS = 1000; //SHOULD CHANGE
 
     // ======================== STATE MACHINE ========================
 
