@@ -1,9 +1,10 @@
 package org.firstinspires.ftc.teamcode.threaded.New;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-
+@Disabled
 @TeleOp(name = "Sensor Test", group = "Test")
 public class TestOpMode extends OpMode {
 

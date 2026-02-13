@@ -6,8 +6,10 @@ import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.configuration.annotations.DigitalIoDeviceType;
 
 import org.firstinspires.ftc.teamcode.commandbased.commands.IndexCommand;
 import org.firstinspires.ftc.teamcode.commandbased.commands.KickCommand;
@@ -18,7 +20,7 @@ import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem.BallColor;
 import org.firstinspires.ftc.teamcode.commandbased.subsystems.ShooterSubsystem;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-
+@Disabled
 @TeleOp(name = "Main TeleOp", group = "TeleOp")
 public class MainTeleOp extends LinearOpMode {
 

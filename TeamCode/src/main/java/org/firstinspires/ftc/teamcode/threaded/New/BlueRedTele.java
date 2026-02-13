@@ -1,13 +1,14 @@
 package org.firstinspires.ftc.teamcode.threaded.New;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.configuration.annotations.DigitalIoDeviceType;
 
 import static java.lang.Math.abs;
 
-//@Disabled
+@Disabled
 @TeleOp
-
 public class BlueRedTele extends LinearOpMode {
     
 //    private Alliance alliance;

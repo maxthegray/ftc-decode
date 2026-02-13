@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.Tests;
 import android.util.Size;
 
 import com.pedropathing.follower.Follower;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -21,6 +22,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
 
+@Disabled
 @TeleOp(name = "Shooter Distance Tuning", group = "Tuning")
 public class ShooterDistanceTuning extends LinearOpMode {
 

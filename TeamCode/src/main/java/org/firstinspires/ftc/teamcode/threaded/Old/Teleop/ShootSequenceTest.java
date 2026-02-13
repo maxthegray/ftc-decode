@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.threaded.Old.Teleop;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -13,7 +14,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.MechanismThread;
 import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
-
+@Disabled
 @TeleOp(name = "ShootSequence Test", group = "Test")
 public class ShootSequenceTest extends LinearOpMode {
 

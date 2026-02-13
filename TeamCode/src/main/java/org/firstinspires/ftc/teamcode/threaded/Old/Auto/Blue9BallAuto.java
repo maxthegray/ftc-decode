@@ -37,9 +37,9 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  * During all shoot phases, the robot uses AprilTag auto-align PID (same as teleop)
  * to hold heading on the basket target while the shooter fires.
  */
-@Autonomous(name = "Intake Tuning Auto", group = "Tuning")
+@Autonomous(name = "Blue 9 Ball Auto", group = "Auto")
 @Configurable
-public class IntakeTuningAuto extends OpMode {
+public class Blue9BallAuto extends OpMode {
 
     // ======================== ALLIANCE CONFIG ========================
 
@@ -80,14 +80,13 @@ public class IntakeTuningAuto extends OpMode {
                     ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(115))
                     .build();
 
-            GoToBall1Position = follower.pathBuilder().addPath( //short once, long once, potentially reduce speed/brake distance
+            GoToBall1Position = follower.pathBuilder().addPath(
                             new BezierCurve(
                                     new Pose(48, 90),
                                     new Pose(55.131339401820576, 75.6176853055917),
                                     new Pose(41.000, 63.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(115), Math.toRadians(180))
-
                     .build();
 
             Ball1 = follower.pathBuilder().addPath(
@@ -167,16 +166,15 @@ public class IntakeTuningAuto extends OpMode {
 
     // ======================== TUNABLE TIMING ========================
 
-    public static long BALL_LINGER_TIMEOUT_MS = 750; //changed from 25000
-    public static long PAUSE_AFTER_INDEX_MS = 500;
-    public static long INTAKE_SPIN_UP_MS = 200; //changed from 1000
+    public static long BALL_LINGER_TIMEOUT_MS = 250;
+    public static long PAUSE_AFTER_INDEX_MS = 200;
     public static double DEFAULT_SHOOTER_VELOCITY = 130;
-    public static long BALL_AREA_SETTLE_DELAY_MS = 1000;
+    public static long BALL_AREA_SETTLE_DELAY_MS = 200;
     public static long SHOOTER_SPINUP_TIMEOUT_MS = 3000;
     public static long SHOOT_SEQUENCE_TIMEOUT_MS = 15000;
 
     /** Max time to wait for auto-align before shooting anyway (ms). */
-    public static long ALIGN_TIMEOUT_MS = 1000; //SHOULD CHANGE
+    public static long ALIGN_TIMEOUT_MS = 700;
 
     // ======================== STATE MACHINE ========================
 
@@ -186,13 +184,13 @@ public class IntakeTuningAuto extends OpMode {
 
         // --- Shoot phase (reused for all 3 shoots) ---
         DRIVE_TO_SHOOT,
-        ALIGN_AND_SPINUP,       // Teleop mode: PID aligns heading + shooter spins up
-        SHOOTING,               // Teleop mode: PID maintains heading while shooting
+        ALIGN_AND_SPINUP,
+        SHOOTING,
 
         // --- Intake phase (reused for both intake cycles) ---
         DRIVE_TO_BALL_AREA,
         SETTLE_AT_BALL_AREA,
-        SPIN_UP_INTAKE,
+        // NOTE: SPIN_UP_INTAKE removed — intake turns on once and stays on
         DRIVE_TO_BALL,
         LINGER_FOR_BALL,
         WAIT_AUTO_INDEX,
@@ -229,7 +227,6 @@ public class IntakeTuningAuto extends OpMode {
     private TelemetryManager panelsTelemetry;
 
     // ======================== AUTO-ALIGN PID ========================
-    // Mirrors DriveThread PID logic using SensorState constants
 
     private double integralSum = 0;
     private double lastError = 0;
@@ -251,7 +248,6 @@ public class IntakeTuningAuto extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
 
-        // Build all paths after follower is initialized
         paths = new Paths(follower);
 
         sensorState = new SensorState(SensorState.Alliance.BLUE);
@@ -261,11 +257,9 @@ public class IntakeTuningAuto extends OpMode {
         expansionHubI2C = new ExpansionHubI2CThread(sensorState, hardwareMap);
         shooterThread = new ShooterThread(sensorState, hardwareMap);
 
-        // Start camera early so it can attempt to read the shoot-order tag during init
         cameraThread = new CameraThread(sensorState, hardwareMap, BASKET_TAG_ID);
         cameraThread.start();
 
-        // Auto-index OFF initially — we're shooting first, not intaking
         mechanismThread.enqueueCommand(
                 new MechanismThread.Command(MechanismThread.Command.Type.SET_AUTO_INDEX, false));
 
@@ -274,7 +268,6 @@ public class IntakeTuningAuto extends OpMode {
 
     @Override
     public void init_loop() {
-        // Fallback: attempt to read shoot order tag while waiting for start
         boolean hasOrder = sensorState.hasDetectedShootOrder();
         panelsTelemetry.debug("Shoot Order Tag", hasOrder ? "DETECTED" : "waiting...");
         if (hasOrder) {
@@ -290,21 +283,17 @@ public class IntakeTuningAuto extends OpMode {
         opmodeTimer.resetTimer();
         stateTimer.resetTimer();
 
-        // Start threads
         mechanismThread.start();
         controlHubI2C.start();
         expansionHubI2C.start();
         shooterThread.start();
 
-        // Start spinning up shooter immediately while driving
         sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
 
         shootCycle = 0;
         intakeCycle = 0;
         inTeleOpMode = false;
 
-        // Shoot order not locked in yet — ReadTagAndGoToShoot gives the camera
-        // a second chance to read the tag (fallback from init_loop).
         shootOrder = null;
 
         follower.followPath(paths.ReadTagAndGoToShoot, true);
@@ -322,14 +311,12 @@ public class IntakeTuningAuto extends OpMode {
             case TAG_READING_AND_DRIVE:
                 updateShooterFromTag();
                 if (!follower.isBusy()) {
-                    // Lock in shoot order now — tag reading window is over
                     if (sensorState.hasDetectedShootOrder()) {
                         shootOrder = sensorState.getDetectedShootOrder();
                     } else {
                         shootOrder = DEFAULT_SHOOT_ORDER.clone();
                     }
 
-                    // Already at shoot position — go straight to align
                     enterTeleOpMode();
                     stateTimer.resetTimer();
                     state = State.ALIGN_AND_SPINUP;
@@ -341,7 +328,6 @@ public class IntakeTuningAuto extends OpMode {
             case DRIVE_TO_SHOOT:
                 updateShooterFromTag();
                 if (!follower.isBusy()) {
-                    // Switch to teleop mode for auto-align
                     enterTeleOpMode();
                     stateTimer.resetTimer();
                     state = State.ALIGN_AND_SPINUP;
@@ -356,7 +342,6 @@ public class IntakeTuningAuto extends OpMode {
                 boolean aligned = isAligned();
                 boolean timedOut = stateTimer.getElapsedTimeSeconds() * 1000 >= ALIGN_TIMEOUT_MS;
 
-                // Shoot once both ready, or on timeout if shooter is at least spinning
                 if ((shooterReady && aligned) || timedOut) {
                     issueShootSequence();
                     stateTimer.resetTimer();
@@ -397,20 +382,19 @@ public class IntakeTuningAuto extends OpMode {
             case SETTLE_AT_BALL_AREA:
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_AREA_SETTLE_DELAY_MS) {
                     currentBall = 0;
+                    // Turn intake on — it stays on for the entire collection cycle
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
-                    stateTimer.resetTimer();
-                    state = State.SPIN_UP_INTAKE;
-                }
-                break;
-
-            case SPIN_UP_INTAKE:
-                if (stateTimer.getElapsedTimeSeconds() * 1000 >= INTAKE_SPIN_UP_MS) {
+                    // Go directly to the first ball path, no spin-up delay needed
                     follower.followPath(getBallPath(intakeCycle, currentBall), true);
                     state = State.DRIVE_TO_BALL;
                 }
                 break;
 
             case DRIVE_TO_BALL: {
+                // Keep reasserting intake ON so MechanismThread can't leave it off
+                // after auto-index kickback/carousel movement
+                mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+
                 if (checkBallDetected()) {
                     stateTimer.resetTimer();
                     state = State.WAIT_AUTO_INDEX;
@@ -424,19 +408,25 @@ public class IntakeTuningAuto extends OpMode {
             }
 
             case LINGER_FOR_BALL: {
+                // Keep reasserting intake ON
+                mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+
                 if (checkBallDetected()) {
                     stateTimer.resetTimer();
                     state = State.WAIT_AUTO_INDEX;
                     break;
                 }
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_LINGER_TIMEOUT_MS) {
-                    mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+                    // Ball not found — skip to next ball
                     advanceToNextBall();
                 }
                 break;
             }
 
             case WAIT_AUTO_INDEX: {
+                // Keep reasserting intake ON during auto-index
+                mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+
                 ShootSequence.BallColor intakeColor =
                         sensorState.getPositionColor(SensorState.POS_INTAKE);
                 boolean intakeCleared = (intakeColor == ShootSequence.BallColor.EMPTY);
@@ -445,13 +435,11 @@ public class IntakeTuningAuto extends OpMode {
 
                 if (intakeCleared || isFull
                         || (mechIdle && stateTimer.getElapsedTimeSeconds() > 0.5)) {
-                    mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
                     stateTimer.resetTimer();
                     state = State.PAUSE_BETWEEN;
                 }
 
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= 3000) {
-                    mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
                     stateTimer.resetTimer();
                     state = State.PAUSE_BETWEEN;
                 }
@@ -459,6 +447,9 @@ public class IntakeTuningAuto extends OpMode {
             }
 
             case PAUSE_BETWEEN:
+                // Keep reasserting intake ON
+                mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= PAUSE_AFTER_INDEX_MS) {
                     advanceToNextBall();
                 }
@@ -508,29 +499,14 @@ public class IntakeTuningAuto extends OpMode {
 
     // ======================== PATH SELECTION ========================
 
-    /**
-     * Returns the correct ball area approach path for the current intake cycle.
-     *   intakeCycle 0 → GoToBall1Position
-     *   intakeCycle 1 → GoToBall4
-     */
     private PathChain getBallAreaPath() {
         return intakeCycle == 0 ? paths.GoToBall1Position : paths.GoToBall4;
     }
 
-    /**
-     * Returns the correct shoot approach path for the current shoot cycle.
-     *   shootCycle 1 → Shoot2
-     *   shootCycle 2 → GoShoot3
-     */
     private PathChain getShootPath(int cycle) {
         return cycle == 1 ? paths.Shoot2 : paths.GoShoot3;
     }
 
-    /**
-     * Returns the correct individual ball pickup path.
-     *   cycle 0, ball 0/1/2 → Ball1/Ball2/Ball3
-     *   cycle 1, ball 0/1/2 → Ball4/Ball5/Ball6
-     */
     private PathChain getBallPath(int cycle, int ball) {
         if (cycle == 0) {
             switch (ball) {
@@ -545,33 +521,24 @@ public class IntakeTuningAuto extends OpMode {
                 case 2: return paths.Ball6;
             }
         }
-        return paths.Ball1; // fallback, shouldn't happen
+        return paths.Ball1;
     }
 
     // ======================== AUTO-ALIGN ========================
 
-    /** Switch follower to teleop drive mode and reset PID state. */
     private void enterTeleOpMode() {
         follower.startTeleOpDrive();
         resetPID();
         inTeleOpMode = true;
     }
 
-    /** Exit teleop mode. Next followPath() call will resume path following. */
     private void exitTeleOpMode() {
-        // Stop any residual drive
         follower.setTeleOpDrive(0, 0, 0, false);
         inTeleOpMode = false;
     }
 
-    /**
-     * Run one iteration of the auto-align PID.
-     * Uses the same PID logic and constants as DriveThread.
-     * Robot stays stationary (forward=0, strafe=0) and only rotates.
-     */
     private void runAutoAlign() {
         if (!sensorState.isBasketTagVisible()) {
-            // No tag — hold still
             follower.setTeleOpDrive(0, 0, 0, false);
             return;
         }
@@ -581,7 +548,6 @@ public class IntakeTuningAuto extends OpMode {
         follower.setTeleOpDrive(0, 0, rotate, false);
     }
 
-    /** Is the robot aligned to the target within the deadband? */
     private boolean isAligned() {
         if (!sensorState.isBasketTagVisible()) return false;
         return Math.abs(sensorState.getTargetBearing()) < SensorState.ALIGN_DEADBAND;
@@ -661,6 +627,7 @@ public class IntakeTuningAuto extends OpMode {
     private void advanceToNextBall() {
         currentBall++;
         if (currentBall >= 3 || countBalls() >= 3) {
+            // Done collecting — stop intake and go shoot
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
             sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
 
@@ -671,10 +638,9 @@ public class IntakeTuningAuto extends OpMode {
             return;
         }
 
-        // Always ensure intake is running and give it time to spin up before driving
-        mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
-        stateTimer.resetTimer();
-        state = State.SPIN_UP_INTAKE;
+        // Go directly to the next ball path — intake is already running
+        follower.followPath(getBallPath(intakeCycle, currentBall), true);
+        state = State.DRIVE_TO_BALL;
     }
 
     private int countBalls() {

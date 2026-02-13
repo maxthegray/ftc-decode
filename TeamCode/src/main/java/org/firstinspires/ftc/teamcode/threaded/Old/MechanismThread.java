@@ -114,7 +114,10 @@ public class MechanismThread extends Thread {
                 // ---- AUTO-INDEX: kickback then rotate ----
                 case INTAKE_REVERSING:
                     if (stateTimer.milliseconds() >= KICKBACK_MS) {
-                        intake.stop();
+                        // CHANGED: Resume the intake request instead of stopping.
+                        // If the caller set intakeRequest=IN, the intake keeps running
+                        // during carousel movement instead of going dead.
+                        applyIntakeRequest();
                         carousel.rotateSlots(pendingRotation);
                         autoIndexMove = true;
                         hardwareState = HardwareState.CAROUSEL_MOVING;
@@ -124,6 +127,12 @@ public class MechanismThread extends Thread {
                 case CAROUSEL_MOVING:
                     // Auto-index moves: resume intake as soon as main ramp is done
                     // Manual moves: wait for full settling
+                    if (autoIndexMove) {
+                        // Keep applying intake request during auto-index carousel movement
+                        // so the intake stays on if the caller wants it on
+                        applyIntakeRequest();
+                    }
+
                     boolean done = autoIndexMove
                             ? carousel.isMainMovementDone()
                             : carousel.isSettled();

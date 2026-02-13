@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.Servo;
 
 
-//@Disabled
+@Disabled
 @TeleOp
 public class ServoVoltageTest extends LinearOpMode {
 

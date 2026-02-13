@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.Tests;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -9,6 +10,7 @@ import com.qualcomm.robotcore.util.Range;
 
 import static java.lang.Math.abs;
 
+@Disabled
 @TeleOp
 public class SpinTest extends LinearOpMode {
 
@@ -18,16 +20,16 @@ public class SpinTest extends LinearOpMode {
 
     // Gaussian constants (tunable)
     private final double A = 0.96;
-    private double B = 380;
-    private double C = 200.0;
+    private double B = 0.487;
+    private double C = 0.256;
     private int threshold = 760;
 
     // P-loop correction (tunable)
     private double kP = 0.01;
     private static final int TOLERANCE = 5;
 
-    private double stepB = 10.0;
-    private double stepC = 10.0;
+    private double stepB = .01;
+    private double stepC = .01;
     private int stepThreshold = 10;
     private double stepKP = 0.001;
 
