@@ -130,11 +130,11 @@ public class SensorState {
     public static double VELOCITY_TOLERANCE = 10;
 
     // Distance-to-velocity polynomial
-    private static final double COEFF_A = 0.00000043;
-    private static final double COEFF_B = -0.0001927;
-    private static final double COEFF_C = 0.026899;
-    private static final double COEFF_D = -0.402824;
-    private static final double COEFF_E = 136.48202;
+    private static final double COEFF_A = 0.000000780128;
+    private static final double COEFF_B = -0.0001727;
+    private static final double COEFF_C = 0.0168311;
+    private static final double COEFF_D = 0.190235;
+    private static final double COEFF_E = 128.62877;
 
     public void setShooterTargetVelocity(double v) { this.shooterTargetVelocity = v; }
     public double getShooterTargetVelocity() { return shooterTargetVelocity; }
