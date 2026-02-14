@@ -10,6 +10,7 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -23,23 +24,21 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 
 /**
- * FULL AUTO (Blue Alliance)
+ * BLUE AUTO — Shoot preloaded, collect 4-5-6, shoot, collect 1-2-3, stop.
  *
  * Flow:
- *   ReadTagAndGoToShoot: Drive curved path while camera reads shoot order tag, ending at shoot position
- *   Shoot 0: auto-align → shoot 3
- *   Intake 0: GoToBall1Position → pick up 3 balls (Ball1, Ball2, Ball3)
- *   Shoot 1: Shoot2 → auto-align → shoot 3
- *   Intake 1: GoToBall4 → pick up 3 balls (Ball4, Ball5, Ball6)
- *   Shoot 2: GoShoot3 → auto-align → shoot 3
- *   Done.
- *
- * During all shoot phases, the robot uses AprilTag auto-align PID (same as teleop)
- * to hold heading on the basket target while the shooter fires.
+ *   ReadTagAndGoToShoot: Drive curved path while camera reads shoot order tag
+ *   Shoot 0: auto-align → shoot 3 preloaded balls
+ *   Intake 0: GoToBall4 → pick up Ball4, Ball5, Ball6
+ *   Shoot 1: GoShoot3 → auto-align → shoot 3
+ *   Intake 1: GoToBall1Position → pick up Ball1, Ball2, Ball3
+ *   Done (stop in place with balls collected).
  */
-@Autonomous(name = "Blue 9 Ball Auto", group = "Auto")
+
+@Disabled
+@Autonomous(name = "Blue 6 Ball Auto", group = "Auto")
 @Configurable
-public class Blue9BallAuto extends OpMode {
+public class Blue6Ball456Auto extends OpMode {
 
     // ======================== ALLIANCE CONFIG ========================
 
@@ -63,21 +62,21 @@ public class Blue9BallAuto extends OpMode {
         public PathChain Ball1;
         public PathChain Ball2;
         public PathChain Ball3;
-        public PathChain Shoot2;
         public PathChain GoToBall4;
         public PathChain Ball4;
         public PathChain Ball5;
         public PathChain Ball6;
         public PathChain GoShoot3;
+        public PathChain ShootTeleop;
 
         public Paths(Follower follower) {
             ReadTagAndGoToShoot = follower.pathBuilder().addPath(
                             new BezierCurve(
                                     new Pose(25.5, 125),
-                                    new Pose(45.828, 101.809),
-                                    new Pose(48, 90)
+                                    new Pose(47.70056176853055, 109.8610156046814),
+                                    new Pose(58, 86)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(115))
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(130))
                     .build();
 
             GoToBall1Position = follower.pathBuilder().addPath(
@@ -111,15 +110,6 @@ public class Blue9BallAuto extends OpMode {
                                     new Pose(20.000, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
-                    .build();
-
-            Shoot2 = follower.pathBuilder().addPath(
-                            new BezierCurve(
-                                    new Pose(20.000, 63.000),
-                                    new Pose(45.000, 44.000),
-                                    new Pose(48, 93)
-                            )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
                     .build();
 
             GoToBall4 = follower.pathBuilder().addPath(
@@ -157,24 +147,31 @@ public class Blue9BallAuto extends OpMode {
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(24.000, 86.000),
-                                    new Pose(48.000, 110.000)
+                                    new Pose(48.000, 90.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(130))
+                    .build();
+
+            ShootTeleop = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(20.000, 63.000),
+                                    new Pose(53.255, 73.367),
+                                    new Pose(53.500, 120.000)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(160))
+
                     .build();
         }
     }
 
     // ======================== TUNABLE TIMING ========================
 
-    public static long BALL_LINGER_TIMEOUT_MS = 500;
-    public static long PAUSE_AFTER_INDEX_MS = 400;
+    public static long BALL_LINGER_TIMEOUT_MS = 250;
+    public static long PAUSE_AFTER_INDEX_MS = 200;
     public static double DEFAULT_SHOOTER_VELOCITY = 130;
     public static long BALL_AREA_SETTLE_DELAY_MS = 200;
     public static long SHOOTER_SPINUP_TIMEOUT_MS = 3000;
     public static long SHOOT_SEQUENCE_TIMEOUT_MS = 15000;
-
-    /** How long to keep intake running after last ball while driving to shoot (ms). */
-    public static long INTAKE_LINGER_DRIVING_MS = 1000;
 
     /** Max time to wait for auto-align before shooting anyway (ms). */
     public static long ALIGN_TIMEOUT_MS = 700;
@@ -185,15 +182,14 @@ public class Blue9BallAuto extends OpMode {
         // --- Tag reading + drive to first shoot ---
         TAG_READING_AND_DRIVE,
 
-        // --- Shoot phase (reused for all 3 shoots) ---
+        // --- Shoot phase ---
         DRIVE_TO_SHOOT,
         ALIGN_AND_SPINUP,
         SHOOTING,
 
-        // --- Intake phase (reused for both intake cycles) ---
+        // --- Intake phase ---
         DRIVE_TO_BALL_AREA,
         SETTLE_AT_BALL_AREA,
-        // NOTE: SPIN_UP_INTAKE removed — intake turns on once and stays on
         DRIVE_TO_BALL,
         LINGER_FOR_BALL,
         WAIT_AUTO_INDEX,
@@ -205,8 +201,8 @@ public class Blue9BallAuto extends OpMode {
     private State state = State.TAG_READING_AND_DRIVE;
 
     // Cycle tracking
-    private int shootCycle = 0;     // 0 = first shoot, 1 = second, 2 = third
-    private int intakeCycle = 0;    // 0 = row 1 (Y=60), 1 = row 2 (Y=83)
+    private int shootCycle = 0;     // 0 = first shoot (preloaded), 1 = second (after 4-5-6)
+    private int intakeCycle = 0;    // 0 = balls 4-5-6, 1 = balls 1-2-3
 
     // Current intake ball index within a row (0, 1, 2)
     private int currentBall = 0;
@@ -227,11 +223,7 @@ public class Blue9BallAuto extends OpMode {
 
     private Timer stateTimer;
     private Timer opmodeTimer;
-    private Timer intakeLingerTimer;
     private TelemetryManager panelsTelemetry;
-
-    // Tracks whether intake is still lingering during DRIVE_TO_SHOOT
-    private boolean intakeLingeringDuringDrive = false;
 
     // ======================== AUTO-ALIGN PID ========================
 
@@ -251,7 +243,6 @@ public class Blue9BallAuto extends OpMode {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
         stateTimer = new Timer();
         opmodeTimer = new Timer();
-        intakeLingerTimer = new Timer();
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
@@ -301,7 +292,6 @@ public class Blue9BallAuto extends OpMode {
         shootCycle = 0;
         intakeCycle = 0;
         inTeleOpMode = false;
-        intakeLingeringDuringDrive = false;
 
         shootOrder = null;
 
@@ -312,8 +302,6 @@ public class Blue9BallAuto extends OpMode {
     @Override
     public void loop() {
         mechanismThread.setBallPositions(sensorState.getAllPositions());
-        mechanismThread.enqueueCommand(
-                new MechanismThread.Command(MechanismThread.Command.Type.SHOW_LIGHTS));
 
         switch (state) {
 
@@ -338,22 +326,7 @@ public class Blue9BallAuto extends OpMode {
 
             case DRIVE_TO_SHOOT:
                 updateShooterFromTag();
-
-                // Keep intake running for INTAKE_LINGER_DRIVING_MS after leaving ball area
-                if (intakeLingeringDuringDrive) {
-                    mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
-                    if (intakeLingerTimer.getElapsedTimeSeconds() * 1000 >= INTAKE_LINGER_DRIVING_MS) {
-                        mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
-                        intakeLingeringDuringDrive = false;
-                    }
-                }
-
                 if (!follower.isBusy()) {
-                    // Make sure intake is stopped before shooting
-                    if (intakeLingeringDuringDrive) {
-                        mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
-                        intakeLingeringDuringDrive = false;
-                    }
                     enterTeleOpMode();
                     stateTimer.resetTimer();
                     state = State.ALIGN_AND_SPINUP;
@@ -384,15 +357,13 @@ public class Blue9BallAuto extends OpMode {
                     exitTeleOpMode();
                     shootCycle++;
 
-                    if (shootCycle > 2) {
-                        state = State.DONE;
-                    } else {
-                        mechanismThread.enqueueCommand(
-                                new MechanismThread.Command(
-                                        MechanismThread.Command.Type.SET_AUTO_INDEX, true));
-                        follower.followPath(getBallAreaPath(), true);
-                        state = State.DRIVE_TO_BALL_AREA;
-                    }
+                    // After each shoot, go collect next batch of balls
+                    // intakeCycle 0 → balls 4-5-6, intakeCycle 1 → balls 1-2-3
+                    mechanismThread.enqueueCommand(
+                            new MechanismThread.Command(
+                                    MechanismThread.Command.Type.SET_AUTO_INDEX, true));
+                    follower.followPath(getBallAreaPath(), true);
+                    state = State.DRIVE_TO_BALL_AREA;
                 }
                 break;
 
@@ -408,17 +379,13 @@ public class Blue9BallAuto extends OpMode {
             case SETTLE_AT_BALL_AREA:
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_AREA_SETTLE_DELAY_MS) {
                     currentBall = 0;
-                    // Turn intake on — it stays on for the entire collection cycle
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
-                    // Go directly to the first ball path, no spin-up delay needed
                     follower.followPath(getBallPath(intakeCycle, currentBall), true);
                     state = State.DRIVE_TO_BALL;
                 }
                 break;
 
             case DRIVE_TO_BALL: {
-                // Keep reasserting intake ON so MechanismThread can't leave it off
-                // after auto-index kickback/carousel movement
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
                 if (checkBallDetected()) {
@@ -434,7 +401,6 @@ public class Blue9BallAuto extends OpMode {
             }
 
             case LINGER_FOR_BALL: {
-                // Keep reasserting intake ON
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
                 if (checkBallDetected()) {
@@ -443,14 +409,12 @@ public class Blue9BallAuto extends OpMode {
                     break;
                 }
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_LINGER_TIMEOUT_MS) {
-                    // Ball not found — skip to next ball
                     advanceToNextBall();
                 }
                 break;
             }
 
             case WAIT_AUTO_INDEX: {
-                // Keep reasserting intake ON during auto-index
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
                 ShootSequence.BallColor intakeColor =
@@ -473,7 +437,6 @@ public class Blue9BallAuto extends OpMode {
             }
 
             case PAUSE_BETWEEN:
-                // Keep reasserting intake ON
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= PAUSE_AFTER_INDEX_MS) {
@@ -485,7 +448,6 @@ public class Blue9BallAuto extends OpMode {
                 break;
         }
 
-        // Update follower AFTER state logic so teleop drive inputs are applied this frame
         follower.update();
 
         // ======================== TELEMETRY ========================
@@ -493,7 +455,6 @@ public class Blue9BallAuto extends OpMode {
         panelsTelemetry.debug("Shoot Cycle", String.valueOf(shootCycle));
         panelsTelemetry.debug("Intake Cycle", String.valueOf(intakeCycle));
         panelsTelemetry.debug("Current Ball", String.valueOf(currentBall));
-        panelsTelemetry.debug("Intake Lingering", String.valueOf(intakeLingeringDuringDrive));
         panelsTelemetry.debug("Shoot Order",
                 shootOrder != null
                         ? shortColor(shootOrder[0]) + " " + shortColor(shootOrder[1]) + " " + shortColor(shootOrder[2])
@@ -526,29 +487,41 @@ public class Blue9BallAuto extends OpMode {
 
     // ======================== PATH SELECTION ========================
 
+    /**
+     * Intake cycle 0 → balls 4-5-6 (GoToBall4)
+     * Intake cycle 1 → balls 1-2-3 (GoToBall1Position)
+     */
     private PathChain getBallAreaPath() {
-        return intakeCycle == 0 ? paths.GoToBall1Position : paths.GoToBall4;
+        return intakeCycle == 0 ? paths.GoToBall4 : paths.GoToBall1Position;
     }
 
-    private PathChain getShootPath(int cycle) {
-        return cycle == 1 ? paths.Shoot2 : paths.GoShoot3;
+    /**
+     * Only called for shootCycle 1 (after collecting 4-5-6).
+     * GoShoot3 goes from near Ball6 end to the shoot position.
+     */
+    private PathChain getShootPath() {
+        return paths.GoShoot3;
     }
 
+    /**
+     * Intake cycle 0 → Ball4, Ball5, Ball6
+     * Intake cycle 1 → Ball1, Ball2, Ball3
+     */
     private PathChain getBallPath(int cycle, int ball) {
         if (cycle == 0) {
-            switch (ball) {
-                case 0: return paths.Ball1;
-                case 1: return paths.Ball2;
-                case 2: return paths.Ball3;
-            }
-        } else {
             switch (ball) {
                 case 0: return paths.Ball4;
                 case 1: return paths.Ball5;
                 case 2: return paths.Ball6;
             }
+        } else {
+            switch (ball) {
+                case 0: return paths.Ball1;
+                case 1: return paths.Ball2;
+                case 2: return paths.Ball3;
+            }
         }
-        return paths.Ball1;
+        return paths.Ball4;
     }
 
     // ======================== AUTO-ALIGN ========================
@@ -654,21 +627,23 @@ public class Blue9BallAuto extends OpMode {
     private void advanceToNextBall() {
         currentBall++;
         if (currentBall >= 3 || countBalls() >= 3) {
-            // Done collecting — keep intake running, it will be stopped after linger timeout
+            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
+
+            // After second intake (balls 1-2-3), just stop
+            if (intakeCycle >= 1) {
+                intakeCycle++;
+                state = State.DONE;
+                return;
+            }
+
+            // After first intake (balls 4-5-6), go shoot
             sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
-
-            // Start intake linger timer — intake keeps running during drive to shoot
-            intakeLingeringDuringDrive = true;
-            intakeLingerTimer.resetTimer();
-
-            follower.followPath(getShootPath(shootCycle), true);
-
+            follower.followPath(getShootPath(), true);
             intakeCycle++;
             state = State.DRIVE_TO_SHOOT;
             return;
         }
 
-        // Go directly to the next ball path — intake is already running
         follower.followPath(getBallPath(intakeCycle, currentBall), true);
         state = State.DRIVE_TO_BALL;
     }

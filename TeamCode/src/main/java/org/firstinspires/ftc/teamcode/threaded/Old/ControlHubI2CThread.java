@@ -25,21 +25,21 @@ public class ControlHubI2CThread extends Thread {
     @Override
     public void run() {
         while (!state.shouldKillThreads()) {
-            if (sensorA != null) {
-                state.setSensorValuesA(      SensorState.POS_INTAKE,
-                        sensorA.getDistance(DistanceUnit.MM), sensorA.blue(), sensorA.green());
+            if (!state.isCarouselSpinning()) {
+                if (sensorA != null) {
+                    state.setSensorValuesA(SensorState.POS_INTAKE,
+                            sensorA.getDistance(DistanceUnit.MM), sensorA.blue(), sensorA.green());
+                }
+                if (sensorB != null) {
+                    state.setSensorValuesB(SensorState.POS_INTAKE,
+                            sensorB.getDistance(DistanceUnit.MM), sensorB.blue(), sensorB.green());
+                }
+                state.setPositionColor(SensorState.POS_INTAKE,
+                        BallClassifier.classifyPosition(state, SensorState.POS_INTAKE));
             }
-
-            if (sensorB != null) {
-                state.setSensorValuesB(      SensorState.POS_INTAKE,
-                        sensorB.getDistance(DistanceUnit.MM), sensorB.blue(), sensorB.green());
-            }
-
-            state.setPositionColor(      SensorState.POS_INTAKE,
-                    BallClassifier.classifyPosition(state,       SensorState.POS_INTAKE));
 
             try {
-                Thread.sleep(      SensorState.I2C_UPDATE_MS);
+                Thread.sleep(SensorState.I2C_UPDATE_MS);
             } catch (InterruptedException e) {
                 break;
             }

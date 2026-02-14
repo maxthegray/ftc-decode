@@ -260,9 +260,6 @@ public class TeleOpRed extends LinearOpMode {
         telemetry.addData("Shooter", "%.0f / %.0f RPM (err %.0f) %s",
                 current, target, error, ready ? "READY" : "NOT READY");
 
-        // Mechanism state + shoot diagnostics
-        String mechState = mechanismThread.getStateDebug();
-        telemetry.addData("MechState", mechState);
 
         // Carousel diagnostics
         boolean settled = mechanismThread.isCarouselSettled();

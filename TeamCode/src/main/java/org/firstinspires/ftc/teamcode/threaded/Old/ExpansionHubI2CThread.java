@@ -29,32 +29,34 @@ public class ExpansionHubI2CThread extends Thread {
     @Override
     public void run() {
         while (!state.shouldKillThreads()) {
-            // Back-left
-            if (backLeftA != null) {
-                state.setSensorValuesA(    SensorState.POS_BACK_LEFT,
-                        backLeftA.getDistance(DistanceUnit.MM), backLeftA.blue(), backLeftA.green());
-            }
-            if (backLeftB != null) {
-                state.setSensorValuesB(    SensorState.POS_BACK_LEFT,
-                        backLeftB.getDistance(DistanceUnit.MM), backLeftB.blue(), backLeftB.green());
-            }
-            state.setPositionColor(    SensorState.POS_BACK_LEFT,
-                    BallClassifier.classifyPosition(state,     SensorState.POS_BACK_LEFT));
+            if (!state.isCarouselSpinning()) {
+                // Back-left
+                if (backLeftA != null) {
+                    state.setSensorValuesA(SensorState.POS_BACK_LEFT,
+                            backLeftA.getDistance(DistanceUnit.MM), backLeftA.blue(), backLeftA.green());
+                }
+                if (backLeftB != null) {
+                    state.setSensorValuesB(SensorState.POS_BACK_LEFT,
+                            backLeftB.getDistance(DistanceUnit.MM), backLeftB.blue(), backLeftB.green());
+                }
+                state.setPositionColor(SensorState.POS_BACK_LEFT,
+                        BallClassifier.classifyPosition(state, SensorState.POS_BACK_LEFT));
 
-            // Back-right
-            if (backRightA != null) {
-                state.setSensorValuesA(    SensorState.POS_BACK_RIGHT,
-                        backRightA.getDistance(DistanceUnit.MM), backRightA.blue(), backRightA.green());
+                // Back-right
+                if (backRightA != null) {
+                    state.setSensorValuesA(SensorState.POS_BACK_RIGHT,
+                            backRightA.getDistance(DistanceUnit.MM), backRightA.blue(), backRightA.green());
+                }
+                if (backRightB != null) {
+                    state.setSensorValuesB(SensorState.POS_BACK_RIGHT,
+                            backRightB.getDistance(DistanceUnit.MM), backRightB.blue(), backRightB.green());
+                }
+                state.setPositionColor(SensorState.POS_BACK_RIGHT,
+                        BallClassifier.classifyPosition(state, SensorState.POS_BACK_RIGHT));
             }
-            if (backRightB != null) {
-                state.setSensorValuesB(    SensorState.POS_BACK_RIGHT,
-                        backRightB.getDistance(DistanceUnit.MM), backRightB.blue(), backRightB.green());
-            }
-            state.setPositionColor(    SensorState.POS_BACK_RIGHT,
-                    BallClassifier.classifyPosition(state,     SensorState.POS_BACK_RIGHT));
 
             try {
-                Thread.sleep(    SensorState.I2C_UPDATE_MS);
+                Thread.sleep(SensorState.I2C_UPDATE_MS);
             } catch (InterruptedException e) {
                 break;
             }

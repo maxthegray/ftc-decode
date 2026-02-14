@@ -99,6 +99,9 @@ public class MechanismThread extends Thread {
             // 1. Update carousel controller (for Gaussian ramping)
             carousel.update();
 
+            if (sensorState != null) {
+                sensorState.setCarouselSpinning(!carousel.isMainMovementDone());
+            }
             // 2. Drain ALL queued commands
             processAllCommands();
 

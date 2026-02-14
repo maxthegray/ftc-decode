@@ -37,6 +37,12 @@ public class SensorState {
     public static final int POS_BACK_LEFT = 1;
     public static final int POS_BACK_RIGHT = 2;
 
+    //Color Sensor When To Read Flags
+    private volatile boolean carouselSpinning = false;
+
+    public void setCarouselSpinning(boolean spinning) { this.carouselSpinning = spinning; }
+    public boolean isCarouselSpinning() { return carouselSpinning; }
+
     private volatile   ShootSequence.BallColor[] positions = {
             ShootSequence.BallColor.EMPTY,
             ShootSequence.BallColor.EMPTY,
