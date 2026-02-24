@@ -41,7 +41,7 @@ public class CarouselController {
 
     // ── Phase-switching thresholds ──────────────────────────────────────
     private static final int THRESHOLD  = 80;   // Switch to P-loop when this close to target
-    private static final int TOLERANCE  = 6;    // Considered "settled" within this many ticks
+    private static final int TOLERANCE  = 10;    // Considered "settled" within this many ticks
 
     // ── P-loop correction ───────────────────────────────────────────────
     private static final double KP = 0.01;
@@ -50,8 +50,8 @@ public class CarouselController {
     private static final double DRIFT_CORRECTION_POWER = 0.07;
 
     // ── Movement presets ────────────────────────────────────────────────
-    public static final int TICKS_PER_SLOT = 780;
-    public static final int NUDGE_TICKS    = 60;
+    public static final int TICKS_PER_SLOT = 8192 / 3;
+    public static final int NUDGE_TICKS    = 50;
 
     private enum Phase {
         GAUSSIAN,   // Ramping with super-Gaussian × sigmoid curve

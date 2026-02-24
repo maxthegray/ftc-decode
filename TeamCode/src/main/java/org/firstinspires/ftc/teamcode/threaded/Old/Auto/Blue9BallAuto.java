@@ -84,14 +84,14 @@ public class Blue9BallAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(48, 90),
                                     new Pose(55.131339401820576, 75.6176853055917),
-                                    new Pose(41.000, 63.000)
+                                    new Pose(42.000, 63.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(115), Math.toRadians(180))
                     .build();
 
             Ball1 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(41.000, 63.000),
+                                    new Pose(42.000, 63.000),
                                     new Pose(35.000, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
@@ -166,10 +166,10 @@ public class Blue9BallAuto extends OpMode {
 
     // ======================== TUNABLE TIMING ========================
 
-    public static long BALL_LINGER_TIMEOUT_MS = 500;
-    public static long PAUSE_AFTER_INDEX_MS = 400;
+    public static long BALL_LINGER_TIMEOUT_MS = 600;
+    public static long PAUSE_AFTER_INDEX_MS = 500;
     public static double DEFAULT_SHOOTER_VELOCITY = 130;
-    public static long BALL_AREA_SETTLE_DELAY_MS = 200;
+    public static long BALL_AREA_SETTLE_DELAY_MS = 300;
     public static long SHOOTER_SPINUP_TIMEOUT_MS = 3000;
     public static long SHOOT_SEQUENCE_TIMEOUT_MS = 15000;
 

@@ -240,6 +240,16 @@ public class SensorState {
     public boolean isAutoAlignEnabled() { return autoAlignEnabled; }
     public void toggleAutoAlign() { this.autoAlignEnabled = !autoAlignEnabled; }
 
+    // ==================== RAMP SENSOR ====================
+    // True when a ball is detected on the intake ramp (analog sensor "curvy")
+    private volatile boolean rampSensorTriggered = false;
+
+    public void setRampTriggered(boolean triggered) { this.rampSensorTriggered = triggered; }
+    public boolean isRampTriggered() { return rampSensorTriggered; }
+
+    // Voltage threshold — matches TouchSensorTest
+    public static final double RAMP_SENSOR_THRESHOLD = 1.65;
+
     // Shoot order from AprilTag
     private volatile   ShootSequence.BallColor[] detectedShootOrder = null;
 

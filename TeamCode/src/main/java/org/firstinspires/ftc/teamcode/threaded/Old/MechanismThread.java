@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.threaded.Old;
 
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -10,6 +11,10 @@ public class MechanismThread extends Thread {
     private final KickerController kicker;
     private final IntakeController intake;
     private final LightsController lights;
+    private final AnalogInput rampSensor;
+
+    // Voltage threshold for ramp sensor ("curvy") — ball present when voltage >= this
+    private static final double RAMP_SENSOR_THRESHOLD = SensorState.RAMP_SENSOR_THRESHOLD;
 
     private final ConcurrentLinkedQueue<Command> commandQueue = new ConcurrentLinkedQueue<>();
     private volatile boolean killThread = false;
@@ -87,6 +92,7 @@ public class MechanismThread extends Thread {
         this.kicker = new KickerController(hardwareMap);
         this.intake = new IntakeController(hardwareMap);
         this.lights = new LightsController(hardwareMap);
+        this.rampSensor = hardwareMap.get(AnalogInput.class, "touch1");
     }
 
     public void setSensorState(SensorState state) {
@@ -101,6 +107,8 @@ public class MechanismThread extends Thread {
 
             if (sensorState != null) {
                 sensorState.setCarouselSpinning(!carousel.isMainMovementDone());
+                // Publish ramp sensor reading so auto/teleop can react immediately
+                sensorState.setRampTriggered(rampSensor.getVoltage() >= RAMP_SENSOR_THRESHOLD);
             }
             // 2. Drain ALL queued commands
             processAllCommands();
