@@ -50,7 +50,7 @@ public class CarouselController {
     private static final double DRIFT_CORRECTION_POWER = 0.07;
 
     // ── Movement presets ────────────────────────────────────────────────
-    public static final int TICKS_PER_SLOT = 8192 / 3;
+    public static final int TICKS_PER_SLOT = 2731;
     public static final int NUDGE_TICKS    = 50;
 
     private enum Phase {

@@ -15,7 +15,7 @@ public class KickerController {
 
     // Servo positions
     private static final double POS_DOWN = 0.0;
-    private static final double POS_UP = 0.4;
+    private static final double POS_UP = 0.3;
 
     // Voltage threshold - kicker is "down" when voltage <= this
     public static final double DOWN_VOLTAGE_THRESHOLD = 1.3;

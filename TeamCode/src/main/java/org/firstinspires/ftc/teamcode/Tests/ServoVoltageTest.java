@@ -9,8 +9,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @TeleOp(name = "Servo Testi")
 public class ServoVoltageTest extends LinearOpMode {
 
-    static final double HOME_POSITION   = 0.1;
-    static final double HOME_VOLTAGE    = 1.227;
+    static final double HOME_POSITION   = 0.0;
+    static final double HOME_VOLTAGE    = 1.128;
     static final double FLICK_POSITION  = 0.3;
     static final double FLICK_VOLTAGE   = 1.433;
     static final double THRESHOLD       = 0.05; // volts

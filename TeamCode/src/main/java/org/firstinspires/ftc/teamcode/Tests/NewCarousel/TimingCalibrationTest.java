@@ -86,7 +86,7 @@ public class TimingCalibrationTest extends LinearOpMode {
     //  KICKER CONSTANTS
     // ══════════════════════════════════════════════════════
 
-    private static final double KICKER_POS_UP          = 0.4;
+    private static final double KICKER_POS_UP          = 0.3;
     private static final double KICKER_POS_DOWN        = 0.0;
     private static final double DOWN_VOLTAGE_THRESHOLD = 1.3;
     private static final double KICK_DETECT_DELTA      = 0.4;  // V rise to confirm kick
@@ -95,7 +95,7 @@ public class TimingCalibrationTest extends LinearOpMode {
     //  FIXED CAROUSEL CONSTANTS
     // ══════════════════════════════════════════════════════
 
-    private static final int TICKS_PER_SLOT = 780;
+    private static final int TICKS_PER_SLOT = 2731;
 
     // ══════════════════════════════════════════════════════
     //  CYCLE STATE MACHINE

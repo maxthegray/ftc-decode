@@ -248,7 +248,7 @@ public class SensorState {
     public boolean isRampTriggered() { return rampSensorTriggered; }
 
     // Voltage threshold — matches TouchSensorTest
-    public static final double RAMP_SENSOR_THRESHOLD = 1.65;
+    public static final double RAMP_SENSOR_THRESHOLD = 0.200;
 
     // Shoot order from AprilTag
     private volatile   ShootSequence.BallColor[] detectedShootOrder = null;

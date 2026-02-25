@@ -109,7 +109,7 @@ public class TrapezoidalTuningTest extends LinearOpMode {
     //  FIXED CONSTANTS
     // ══════════════════════════════════════════════════════
 
-    private static final int    TICKS_PER_SLOT  = 780;
+    private static final int    TICKS_PER_SLOT  = 2731;
     private static final double KV_MEASURE_POWER = 0.75; // power used for kV measurement
     private static final double KV_MEASURE_SECS  = 1.5; // how long to run for measurement
 

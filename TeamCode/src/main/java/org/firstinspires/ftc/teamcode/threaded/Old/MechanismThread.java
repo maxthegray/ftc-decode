@@ -12,8 +12,9 @@ public class MechanismThread extends Thread {
     private final IntakeController intake;
     private final LightsController lights;
     private final AnalogInput rampSensor;
+    private final AnalogInput rampSensor2;
 
-    // Voltage threshold for ramp sensor ("curvy") — ball present when voltage >= this
+    // Voltage threshold for ramp sensors — ball present when voltage >= this
     private static final double RAMP_SENSOR_THRESHOLD = SensorState.RAMP_SENSOR_THRESHOLD;
 
     private final ConcurrentLinkedQueue<Command> commandQueue = new ConcurrentLinkedQueue<>();
@@ -92,7 +93,8 @@ public class MechanismThread extends Thread {
         this.kicker = new KickerController(hardwareMap);
         this.intake = new IntakeController(hardwareMap);
         this.lights = new LightsController(hardwareMap);
-        this.rampSensor = hardwareMap.get(AnalogInput.class, "touch1");
+        this.rampSensor  = hardwareMap.get(AnalogInput.class, "touch1");
+        this.rampSensor2 = hardwareMap.get(AnalogInput.class, "touch2");
     }
 
     public void setSensorState(SensorState state) {
@@ -108,7 +110,9 @@ public class MechanismThread extends Thread {
             if (sensorState != null) {
                 sensorState.setCarouselSpinning(!carousel.isMainMovementDone());
                 // Publish ramp sensor reading so auto/teleop can react immediately
-                sensorState.setRampTriggered(rampSensor.getVoltage() >= RAMP_SENSOR_THRESHOLD);
+                boolean rampHit = rampSensor.getVoltage()  >= RAMP_SENSOR_THRESHOLD
+                        || rampSensor2.getVoltage() >= RAMP_SENSOR_THRESHOLD;
+                sensorState.setRampTriggered(rampHit);
             }
             // 2. Drain ALL queued commands
             processAllCommands();
