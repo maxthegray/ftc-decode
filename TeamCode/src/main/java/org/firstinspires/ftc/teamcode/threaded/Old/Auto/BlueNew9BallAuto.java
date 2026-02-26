@@ -127,9 +127,9 @@ public class BlueNew9BallAuto extends OpMode {
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(19.139, 83.749),
-                                    new Pose(58.000, 83.000)
+                                    new Pose(55, 125)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(175))
                     .build();
         }
     }
@@ -143,7 +143,7 @@ public class BlueNew9BallAuto extends OpMode {
     public static long   BALL_LINGER_TIMEOUT_MS    = 600;
 
     /** Max power during collection paths (Ball3, Ball6). */
-    public static double COLLECT_MAX_POWER = 0.5;
+    public static double COLLECT_MAX_POWER = 0.35;
 
     /** How long to keep intake running at the start of DRIVE_TO_SHOOT (ms). */
     public static long INTAKE_LINGER_DRIVING_MS = 1000;
@@ -165,6 +165,7 @@ public class BlueNew9BallAuto extends OpMode {
         COLLECTING,             // Slow path, intake on, watching ramp sensor
         HOLDING,                // Ramp fired while carousel busy: pause drive + intake
         LINGER_AT_END,          // Path ended, holding position briefly for last ball
+        EJECTING,               // Carousel full + ball on ramp: reverse intake until ramp clears
 
         DONE
     }
@@ -383,6 +384,11 @@ public class BlueNew9BallAuto extends OpMode {
             // Ramp fires while carousel busy → pause drive + stop intake (HOLDING).
             // Path ends or full → done collecting.
             case COLLECTING:
+                if (full && rampTriggered) {
+                    follower.breakFollowing();
+                    state = State.EJECTING;
+                    break;
+                }
                 if (full) {
                     finishCollection();
                     break;
@@ -390,7 +396,7 @@ public class BlueNew9BallAuto extends OpMode {
 
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
-                if (rampTriggered && !mechIdle) {
+                if (rampTriggered && !mechIdle && intakeSlotOccupied()) {
                     // New ball committed to ramp, carousel still indexing — hold it
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
                     follower.breakFollowing();
@@ -399,7 +405,6 @@ public class BlueNew9BallAuto extends OpMode {
                 }
 
                 if (!follower.isBusy()) {
-                    // End of collection path — linger briefly in case a ball is mid-ramp
                     stateTimer.resetTimer();
                     state = State.LINGER_AT_END;
                 }
@@ -408,6 +413,10 @@ public class BlueNew9BallAuto extends OpMode {
             // Path ended. Hold still with intake on for BALL_LINGER_TIMEOUT_MS in case
             // a ball is still rolling in, then finish regardless.
             case LINGER_AT_END:
+                if (full && rampTriggered) {
+                    state = State.EJECTING;
+                    break;
+                }
                 if (full) {
                     finishCollection();
                     break;
@@ -415,7 +424,7 @@ public class BlueNew9BallAuto extends OpMode {
 
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
-                if (rampTriggered && !mechIdle) {
+                if (rampTriggered && !mechIdle && intakeSlotOccupied()) {
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
                     state = State.HOLDING;
                     break;
@@ -429,19 +438,33 @@ public class BlueNew9BallAuto extends OpMode {
             // Carousel busy — intake stopped, ball held on ramp by still wheel.
             // Resume as soon as carousel is idle and there's room for the ball.
             case HOLDING:
-                mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
-
+                if (full && rampTriggered) {
+                    state = State.EJECTING;
+                    break;
+                }
                 if (full) {
                     finishCollection();
                     break;
                 }
 
+                mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
+
                 if (mechIdle) {
-                    // Carousel done — resume drive and intake
                     setCollectSpeed();
                     follower.followPath(getCollectionPath(), true);
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
                     state = State.COLLECTING;
+                }
+                break;
+
+            // Carousel full and a ball is on the ramp — reverse intake until ramp clears.
+            // Once clear, finish collection normally.
+            case EJECTING:
+                mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.OUT);
+
+                if (!rampTriggered) {
+                    mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
+                    finishCollection();
                 }
                 break;
 
@@ -615,6 +638,11 @@ public class BlueNew9BallAuto extends OpMode {
     }
 
     // ======================== HELPERS ========================
+
+    private boolean intakeSlotOccupied() {
+        ShootSequence.BallColor c = sensorState.getPositionColor(SensorState.POS_INTAKE);
+        return c == ShootSequence.BallColor.GREEN || c == ShootSequence.BallColor.PURPLE;
+    }
 
     private int countBalls() {
         int count = 0;

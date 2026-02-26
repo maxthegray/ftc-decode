@@ -37,7 +37,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  * During all shoot phases, the robot uses AprilTag auto-align PID (same as teleop)
  * to hold heading on the basket target while the shooter fires.
  */
-@Autonomous(name = "Blue 9 Ball Auto", group = "Auto")
+@Autonomous(name = "Blue 6 Ball Auto", group = "Auto")
 @Configurable
 public class Blue9BallAuto extends OpMode {
 
