@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.threaded.Old.Auto;
+package org.firstinspires.ftc.teamcode.old;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -10,7 +10,6 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -24,25 +23,31 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 
 /**
- * BLUE AUTO — Shoot preloaded, collect 4-5-6, shoot, collect 1-2-3, stop.
+ * FULL AUTO (Red Alliance)
+ *
+ * Mirrored version of Blue9BallAuto.
+ * All X coordinates mirrored across field center (144 - x).
+ * All headings mirrored (180° - θ).
  *
  * Flow:
- *   ReadTagAndGoToShoot: Drive curved path while camera reads shoot order tag
- *   Shoot 0: auto-align → shoot 3 preloaded balls
- *   Intake 0: GoToBall4 → pick up Ball4, Ball5, Ball6
- *   Shoot 1: GoShoot3 → auto-align → shoot 3
- *   Intake 1: GoToBall1Position → pick up Ball1, Ball2, Ball3
- *   Done (stop in place with balls collected).
+ *   ReadTagAndGoToShoot: Drive curved path while camera reads shoot order tag, ending at shoot position
+ *   Shoot 0: auto-align → shoot 3
+ *   Intake 0: GoToBall1Position → pick up 3 balls (Ball1, Ball2, Ball3)
+ *   Shoot 1: Shoot2 → auto-align → shoot 3
+ *   Intake 1: GoToBall4 → pick up 3 balls (Ball4, Ball5, Ball6)
+ *   Shoot 2: GoShoot3 → auto-align → shoot 3
+ *   Done.
+ *
+ * During all shoot phases, the robot uses AprilTag auto-align PID (same as teleop)
+ * to hold heading on the basket target while the shooter fires.
  */
-
-@Disabled
-@Autonomous(name = "Blue 6 Ball Auto", group = "Auto")
+@Autonomous(name = "Red 6 Ball Auto", group = "Auto")
 @Configurable
-public class Blue6Ball456Auto extends OpMode {
+public class Red9BallAuto extends OpMode {
 
     // ======================== ALLIANCE CONFIG ========================
 
-    private static final int BASKET_TAG_ID = CameraThread.TAG_BLUE_BASKET;
+    private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
 
     private static final ShootSequence.BallColor[] DEFAULT_SHOOT_ORDER = {
             ShootSequence.BallColor.GREEN,
@@ -51,8 +56,10 @@ public class Blue6Ball456Auto extends OpMode {
     };
 
     // ======================== ROUTE POSES ========================
+    // All X coords mirrored: 144 - blueX
+    // All headings mirrored: 180° - blueHeading
 
-    private final Pose startPose = new Pose(25.5, 129, Math.toRadians(0));
+    private final Pose startPose = new Pose(118.5, 129, Math.toRadians(180));
 
     // ======================== PRE-BUILT PATHS ========================
 
@@ -62,114 +69,129 @@ public class Blue6Ball456Auto extends OpMode {
         public PathChain Ball1;
         public PathChain Ball2;
         public PathChain Ball3;
+        public PathChain Shoot2;
         public PathChain GoToBall4;
         public PathChain Ball4;
         public PathChain Ball5;
         public PathChain Ball6;
         public PathChain GoShoot3;
-        public PathChain ShootTeleop;
 
         public Paths(Follower follower) {
+            // Blue: (25.5,125) → (45.828,101.809) → (48,90), heading 0°→115°
+            // Red:  (118.5,125) → (98.172,101.809) → (96,90), heading 180°→65°
             ReadTagAndGoToShoot = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(25.5, 125),
-                                    new Pose(47.70056176853055, 109.8610156046814),
-                                    new Pose(58, 86)
+                                    new Pose(118.5, 125),
+                                    new Pose(98.172, 101.809),
+                                    new Pose(96, 90)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(130))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(65))
                     .build();
 
+            // Blue: (48,90) → (55.131,75.618) → (41,63), heading 115°→180°
+            // Red:  (96,90) → (88.869,75.618) → (103,63), heading 65°→0°
             GoToBall1Position = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(48, 90),
-                                    new Pose(55.131339401820576, 75.6176853055917),
-                                    new Pose(41.000, 63.000)
+                                    new Pose(96, 90),
+                                    new Pose(88.869, 75.618),
+                                    new Pose(102.000, 63.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(115), Math.toRadians(180))
+                    ).setLinearHeadingInterpolation(Math.toRadians(65), Math.toRadians(0))
                     .build();
 
+            // Blue: (41,63) → (35,63)  |  Red: (103,63) → (109,63)
             Ball1 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(41.000, 63.000),
-                                    new Pose(35.000, 63.000)
+                                    new Pose(102.000, 63.000),
+                                    new Pose(109.000, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (35,63) → (30,63)  |  Red: (109,63) → (114,63)
             Ball2 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(35.000, 63.000),
-                                    new Pose(30, 63.000)
+                                    new Pose(109.000, 63.000),
+                                    new Pose(114.000, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (30,63) → (20,63)  |  Red: (114,63) → (124,63)
             Ball3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(30, 63.000),
-                                    new Pose(20.000, 63.000)
+                                    new Pose(114.000, 63.000),
+                                    new Pose(124.000, 63.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (20,63) → (45,44) → (48,93), heading 180°→140°
+            // Red:  (124,63) → (99,44) → (96,93), heading 0°→40°
+            Shoot2 = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(124.000, 63.000),
+                                    new Pose(99.000, 44.000),
+                                    new Pose(96, 93)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(40))
+                    .build();
+
+            // Blue: (58,86) → (40.5,86), heading 140°→180°
+            // Red:  (86,86) → (103.5,86), heading 40°→0°
             GoToBall4 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(58.000, 86.000),
-                                    new Pose(40.500, 86.000)
+                                    new Pose(86.000, 86.000),
+                                    new Pose(103.500, 86.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(140), Math.toRadians(180))
+                    ).setLinearHeadingInterpolation(Math.toRadians(40), Math.toRadians(0))
                     .build();
 
+            // Blue: (40.5,86) → (36.5,86)  |  Red: (103.5,86) → (107.5,86)
             Ball4 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(40.500, 86.000),
-                                    new Pose(36.500, 86.000)
+                                    new Pose(103.500, 86.000),
+                                    new Pose(107.500, 86.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (36.5,86) → (31.5,86)  |  Red: (107.5,86) → (112.5,86)
             Ball5 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(36.500, 86.000),
-                                    new Pose(31.500, 86.000)
+                                    new Pose(107.500, 86.000),
+                                    new Pose(112.500, 86.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (31.5,86) → (21,86)  |  Red: (112.5,86) → (123,86)
             Ball6 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(31.500, 86.000),
-                                    new Pose(21.000, 86.000)
+                                    new Pose(112.500, 86.000),
+                                    new Pose(123.000, 86.000)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (24,86) → (48,110), heading 180°→140°
+            // Red:  (120,86) → (96,110), heading 0°→40°
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(24.000, 86.000),
-                                    new Pose(48.000, 90.000)
+                                    new Pose(120.000, 86.000),
+                                    new Pose(96.000, 110.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(130))
-                    .build();
-
-            ShootTeleop = follower.pathBuilder().addPath(
-                            new BezierCurve(
-                                    new Pose(20.000, 63.000),
-                                    new Pose(53.255, 73.367),
-                                    new Pose(53.500, 120.000)
-                            )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(160))
-
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(40))
                     .build();
         }
     }
 
     // ======================== TUNABLE TIMING ========================
 
-    public static long BALL_LINGER_TIMEOUT_MS = 250;
-    public static long PAUSE_AFTER_INDEX_MS = 200;
+    public static long BALL_LINGER_TIMEOUT_MS = 600;
+    public static long PAUSE_AFTER_INDEX_MS = 500;
     public static double DEFAULT_SHOOTER_VELOCITY = 130;
-    public static long BALL_AREA_SETTLE_DELAY_MS = 200;
+    public static long BALL_AREA_SETTLE_DELAY_MS = 300;
     public static long SHOOTER_SPINUP_TIMEOUT_MS = 3000;
     public static long SHOOT_SEQUENCE_TIMEOUT_MS = 15000;
 
@@ -179,15 +201,12 @@ public class Blue6Ball456Auto extends OpMode {
     // ======================== STATE MACHINE ========================
 
     private enum State {
-        // --- Tag reading + drive to first shoot ---
         TAG_READING_AND_DRIVE,
 
-        // --- Shoot phase ---
         DRIVE_TO_SHOOT,
         ALIGN_AND_SPINUP,
         SHOOTING,
 
-        // --- Intake phase ---
         DRIVE_TO_BALL_AREA,
         SETTLE_AT_BALL_AREA,
         DRIVE_TO_BALL,
@@ -200,14 +219,9 @@ public class Blue6Ball456Auto extends OpMode {
 
     private State state = State.TAG_READING_AND_DRIVE;
 
-    // Cycle tracking
-    private int shootCycle = 0;     // 0 = first shoot (preloaded), 1 = second (after 4-5-6)
-    private int intakeCycle = 0;    // 0 = balls 4-5-6, 1 = balls 1-2-3
-
-    // Current intake ball index within a row (0, 1, 2)
+    private int shootCycle = 0;
+    private int intakeCycle = 0;
     private int currentBall = 0;
-
-    // Whether we're in teleop drive mode (auto-align active)
     private boolean inTeleOpMode = false;
 
     private ShootSequence.BallColor[] shootOrder = null;
@@ -249,7 +263,7 @@ public class Blue6Ball456Auto extends OpMode {
 
         paths = new Paths(follower);
 
-        sensorState = new SensorState(SensorState.Alliance.BLUE);
+        sensorState = new SensorState(SensorState.Alliance.RED);
         mechanismThread = new MechanismThread(hardwareMap);
         mechanismThread.setSensorState(sensorState);
         controlHubI2C = new ControlHubI2CThread(sensorState, hardwareMap);
@@ -302,6 +316,8 @@ public class Blue6Ball456Auto extends OpMode {
     @Override
     public void loop() {
         mechanismThread.setBallPositions(sensorState.getAllPositions());
+        mechanismThread.enqueueCommand(
+                new MechanismThread.Command(MechanismThread.Command.Type.SHOW_LIGHTS));
 
         switch (state) {
 
@@ -357,13 +373,15 @@ public class Blue6Ball456Auto extends OpMode {
                     exitTeleOpMode();
                     shootCycle++;
 
-                    // After each shoot, go collect next batch of balls
-                    // intakeCycle 0 → balls 4-5-6, intakeCycle 1 → balls 1-2-3
-                    mechanismThread.enqueueCommand(
-                            new MechanismThread.Command(
-                                    MechanismThread.Command.Type.SET_AUTO_INDEX, true));
-                    follower.followPath(getBallAreaPath(), true);
-                    state = State.DRIVE_TO_BALL_AREA;
+                    if (shootCycle > 2) {
+                        state = State.DONE;
+                    } else {
+                        mechanismThread.enqueueCommand(
+                                new MechanismThread.Command(
+                                        MechanismThread.Command.Type.SET_AUTO_INDEX, true));
+                        follower.followPath(getBallAreaPath(), true);
+                        state = State.DRIVE_TO_BALL_AREA;
+                    }
                 }
                 break;
 
@@ -487,41 +505,29 @@ public class Blue6Ball456Auto extends OpMode {
 
     // ======================== PATH SELECTION ========================
 
-    /**
-     * Intake cycle 0 → balls 4-5-6 (GoToBall4)
-     * Intake cycle 1 → balls 1-2-3 (GoToBall1Position)
-     */
     private PathChain getBallAreaPath() {
-        return intakeCycle == 0 ? paths.GoToBall4 : paths.GoToBall1Position;
+        return intakeCycle == 0 ? paths.GoToBall1Position : paths.GoToBall4;
     }
 
-    /**
-     * Only called for shootCycle 1 (after collecting 4-5-6).
-     * GoShoot3 goes from near Ball6 end to the shoot position.
-     */
-    private PathChain getShootPath() {
-        return paths.GoShoot3;
+    private PathChain getShootPath(int cycle) {
+        return cycle == 1 ? paths.Shoot2 : paths.GoShoot3;
     }
 
-    /**
-     * Intake cycle 0 → Ball4, Ball5, Ball6
-     * Intake cycle 1 → Ball1, Ball2, Ball3
-     */
     private PathChain getBallPath(int cycle, int ball) {
         if (cycle == 0) {
-            switch (ball) {
-                case 0: return paths.Ball4;
-                case 1: return paths.Ball5;
-                case 2: return paths.Ball6;
-            }
-        } else {
             switch (ball) {
                 case 0: return paths.Ball1;
                 case 1: return paths.Ball2;
                 case 2: return paths.Ball3;
             }
+        } else {
+            switch (ball) {
+                case 0: return paths.Ball4;
+                case 1: return paths.Ball5;
+                case 2: return paths.Ball6;
+            }
         }
-        return paths.Ball4;
+        return paths.Ball1;
     }
 
     // ======================== AUTO-ALIGN ========================
@@ -628,17 +634,10 @@ public class Blue6Ball456Auto extends OpMode {
         currentBall++;
         if (currentBall >= 3 || countBalls() >= 3) {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
-
-            // After second intake (balls 1-2-3), just stop
-            if (intakeCycle >= 1) {
-                intakeCycle++;
-                state = State.DONE;
-                return;
-            }
-
-            // After first intake (balls 4-5-6), go shoot
             sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
-            follower.followPath(getShootPath(), true);
+
+            follower.followPath(getShootPath(shootCycle), true);
+
             intakeCycle++;
             state = State.DRIVE_TO_SHOOT;
             return;

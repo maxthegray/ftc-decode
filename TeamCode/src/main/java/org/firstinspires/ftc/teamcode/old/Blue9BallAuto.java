@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.threaded.Old.Auto;
+package org.firstinspires.ftc.teamcode.old;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;

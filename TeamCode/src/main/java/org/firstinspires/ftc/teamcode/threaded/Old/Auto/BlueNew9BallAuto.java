@@ -143,7 +143,7 @@ public class BlueNew9BallAuto extends OpMode {
     public static long   BALL_LINGER_TIMEOUT_MS    = 600;
 
     /** Max power during collection paths (Ball3, Ball6). */
-    public static double COLLECT_MAX_POWER = 0.35;
+    public static double COLLECT_MAX_POWER = 0.375;
 
     /** How long to keep intake running at the start of DRIVE_TO_SHOOT (ms). */
     public static long INTAKE_LINGER_DRIVING_MS = 1000;
@@ -225,6 +225,7 @@ public class BlueNew9BallAuto extends OpMode {
         sensorState     = new SensorState(SensorState.Alliance.BLUE);
         mechanismThread = new MechanismThread(hardwareMap);
         mechanismThread.setSensorState(sensorState);
+        mechanismThread.setSkipKickback(true);
         controlHubI2C   = new ControlHubI2CThread(sensorState, hardwareMap);
         expansionHubI2C = new ExpansionHubI2CThread(sensorState, hardwareMap);
         shooterThread   = new ShooterThread(sensorState, hardwareMap);

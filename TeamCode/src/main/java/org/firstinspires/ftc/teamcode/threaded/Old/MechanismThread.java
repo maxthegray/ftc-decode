@@ -14,7 +14,6 @@ public class MechanismThread extends Thread {
     private final AnalogInput rampSensor;
     private final AnalogInput rampSensor2;
 
-    // Voltage threshold for ramp sensors — ball present when voltage >= this
     private static final double RAMP_SENSOR_THRESHOLD = SensorState.RAMP_SENSOR_THRESHOLD;
 
     private final ConcurrentLinkedQueue<Command> commandQueue = new ConcurrentLinkedQueue<>();
@@ -61,7 +60,6 @@ public class MechanismThread extends Thread {
 
     private HardwareState hardwareState = HardwareState.IDLE;
     private final ElapsedTime stateTimer = new ElapsedTime();
-    private final ElapsedTime loopTimer  = new ElapsedTime();
 
     // Auto-Index
     private int pendingRotation = 0;
@@ -85,6 +83,9 @@ public class MechanismThread extends Thread {
     };
     private boolean ballWasInIntake = false;
     private boolean autoIndexEnabled = true;
+    private volatile boolean skipKickback = false;
+
+    public void setSkipKickback(boolean skip) { this.skipKickback = skip; }
 
     // Sensor state
     private volatile SensorState sensorState = null;
@@ -104,17 +105,12 @@ public class MechanismThread extends Thread {
 
     @Override
     public void run() {
-        loopTimer.reset();
         while (!killThread) {
-            double dt = Math.min(loopTimer.seconds(), 0.05);
-            loopTimer.reset();
-
-            // 1. Update carousel controller (PID needs dt)
-            carousel.update(dt);
+            // 1. Update carousel controller (for Gaussian ramping)
+            carousel.update();
 
             if (sensorState != null) {
                 sensorState.setCarouselSpinning(!carousel.isMainMovementDone());
-                // Publish ramp sensor reading so auto/teleop can react immediately
                 boolean rampHit = rampSensor.getVoltage()  >= RAMP_SENSOR_THRESHOLD
                         || rampSensor2.getVoltage() >= RAMP_SENSOR_THRESHOLD;
                 sensorState.setRampTriggered(rampHit);
@@ -406,9 +402,16 @@ public class MechanismThread extends Thread {
 
             if (rotation != 0) {
                 pendingRotation = rotation;
-                intake.reverse();
-                stateTimer.reset();
-                hardwareState = HardwareState.INTAKE_REVERSING;
+                if (skipKickback) {
+                    // Go straight to carousel rotation — no intake reverse
+                    carousel.rotateSlots(pendingRotation);
+                    autoIndexMove = true;
+                    hardwareState = HardwareState.CAROUSEL_MOVING;
+                } else {
+                    intake.reverse();
+                    stateTimer.reset();
+                    hardwareState = HardwareState.INTAKE_REVERSING;
+                }
             }
         }
     }
