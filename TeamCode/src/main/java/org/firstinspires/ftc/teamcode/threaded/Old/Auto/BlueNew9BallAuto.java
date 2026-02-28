@@ -50,7 +50,7 @@ public class BlueNew9BallAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(27.964, 128.446),
                                     new Pose(32.436, 102.731),
-                                    new Pose(54.000, 89.000)
+                                    new Pose(53.000, 89.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(125))
                     .build();
@@ -76,7 +76,7 @@ public class BlueNew9BallAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(9.888, 59.809),
                                     new Pose(45.000, 44.000),
-                                    new Pose(58.000, 83.000)
+                                    new Pose(54.000, 83.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
                     .build();
@@ -100,7 +100,7 @@ public class BlueNew9BallAuto extends OpMode {
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(19.139, 83.749),
-                                    new Pose(58, 107)
+                                    new Pose(54, 107)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(155))
                     .build();

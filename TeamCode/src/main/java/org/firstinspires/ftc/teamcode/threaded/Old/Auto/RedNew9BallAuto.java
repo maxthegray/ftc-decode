@@ -53,7 +53,7 @@ public class RedNew9BallAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(116.036, 128.446),
                                     new Pose(111.564, 102.731),
-                                    new Pose(90.000, 89.000)
+                                    new Pose(93.000, 89.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(55))
                     .build();
@@ -64,7 +64,7 @@ public class RedNew9BallAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(90.000, 89.000),
                                     new Pose(84.311, 66.841),
-                                    new Pose(95.825, 60.183)
+                                    new Pose(96.5, 60.183)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
                     .build();
@@ -73,7 +73,7 @@ public class RedNew9BallAuto extends OpMode {
             // Red:  tangent heading (direction is now rightward, tangent handles it)
             Ball3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(95.825, 60.183),
+                                    new Pose(96.5, 60.183),
                                     new Pose(134.112, 59.809)
                             )
                     ).setTangentHeadingInterpolation()
@@ -85,7 +85,7 @@ public class RedNew9BallAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(134.112, 59.809),
                                     new Pose(99.000, 44.000),
-                                    new Pose(86.000, 83.000)
+                                    new Pose(90.000, 83.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(40))
                     .build();
@@ -114,7 +114,7 @@ public class RedNew9BallAuto extends OpMode {
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(124.861, 83.749),
-                                    new Pose(86, 107)
+                                    new Pose(90, 107)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(25))
                     .build();

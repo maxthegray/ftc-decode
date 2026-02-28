@@ -91,6 +91,7 @@ public class MechanismThread extends Thread {
     };
     private boolean ballWasInIntake = false;
     private boolean autoIndexEnabled = true;
+    private boolean lastMoveWasStall = false;  // true when carousel settled due to stall, not target reached
     private volatile boolean skipKickback = false;
 
     public void setSkipKickback(boolean skip) { this.skipKickback = skip; }
@@ -171,11 +172,18 @@ public class MechanismThread extends Thread {
                             : carousel.isSettled();
                     if (done) {
                         autoIndexMove = false;
-                        // Reset to false so any ball already at intake when we return to
-                        // IDLE is treated as a fresh arrival by the rising-edge detector.
-                        // The cooldown below prevents a spurious re-trigger by waiting for
-                        // the I2C sensors to reflect the new carousel position first.
-                        ballWasInIntake = false;
+                        lastMoveWasStall = carousel.isStalled();
+                        if (lastMoveWasStall) {
+                            // Carousel stalled — ball is still at intake.
+                            // Keep ballWasInIntake = true so the rising-edge detector
+                            // does NOT treat the same ball as a fresh arrival and
+                            // immediately retry. Driver must correct manually.
+                            ballWasInIntake = true;
+                        } else {
+                            // Normal completion — reset so a ball already at intake
+                            // when we return to IDLE is treated as a fresh arrival.
+                            ballWasInIntake = false;
+                        }
                         postIndexCooldownTicks = POST_INDEX_COOLDOWN_TICKS;
                         hardwareState = HardwareState.IDLE;
                     }
@@ -399,10 +407,17 @@ public class MechanismThread extends Thread {
         // we keep updating ballWasInIntake so the baseline is accurate when it expires.
         if (postIndexCooldownTicks > 0) {
             postIndexCooldownTicks--;
-            ballWasInIntake = false; // stay false the whole cooldown — don't peek at sensors
-//            ballWasInIntake = hasBallAtIntake();
+            if (!lastMoveWasStall) {
+                ballWasInIntake = false; // stay false the whole cooldown — don't peek at sensors
+            }
+            // If lastMoveWasStall, leave ballWasInIntake = true so the same ball
+            // doesn't re-trigger auto-index once the cooldown expires.
             return;
         }
+
+        // Cooldown finished — clear the stall flag so normal indexing can resume
+        // once the ball leaves intake and a new one arrives.
+        lastMoveWasStall = false;
 
         if (!autoIndexEnabled || isFull() || !kicker.isDown()) {
             ballWasInIntake = hasBallAtIntake();

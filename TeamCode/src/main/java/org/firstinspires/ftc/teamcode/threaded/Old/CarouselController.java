@@ -10,6 +10,11 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  * Once within TOLERANCE ticks the motor power is cut entirely — no jitter.
  * Only re-engages if the carousel drifts beyond TOLERANCE again.
  *
+ * Stall detection: if the encoder moves less than STALL_TICK_THRESHOLD ticks
+ * over STALL_TIME_SECONDS while the motor is actively driving, the carousel is
+ * assumed to have skipped/jammed. The motor is stopped and the controller
+ * force-settles so MechanismThread can react (re-issue the command, alert, etc.).
+ *
  * ── TUNING ──────────────────────────────────────────────────────────────────
  *  Start with kP only (kI = kD = 0).
  *
@@ -38,6 +43,18 @@ public class CarouselController {
     public static final int TICKS_PER_SLOT = 2731;
     public static final int NUDGE_TICKS    = 50;
 
+    // ── Stall detection ──────────────────────────────────────────────────────
+    // If the encoder moves less than STALL_TICK_THRESHOLD ticks within
+    // STALL_TIME_SECONDS while the motor is outside the deadband, it is
+    // considered stalled and the controller force-settles.
+    private static final int    STALL_TICK_THRESHOLD = 2500;    // ticks — min expected movement
+    private static final double STALL_TIME_SECONDS   = .5;   // seconds — observation window
+
+    // Stall state — reset on every new move()
+    private int    stallCheckPos  = 0;    // encoder position at start of current window
+    private double stallTimer     = 0;    // seconds accumulated in current window
+    private boolean stalled       = false; // latches true when a stall is detected
+
     // ── PID state ────────────────────────────────────────────────────────────
     private int    targetTicks   = 0;
     private double integral      = 0;
@@ -54,10 +71,15 @@ public class CarouselController {
     }
 
     public void move(int deltaTicks) {
-        targetTicks += deltaTicks;
-        integral   = 0;   // reset integral on new move
-        lastError  = targetTicks - motor.getCurrentPosition();
-        wasMoving  = true;
+        targetTicks  += deltaTicks;
+        integral      = 0;
+        lastError     = targetTicks - motor.getCurrentPosition();
+        wasMoving     = true;
+
+        // Reset stall detection for the new movement
+        stallCheckPos = motor.getCurrentPosition();
+        stallTimer    = 0;
+        stalled       = false;
     }
 
     public void rotateSlots(int slots) { move(slots * TICKS_PER_SLOT); }
@@ -76,13 +98,41 @@ public class CarouselController {
         // Inside deadband — cut power and stay settled
         if (Math.abs(error) <= TOLERANCE) {
             motor.setPower(0);
-            wasMoving = false;
-            integral  = 0;
-            lastError = error;
+            wasMoving  = false;
+            integral   = 0;
+            lastError  = error;
+            stallTimer = 0;             // reset stall window; we're done moving
+            stallCheckPos = curPos;
+            stalled    = false;
             return;
         }
 
-        // PID
+        // ── Stall detection ──────────────────────────────────────────────────
+        // Only check while the motor is actively being commanded (wasMoving).
+        // Accumulate time; if the encoder hasn't moved enough within the window,
+        // force-settle and latch stalled=true so callers can react.
+        stallTimer += dt;
+
+        if (stallTimer >= STALL_TIME_SECONDS) {
+            int ticksMoved = Math.abs(curPos - stallCheckPos);
+
+            if (ticksMoved < STALL_TICK_THRESHOLD) {
+                // Stall confirmed — stop and force-settle
+                motor.setPower(0);
+                wasMoving = false;
+                integral  = 0;
+                stalled   = true;
+                // Snap targetTicks to current position so isSettled() returns true
+                targetTicks = curPos;
+                return;
+            }
+
+            // Enough movement — reset the window for the next check
+            stallCheckPos = curPos;
+            stallTimer    = 0;
+        }
+
+        // ── PID ──────────────────────────────────────────────────────────────
         integral  += error * dt;
         integral   = clamp(integral, -INTEGRAL_LIMIT, INTEGRAL_LIMIT);
         double derivative = (error - lastError) / dt;
@@ -103,6 +153,13 @@ public class CarouselController {
     }
 
     public boolean isMainMovementDone() { return isSettled(); }
+
+    /**
+     * True if the last movement ended due to a detected stall rather than
+     * reaching the target. Cleared automatically on the next move() call.
+     * MechanismThread can poll this to decide whether to retry or alert.
+     */
+    public boolean isStalled() { return stalled; }
 
     public int getCurrentTicks() { return motor.getCurrentPosition(); }
     public int getTargetTicks()  { return targetTicks; }
