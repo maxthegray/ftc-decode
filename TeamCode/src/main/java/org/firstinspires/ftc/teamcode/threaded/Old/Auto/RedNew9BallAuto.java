@@ -22,11 +22,11 @@ import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 
-@Autonomous(name = "Blue 9 Ball Auto", group = "Auto")
+@Autonomous(name = "Red 9 Ball Auto", group = "Auto")
 @Configurable
-public class BlueNew9BallAuto extends OpMode {
+public class RedNew9BallAuto extends OpMode {
 
-    private static final int BASKET_TAG_ID = CameraThread.TAG_BLUE_BASKET;
+    private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
 
     private static final ShootSequence.BallColor[] DEFAULT_SHOOT_ORDER = {
             ShootSequence.BallColor.GREEN,
@@ -34,7 +34,8 @@ public class BlueNew9BallAuto extends OpMode {
             ShootSequence.BallColor.PURPLE
     };
 
-    private final Pose startPose = new Pose(27.964, 128.446, Math.toRadians(0));
+    // Blue start was (27.964, 128.446, 0°). Mirrored: X = 144 - 27.964 = 116.036, heading = 180°
+    private final Pose startPose = new Pose(116.036, 128.446, Math.toRadians(180));
 
     public static class Paths {
         public PathChain ReadTagAndGoToShoot;
@@ -46,63 +47,76 @@ public class BlueNew9BallAuto extends OpMode {
         public PathChain GoShoot3;
 
         public Paths(Follower follower) {
+            // Blue: (27.964,128.446) → (32.436,102.731) → (54.000,89.000), heading 0°→125°
+            // Red:  X mirrored (144-X), heading π-θ → 180°→55°
             ReadTagAndGoToShoot = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(27.964, 128.446),
-                                    new Pose(32.436, 102.731),
-                                    new Pose(54.000, 89.000)
+                                    new Pose(116.036, 128.446),
+                                    new Pose(111.564, 102.731),
+                                    new Pose(90.000, 89.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(125))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(55))
                     .build();
 
+            // Blue: (54.000,89.000) → (59.689,66.841) → (48.175,60.183), heading 135°→180°
+            // Red:  heading 45°→0°
             GoToBall1Position = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(54.000, 89.000),
-                                    new Pose(59.689, 66.841),
-                                    new Pose(48.175, 60.183)
+                                    new Pose(90.000, 89.000),
+                                    new Pose(84.311, 66.841),
+                                    new Pose(95.825, 60.183)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(180))
+                    ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
                     .build();
 
+            // Blue: (48.175,60.183) → (9.888,59.809), tangent
+            // Red:  tangent heading (direction is now rightward, tangent handles it)
             Ball3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(48.175, 60.183),
-                                    new Pose(9.888, 59.809)
+                                    new Pose(95.825, 60.183),
+                                    new Pose(134.112, 59.809)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (9.888,59.809) → (45.000,44.000) → (58.000,83.000), heading 180°→140°
+            // Red:  heading 0°→40°
             Shoot2 = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(9.888, 59.809),
-                                    new Pose(45.000, 44.000),
-                                    new Pose(58.000, 83.000)
+                                    new Pose(134.112, 59.809),
+                                    new Pose(99.000, 44.000),
+                                    new Pose(86.000, 83.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(40))
                     .build();
 
+            // Blue: (58.000,83.000) → (48.689,84.311), heading 140°→180°
+            // Red:  heading 40°→0°
             GoToBall4 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(58.000, 83.000),
-                                    new Pose(48.689, 84.311)
+                                    new Pose(86.000, 83.000),
+                                    new Pose(95.311, 84.311)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(140), Math.toRadians(180))
+                    ).setLinearHeadingInterpolation(Math.toRadians(40), Math.toRadians(0))
                     .build();
 
+            // Blue: (48.689,84.311) → (19.139,83.749), tangent
             Ball6 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(48.689, 84.311),
-                                    new Pose(19.139, 83.749)
+                                    new Pose(95.311, 84.311),
+                                    new Pose(124.861, 83.749)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            // Blue: (19.139,83.749) → (58,107), heading 180°→155°
+            // Red:  heading 0°→25°
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(19.139, 83.749),
-                                    new Pose(58, 107)
+                                    new Pose(124.861, 83.749),
+                                    new Pose(86, 107)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(155))
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(25))
                     .build();
         }
     }
@@ -173,7 +187,7 @@ public class BlueNew9BallAuto extends OpMode {
 
         paths = new Paths(follower);
 
-        sensorState     = new SensorState(SensorState.Alliance.BLUE);
+        sensorState     = new SensorState(SensorState.Alliance.RED);
         mechanismThread = new MechanismThread(hardwareMap);
         mechanismThread.setSensorState(sensorState);
         mechanismThread.setSkipKickback(true);
@@ -556,12 +570,6 @@ public class BlueNew9BallAuto extends OpMode {
         }
     }
 
-    /**
-     * Count balls across all carousel slots.
-     * Treats UNKNOWN as occupied — if a sensor reads UNKNOWN, something is
-     * physically in that slot even if color classification failed.
-     * Consistent with MechanismThread.isFull().
-     */
     private int countBalls() {
         int count = 0;
         for (ShootSequence.BallColor c : sensorState.getAllPositions()) {

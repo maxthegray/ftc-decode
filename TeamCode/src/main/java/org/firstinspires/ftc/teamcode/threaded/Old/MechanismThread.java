@@ -67,9 +67,12 @@ public class MechanismThread extends Thread {
     private static final long KICKBACK_MS = 50;
 
     // Post-index cooldown — wait for I2C sensors to reflect the new carousel position
-    // before re-arming the rising-edge detector. 5 ticks × 10ms loop = 50ms (matches I2C_UPDATE_MS).
+    // before re-arming the rising-edge detector.
+    // I2C_UPDATE_MS = 50ms, but the I2C thread sleep is not synchronized with the carousel
+    // finishing, so we need a real margin: 15 ticks × 10ms = 150ms (~3x the I2C cycle).
+    // This also covers the OpMode loop's setBallPositions() propagation lag.
     private int postIndexCooldownTicks = 0;
-    private static final int POST_INDEX_COOLDOWN_TICKS = 5;
+    private static final int POST_INDEX_COOLDOWN_TICKS = 15;
 
     // Shoot plan (works for single shots and full sequences)
     private int[] shotPlan = null;
@@ -95,6 +98,11 @@ public class MechanismThread extends Thread {
     // Sensor state
     private volatile SensorState sensorState = null;
 
+    // Hold-to-nudge (bypasses command queue, overrides CAROUSEL_MOVING)
+    private volatile int nudgeRequest = 0;
+    private final ElapsedTime nudgeTimer = new ElapsedTime();
+    private static final long NUDGE_INTERVAL_MS = 80;
+
     public MechanismThread(HardwareMap hardwareMap) {
         this.carousel = new CarouselController(hardwareMap);
         this.kicker = new KickerController(hardwareMap);
@@ -113,6 +121,21 @@ public class MechanismThread extends Thread {
         while (!killThread) {
             // 1. Update carousel controller (for Gaussian ramping)
             carousel.update();
+
+            // Hold-to-nudge: fires every NUDGE_INTERVAL_MS while the driver holds the button.
+            // Allowed in IDLE or CAROUSEL_MOVING (overrides any micro-adjust).
+            // Blocked during shoot/kick sequences to avoid mid-sequence interference.
+            if (nudgeRequest != 0
+                    && (hardwareState == HardwareState.IDLE
+                    || hardwareState == HardwareState.CAROUSEL_MOVING)
+                    && nudgeTimer.milliseconds() >= NUDGE_INTERVAL_MS) {
+                carousel.nudge(nudgeRequest);
+                autoIndexMove = false;          // use isSettled(), not isMainMovementDone()
+                if (hardwareState == HardwareState.IDLE) {
+                    hardwareState = HardwareState.CAROUSEL_MOVING;
+                }
+                nudgeTimer.reset();
+            }
 
             if (sensorState != null) {
                 sensorState.setCarouselSpinning(!carousel.isMainMovementDone());
@@ -280,11 +303,8 @@ public class MechanismThread extends Thread {
                 break;
 
             case NUDGE:
-                if (hardwareState == HardwareState.IDLE && carousel.isSettled()
-                        && cmd.value instanceof Integer) {
-                    carousel.nudge((Integer) cmd.value);
-                    hardwareState = HardwareState.CAROUSEL_MOVING;
-                }
+                // Superseded by setNudgeRequest() / hold-to-nudge.
+                // Queued NUDGE commands are intentionally ignored.
                 break;
 
             case SHOOT_SINGLE:
@@ -394,16 +414,29 @@ public class MechanismThread extends Thread {
         ballWasInIntake = hasBall;
 
         if (ballJustArrived) {
-            ShootSequence.BallColor[] pos = ballPositions;
-            int rotation = 0;
+            // Read back-slot occupancy directly from sensorState to avoid the
+            // two-hop lag (I2C thread → sensorState → OpMode setBallPositions → ballPositions).
+            // ballPositions[0] (intake) is fine for the rising-edge check above, but
+            // [1] and [2] need to be as fresh as possible for the rotation decision.
+            ShootSequence.BallColor backLeft  = (sensorState != null)
+                    ? sensorState.getPositionColor(SensorState.POS_BACK_LEFT)
+                    : ballPositions[1];
+            ShootSequence.BallColor backRight = (sensorState != null)
+                    ? sensorState.getPositionColor(SensorState.POS_BACK_RIGHT)
+                    : ballPositions[2];
 
-            if (pos[1] == ShootSequence.BallColor.EMPTY && pos[2] == ShootSequence.BallColor.EMPTY) {
-                rotation = -1;
-            } else if (pos[1] != ShootSequence.BallColor.EMPTY && pos[2] == ShootSequence.BallColor.EMPTY) {
-                rotation = -1;
-            } else if (pos[1] == ShootSequence.BallColor.EMPTY && pos[2] != ShootSequence.BallColor.EMPTY) {
-                rotation = 1;
+            boolean leftEmpty  = (backLeft  == ShootSequence.BallColor.EMPTY);
+            boolean rightEmpty = (backRight == ShootSequence.BallColor.EMPTY);
+
+            int rotation = 0;
+            if (leftEmpty && rightEmpty) {
+                rotation = -1;                    // both empty → prefer back-right
+            } else if (!leftEmpty && rightEmpty) {
+                rotation = -1;                    // left full, right empty → back-right
+            } else if (leftEmpty) {
+                rotation = 1;                     // left empty, right full → back-left
             }
+            // both full → rotation stays 0 → isFull() should have caught this above
 
             if (rotation != 0) {
                 pendingRotation = rotation;
@@ -428,13 +461,22 @@ public class MechanismThread extends Thread {
 
     private boolean hasBallAtIntake() {
         ShootSequence.BallColor c = ballPositions[0];
-        return c == ShootSequence.BallColor.GREEN || c == ShootSequence.BallColor.PURPLE;
+        return c != ShootSequence.BallColor.EMPTY;
     }
 
     private boolean isFull() {
+        // Read directly from sensorState (same source as rotation decision) so both
+        // agree on slot occupancy. Falls back to ballPositions if sensorState unavailable.
+        if (sensorState != null) {
+            int count = 0;
+            for (int i = 0; i < 3; i++) {
+                if (sensorState.getPositionColor(i) != ShootSequence.BallColor.EMPTY) count++;
+            }
+            return count >= 3;
+        }
         int count = 0;
         for (ShootSequence.BallColor c : ballPositions) {
-            if (c == ShootSequence.BallColor.GREEN || c == ShootSequence.BallColor.PURPLE) count++;
+            if (c != ShootSequence.BallColor.EMPTY) count++;
         }
         return count >= 3;
     }
@@ -470,6 +512,11 @@ public class MechanismThread extends Thread {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    /** Set the active nudge direction while a button is held; call with 0 when released. */
+    public void setNudgeRequest(int ticks) {
+        this.nudgeRequest = ticks;
     }
 
     public void enqueueCommand(Command cmd) {

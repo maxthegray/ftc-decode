@@ -38,7 +38,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  * Intake cycle 1 has two segments: ball6 (seg 0) then goforwardabit (seg 1).
  * When seg 0 ends and the robot isn't full, it rolls directly into seg 1.
  */
-@Autonomous(name = "Blue 9 Ball Auto Alt", group = "Auto")
+@Autonomous(name = "Blue 9 fa", group = "Auto")
 @Configurable
 public class Blue9BallFar extends OpMode {
 

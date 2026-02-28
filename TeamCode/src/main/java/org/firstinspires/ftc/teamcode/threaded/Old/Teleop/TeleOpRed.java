@@ -44,8 +44,6 @@ public class TeleOpRed extends LinearOpMode {
     private boolean prevX2 = false;
     private boolean prevDpadLeft2 = false;
     private boolean prevDpadRight2 = false;
-    private boolean prevDpadUp2 = false;
-    private boolean prevDpadDown2 = false;
     private boolean prevLTrigger2 = false;  // Shoot green
     private boolean prevRTrigger2 = false;  // Shoot purple
     private boolean prevB2 = false;         // Show lights
@@ -188,20 +186,14 @@ public class TeleOpRed extends LinearOpMode {
         }
         prevDpadRight2 = gamepad2.dpad_right;
 
-        // D-Pad Up / Down — Nudge carousel (small adjustment)
-        if (gamepad2.dpad_up && !prevDpadUp2) {
-            mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.NUDGE,
-                            CarouselController.NUDGE_TICKS));
+        // D-Pad Up / Down — Hold to nudge carousel continuously
+        if (gamepad2.dpad_up) {
+            mechanismThread.setNudgeRequest(CarouselController.NUDGE_TICKS);
+        } else if (gamepad2.dpad_down) {
+            mechanismThread.setNudgeRequest(-CarouselController.NUDGE_TICKS);
+        } else {
+            mechanismThread.setNudgeRequest(0);
         }
-        prevDpadUp2 = gamepad2.dpad_up;
-
-        if (gamepad2.dpad_down && !prevDpadDown2) {
-            mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.NUDGE,
-                            -CarouselController.NUDGE_TICKS));
-        }
-        prevDpadDown2 = gamepad2.dpad_down;
 
         // Circle (B) — Show ball colors on lights
         if (gamepad2.circle && !prevB2) {
