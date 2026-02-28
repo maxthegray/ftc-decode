@@ -23,29 +23,24 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 
 /**
- * FULL AUTO (Blue Alliance)
+ * FULL AUTO (Blue Alliance) — Alternate Path Layout
  *
  * Flow:
- *   ReadTagAndGoToShoot: curved path, reads shoot order tag, ends at shoot position
+ *   initialreadtagandshoot: drive to shoot position, reads shoot order tag
  *   Shoot 0:  auto-align → shoot 3
- *   Intake 0: GoToBall1Position → Ball3 (single continuous collection path)
- *   Shoot 1:  Shoot2 → auto-align → shoot 3
- *   Intake 1: GoToBall4 → Ball6 (single continuous collection path)
- *   Shoot 2:  GoShoot3 → auto-align → shoot 3
+ *   Intake 0: gotoball1position → ball3
+ *   Shoot 1:  goshoot2 → auto-align → shoot 3
+ *   Intake 1: gotoball4 → ball6 → goforwardabit  (two collection segments)
+ *   Shoot 2:  goshoot3 → auto-align → shoot 3
  *   Done.
  *
- * Collection paths (Ball3, Ball6) use ramp-sensor-driven intake logic:
- *   - Intake runs continuously while driving slowly (0.5 max power).
- *   - If a ball hits the ramp while the carousel is still indexing the previous
- *     ball, drive pauses and intake stops — wheel holds the new ball in place.
- *   - Once the carousel is idle, drive and intake resume automatically.
- *   - If 3 balls are collected at any point, collection ends immediately.
- *
- * All non-collection paths run at full power.
+ * collectionSegment tracks which collecting path we're on within a cycle.
+ * Intake cycle 1 has two segments: ball6 (seg 0) then goforwardabit (seg 1).
+ * When seg 0 ends and the robot isn't full, it rolls directly into seg 1.
  */
-@Autonomous(name = "Blue 9 Ball Auto", group = "Auto")
+@Autonomous(name = "Blue 9 Ball Auto Alt", group = "Auto")
 @Configurable
-public class BlueNew9BallAuto extends OpMode {
+public class Blue9BallFar extends OpMode {
 
     // ======================== ALLIANCE CONFIG ========================
 
@@ -59,77 +54,86 @@ public class BlueNew9BallAuto extends OpMode {
 
     // ======================== ROUTE POSES ========================
 
-    private final Pose startPose = new Pose(27.964, 128.446, Math.toRadians(0));
+    private final Pose startPose = new Pose(42.195, 9.187, Math.toRadians(90));
 
     // ======================== PRE-BUILT PATHS ========================
 
     public static class Paths {
-        public PathChain ReadTagAndGoToShoot;
-        public PathChain GoToBall1Position;
-        public PathChain Ball3;
-        public PathChain Shoot2;
-        public PathChain GoToBall4;
-        public PathChain Ball6;
-        public PathChain GoShoot3;
+        public PathChain initialreadtagandshoot;
+        public PathChain gotoball1position;
+        public PathChain ball3;
+        public PathChain goshoot2;
+        public PathChain gotoball4;
+        public PathChain ball6;
+        public PathChain goforwardabit;
+        public PathChain goshoot3;
 
         public Paths(Follower follower) {
-            ReadTagAndGoToShoot = follower.pathBuilder().addPath(
+            initialreadtagandshoot = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(42.195, 9.187),
+                                    new Pose(56.637, 17.259)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(110))
+                    .build();
+
+            gotoball1position = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(27.964, 128.446),
-                                    new Pose(32.436, 102.731),
-                                    new Pose(54.000, 89.000)
+                                    new Pose(56.637, 17.259),
+                                    new Pose(48.408, 25.125),
+                                    new Pose(43.267, 35.438)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(125))
+                    ).setLinearHeadingInterpolation(Math.toRadians(110), Math.toRadians(180))
                     .build();
 
-            GoToBall1Position = follower.pathBuilder().addPath(
+            ball3 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(43.267, 35.438),
+                                    new Pose(10.505, 35.638)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                    .build();
+
+            goshoot2 = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(54.000, 89.000),
-                                    new Pose(59.689, 66.841),
-                                    new Pose(48.175, 60.183)
+                                    new Pose(10.505, 35.638),
+                                    new Pose(44.547, 33.375),
+                                    new Pose(54.000, 17.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(180))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(108))
                     .build();
 
-            Ball3 = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(48.175, 60.183),
-                                    new Pose(9.888, 59.809)
-                            )
-                    ).setTangentHeadingInterpolation()
-                    .build();
-
-            Shoot2 = follower.pathBuilder().addPath(
+            gotoball4 = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(9.888, 59.809),
-                                    new Pose(45.000, 44.000),
-                                    new Pose(58.000, 83.000)
+                                    new Pose(54.000, 17.000),
+                                    new Pose(44.839, 45.030),
+                                    new Pose(12.000, 24.187)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
+                    ).setLinearHeadingInterpolation(Math.toRadians(120), Math.toRadians(230))
                     .build();
 
-            GoToBall4 = follower.pathBuilder().addPath(
+            ball6 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(58.000, 83.000),
-                                    new Pose(48.689, 84.311)
+                                    new Pose(12.000, 24.187),
+                                    new Pose(12.000, 9.500)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(140), Math.toRadians(180))
+                    ).setLinearHeadingInterpolation(Math.toRadians(230), Math.toRadians(230))
                     .build();
 
-            Ball6 = follower.pathBuilder().addPath(
+            goforwardabit = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(48.689, 84.311),
-                                    new Pose(19.139, 83.749)
+                                    new Pose(12.000, 9.500),
+                                    new Pose(9.363, 8.239)
                             )
-                    ).setTangentHeadingInterpolation()
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                     .build();
 
-            GoShoot3 = follower.pathBuilder().addPath(
+            goshoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(19.139, 83.749),
-                                    new Pose(55, 125)
+                                    new Pose(9.363, 8.239),
+                                    new Pose(57.000, 15.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(175))
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(110))
                     .build();
         }
     }
@@ -142,7 +146,7 @@ public class BlueNew9BallAuto extends OpMode {
     public static long   ALIGN_TIMEOUT_MS          = 700;
     public static long   BALL_LINGER_TIMEOUT_MS    = 600;
 
-    /** Max power during collection paths (Ball3, Ball6). */
+    /** Max power during collection paths (ball3, ball6, goforwardabit). */
     public static double COLLECT_MAX_POWER = .3;
 
     /** How long to keep intake running at the start of DRIVE_TO_SHOOT (ms). */
@@ -173,10 +177,10 @@ public class BlueNew9BallAuto extends OpMode {
     private State state = State.TAG_READING_AND_DRIVE;
 
     // Cycle tracking
-    private int shootCycle  = 0;   // 0 = first shoot, 1 = second, 2 = third
-    private int intakeCycle = 0;   // 0 = Ball3 row, 1 = Ball6 row
+    private int shootCycle        = 0;  // 0 = first shoot, 1 = second, 2 = third
+    private int intakeCycle       = 0;  // 0 = ball3 row, 1 = ball6/goforwardabit row
+    private int collectionSegment = 0;  // within a cycle: 0 = first collect path, 1 = second (goforwardabit)
 
-    // Whether we're in teleop drive mode (auto-align active)
     private boolean inTeleOpMode = false;
 
     private ShootSequence.BallColor[] shootOrder = null;
@@ -263,14 +267,15 @@ public class BlueNew9BallAuto extends OpMode {
 
         sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
 
-        shootCycle  = 0;
-        intakeCycle = 0;
-        inTeleOpMode = false;
+        shootCycle        = 0;
+        intakeCycle       = 0;
+        collectionSegment = 0;
+        inTeleOpMode      = false;
         intakeLingeringDuringDrive = false;
-        shootOrder = null;
+        shootOrder        = null;
 
         setFullSpeed();
-        follower.followPath(paths.ReadTagAndGoToShoot, true);
+        follower.followPath(paths.initialreadtagandshoot, true);
         state = State.TAG_READING_AND_DRIVE;
     }
 
@@ -349,6 +354,7 @@ public class BlueNew9BallAuto extends OpMode {
                     if (shootCycle > 2) {
                         state = State.DONE;
                     } else {
+                        collectionSegment = 0;
                         mechanismThread.enqueueCommand(
                                 new MechanismThread.Command(
                                         MechanismThread.Command.Type.SET_AUTO_INDEX, true));
@@ -362,7 +368,6 @@ public class BlueNew9BallAuto extends OpMode {
 
             // ==================== INTAKE PHASE ====================
 
-            // Approach path — full speed, intake already on from SHOOTING exit
             case DRIVE_TO_BALL_AREA:
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
                 if (!follower.isBusy()) {
@@ -371,7 +376,6 @@ public class BlueNew9BallAuto extends OpMode {
                 }
                 break;
 
-            // Brief pause to let the robot settle before collection starts
             case SETTLE_AT_BALL_AREA:
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_AREA_SETTLE_DELAY_MS) {
@@ -381,9 +385,6 @@ public class BlueNew9BallAuto extends OpMode {
                 }
                 break;
 
-            // Slow path — intake on, watching ramp sensor.
-            // Ramp fires while carousel busy → pause drive + stop intake (HOLDING).
-            // Path ends or full → done collecting.
             case COLLECTING:
                 if (full && rampTriggered) {
                     follower.breakFollowing();
@@ -391,14 +392,13 @@ public class BlueNew9BallAuto extends OpMode {
                     break;
                 }
                 if (full) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                     break;
                 }
 
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
                 if (rampTriggered && !mechIdle && intakeSlotOccupied()) {
-                    // New ball committed to ramp, carousel still indexing — hold it
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
                     follower.breakFollowing();
                     state = State.HOLDING;
@@ -411,15 +411,13 @@ public class BlueNew9BallAuto extends OpMode {
                 }
                 break;
 
-            // Path ended. Hold still with intake on for BALL_LINGER_TIMEOUT_MS in case
-            // a ball is still rolling in, then finish regardless.
             case LINGER_AT_END:
                 if (full && rampTriggered) {
                     state = State.EJECTING;
                     break;
                 }
                 if (full) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                     break;
                 }
 
@@ -432,19 +430,17 @@ public class BlueNew9BallAuto extends OpMode {
                 }
 
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_LINGER_TIMEOUT_MS) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                 }
                 break;
 
-            // Carousel busy — intake stopped, ball held on ramp by still wheel.
-            // Resume as soon as carousel is idle and there's room for the ball.
             case HOLDING:
                 if (full && rampTriggered) {
                     state = State.EJECTING;
                     break;
                 }
                 if (full) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                     break;
                 }
 
@@ -458,14 +454,12 @@ public class BlueNew9BallAuto extends OpMode {
                 }
                 break;
 
-            // Carousel full and a ball is on the ramp — reverse intake until ramp clears.
-            // Once clear, finish collection normally.
             case EJECTING:
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.OUT);
 
                 if (!rampTriggered) {
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
-                    finishCollection();
+                    advanceCollectionOrFinish();
                 }
                 break;
 
@@ -479,6 +473,7 @@ public class BlueNew9BallAuto extends OpMode {
         panelsTelemetry.debug("State",        state.name());
         panelsTelemetry.debug("Shoot Cycle",  String.valueOf(shootCycle));
         panelsTelemetry.debug("Intake Cycle", String.valueOf(intakeCycle));
+        panelsTelemetry.debug("Collect Seg",  String.valueOf(collectionSegment));
         panelsTelemetry.debug("Balls",        String.format("%d / 3", countBalls()));
         panelsTelemetry.debug("Ramp Sensor",  rampTriggered ? "TRIGGERED" : "clear");
         panelsTelemetry.debug("Mech",         mechIdle ? "IDLE" : mechanismThread.getStateDebug());
@@ -519,24 +514,48 @@ public class BlueNew9BallAuto extends OpMode {
 
     // ======================== PATH SELECTION ========================
 
+    /** Approach (full-speed) path for the current intake cycle. */
     private PathChain getBallAreaPath() {
-        return intakeCycle == 0 ? paths.GoToBall1Position : paths.GoToBall4;
+        return intakeCycle == 0 ? paths.gotoball1position : paths.gotoball4;
     }
 
+    /**
+     * Current collection (slow) path.
+     * Cycle 0:  seg 0 → ball3
+     * Cycle 1:  seg 0 → ball6,  seg 1 → goforwardabit
+     */
     private PathChain getCollectionPath() {
-        return intakeCycle == 0 ? paths.Ball3 : paths.Ball6;
+        if (intakeCycle == 0) return paths.ball3;
+        return collectionSegment == 0 ? paths.ball6 : paths.goforwardabit;
+    }
+
+    /** True when a second collection segment exists and hasn't been run yet. */
+    private boolean hasNextCollectionSegment() {
+        return intakeCycle == 1 && collectionSegment == 0;
     }
 
     private PathChain getShootPath() {
-        return shootCycle == 1 ? paths.Shoot2 : paths.GoShoot3;
+        return shootCycle == 1 ? paths.goshoot2 : paths.goshoot3;
     }
 
-    // ======================== COLLECTION FINISH ========================
+    // ======================== COLLECTION ADVANCE / FINISH ========================
 
     /**
-     * Called when collection is complete (path done, full, or linger timed out).
-     * Stops intake, arms shooter, starts linger timer, drives to shoot position.
+     * Called whenever a collection phase ends (path done + linger, full, or ejected).
+     * If a second collection segment is still available (goforwardabit), rolls into it.
+     * Otherwise, arms the shooter and drives to the shoot position.
      */
+    private void advanceCollectionOrFinish() {
+        if (hasNextCollectionSegment()) {
+            collectionSegment = 1;
+            setCollectSpeed();
+            follower.followPath(getCollectionPath(), true);
+            state = State.COLLECTING;
+        } else {
+            finishCollection();
+        }
+    }
+
     private void finishCollection() {
         sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
         intakeLingeringDuringDrive = true;
@@ -626,9 +645,9 @@ public class BlueNew9BallAuto extends OpMode {
     }
 
     private boolean isShootingDone() {
-        boolean mechIdle    = mechanismThread.getStateDebug().contains("IDLE");
+        boolean mechIdle     = mechanismThread.getStateDebug().contains("IDLE");
         boolean startupGrace = stateTimer.getElapsedTimeSeconds() < 0.5;
-        boolean timedOut    = stateTimer.getElapsedTimeSeconds() * 1000 >= SHOOT_SEQUENCE_TIMEOUT_MS;
+        boolean timedOut     = stateTimer.getElapsedTimeSeconds() * 1000 >= SHOOT_SEQUENCE_TIMEOUT_MS;
         return (!startupGrace && mechIdle) || timedOut;
     }
 

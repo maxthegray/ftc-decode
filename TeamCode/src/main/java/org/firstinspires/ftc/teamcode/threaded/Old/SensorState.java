@@ -76,8 +76,8 @@ public class SensorState {
 
     // Distance thresholds (mm) — ball is present when distance < threshold
     // TODO: Tune these values on the actual robot
-    public static double THRESHOLD_INTAKE_A = 80.0; //120 idle 33
-    public static double THRESHOLD_INTAKE_B = 80.0; //93 idle  33
+    public static double THRESHOLD_INTAKE_A = 75.0; //120 idle 33
+    public static double THRESHOLD_INTAKE_B = 75.0; //93 idle  33
     public static double THRESHOLD_BACK_LEFT_A = 40;
     public static double THRESHOLD_BACK_LEFT_B = 70;
     public static double THRESHOLD_BACK_RIGHT_A = 120; //87 idle 17 with ball

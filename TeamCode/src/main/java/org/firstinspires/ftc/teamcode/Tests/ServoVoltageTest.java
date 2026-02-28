@@ -11,9 +11,10 @@ public class ServoVoltageTest extends LinearOpMode {
 
     static final double HOME_POSITION   = 0.0;
     static final double HOME_VOLTAGE    = 1.128;
-    static final double FLICK_POSITION  = 0.3;
-    static final double FLICK_VOLTAGE   = 1.433;
+    static final double FLICK_POSITION  = 0.4217;
+    static final double FLICK_VOLTAGE   = 1.568;
     static final double THRESHOLD       = 0.05; // volts
+    static final double ADJUST_SPEED    = 0.05; // position units per loop tick
 
     ElapsedTime flickTimer = new ElapsedTime();
     double lastFlickMs = 0;
@@ -24,6 +25,7 @@ public class ServoVoltageTest extends LinearOpMode {
         AnalogInput feedback = hardwareMap.get(AnalogInput.class, "flick");
 
         boolean prevCircle = false;
+        double manualPosition = HOME_POSITION;
 
         axon.setPosition(HOME_POSITION);
         waitForStart();
@@ -33,12 +35,24 @@ public class ServoVoltageTest extends LinearOpMode {
 
             if (gamepad1.circle && !prevCircle) {
                 lastFlickMs = flick(axon, feedback);
+                manualPosition = HOME_POSITION; // sync after flick
+            } else {
+                // Left stick Y adjusts position (up = increase, negate because stick up = negative)
+                double stick = -gamepad1.left_stick_y;
+                if (Math.abs(stick) > 0.05) {
+                    manualPosition += stick * ADJUST_SPEED;
+                    manualPosition = Math.max(0.0, Math.min(1.0, manualPosition));
+                    axon.setPosition(manualPosition);
+                }
             }
             prevCircle = gamepad1.circle;
 
-            telemetry.addData("Voltage",         "%.3f V", voltage);
+            telemetry.addData("Voltage",          "%.3f V", voltage);
+            telemetry.addData("Servo Position",   "%.4f",   manualPosition);
             telemetry.addData("Last Round Trip",  "%.1f ms", lastFlickMs);
-            telemetry.addLine("[Circle] Flick");
+            telemetry.addLine("---");
+            telemetry.addLine("[Circle]        Flick");
+            telemetry.addLine("[Left Stick Y]  Adjust position");
             telemetry.update();
         }
     }
@@ -46,13 +60,19 @@ public class ServoVoltageTest extends LinearOpMode {
     double flick(Servo axon, AnalogInput feedback) {
         flickTimer.reset();
 
-        // Go to flick position, wait for voltage to rise to target
         axon.setPosition(FLICK_POSITION);
-        while (opModeIsActive() && feedback.getVoltage() < FLICK_VOLTAGE - THRESHOLD);
+        while (opModeIsActive() && feedback.getVoltage() < FLICK_VOLTAGE - THRESHOLD) {
+            telemetry.addData("Phase",   "Flicking...");
+            telemetry.addData("Voltage", "%.3f V", feedback.getVoltage());
+            telemetry.update();
+        }
 
-        // Return home, wait for voltage to drop back to home
         axon.setPosition(HOME_POSITION);
-        while (opModeIsActive() && feedback.getVoltage() > HOME_VOLTAGE + THRESHOLD);
+        while (opModeIsActive() && feedback.getVoltage() > HOME_VOLTAGE + THRESHOLD) {
+            telemetry.addData("Phase",   "Returning...");
+            telemetry.addData("Voltage", "%.3f V", feedback.getVoltage());
+            telemetry.update();
+        }
 
         return flickTimer.milliseconds();
     }

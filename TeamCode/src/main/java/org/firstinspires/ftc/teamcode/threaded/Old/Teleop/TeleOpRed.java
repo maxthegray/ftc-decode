@@ -115,7 +115,12 @@ public class TeleOpRed extends LinearOpMode {
 
         // Intake control — volatile state, not queued
         // Intake takes priority over shooter — they must never run simultaneously
-        if (gamepad1.right_trigger > 0.1) {
+        // Intake control — volatile state, not queued
+// Intake takes priority over shooter — they must never run simultaneously
+// Blocked while carousel is indexing to prevent jamming
+        boolean carouselSettled = mechanismThread.isCarouselSettled();
+
+        if (gamepad1.right_trigger > 0.1 && carouselSettled) {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
             sensorState.setShooterTargetVelocity(0);  // Kill shooter when intaking
             if (currentMode != RobotMode.INTAKING) switchMode(RobotMode.INTAKING);

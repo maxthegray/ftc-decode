@@ -15,10 +15,11 @@ public class KickerController {
 
     // Servo positions
     private static final double POS_DOWN = 0.0;
-    private static final double POS_UP = 0.3;
+    private static final double POS_UP = 0.31;
 
     // Voltage threshold - kicker is "down" when voltage <= this
-    public static final double DOWN_VOLTAGE_THRESHOLD = 1.3;
+    public static final double DOWN_VOLTAGE_THRESHOLD = 1.29;
+    public static final double UP_VOLTAGE_THRESHOLD   = 1.4;
 
     public KickerController(HardwareMap hardwareMap) {
         servo = hardwareMap.get(Servo.class, "flicker_servo");
@@ -40,6 +41,14 @@ public class KickerController {
      */
     public void down() {
         servo.setPosition(POS_DOWN);
+    }
+
+    /**
+     * Is the kicker physically in the up position?
+     * Based on voltage feedback, not commanded position.
+     */
+    public boolean isUp() {
+        return getVoltage() >= UP_VOLTAGE_THRESHOLD;
     }
 
     /**

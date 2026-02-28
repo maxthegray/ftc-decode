@@ -66,6 +66,11 @@ public class MechanismThread extends Thread {
     private boolean autoIndexMove = false;  // true when CAROUSEL_MOVING was triggered by auto-index
     private static final long KICKBACK_MS = 50;
 
+    // Post-index cooldown — wait for I2C sensors to reflect the new carousel position
+    // before re-arming the rising-edge detector. 5 ticks × 10ms loop = 50ms (matches I2C_UPDATE_MS).
+    private int postIndexCooldownTicks = 0;
+    private static final int POST_INDEX_COOLDOWN_TICKS = 5;
+
     // Shoot plan (works for single shots and full sequences)
     private int[] shotPlan = null;
     private int currentShotIndex = 0;
@@ -130,9 +135,6 @@ public class MechanismThread extends Thread {
                 // ---- AUTO-INDEX: kickback then rotate ----
                 case INTAKE_REVERSING:
                     if (stateTimer.milliseconds() >= KICKBACK_MS) {
-                        // CHANGED: Resume the intake request instead of stopping.
-                        // If the caller set intakeRequest=IN, the intake keeps running
-                        // during carousel movement instead of going dead.
                         applyIntakeRequest();
                         carousel.rotateSlots(pendingRotation);
                         autoIndexMove = true;
@@ -141,26 +143,24 @@ public class MechanismThread extends Thread {
                     break;
 
                 case CAROUSEL_MOVING:
-                    // Auto-index moves: resume intake as soon as main ramp is done
-                    // Manual moves: wait for full settling
-                    if (autoIndexMove) {
-                        // Keep applying intake request during auto-index carousel movement
-                        // so the intake stays on if the caller wants it on
-                        applyIntakeRequest();
-                    }
-
                     boolean done = autoIndexMove
                             ? carousel.isMainMovementDone()
                             : carousel.isSettled();
                     if (done) {
                         autoIndexMove = false;
+                        // Reset to false so any ball already at intake when we return to
+                        // IDLE is treated as a fresh arrival by the rising-edge detector.
+                        // The cooldown below prevents a spurious re-trigger by waiting for
+                        // the I2C sensors to reflect the new carousel position first.
+                        ballWasInIntake = false;
+                        postIndexCooldownTicks = POST_INDEX_COOLDOWN_TICKS;
                         hardwareState = HardwareState.IDLE;
                     }
                     break;
 
                 // ---- MANUAL KICK ----
                 case KICKER_UP:
-                    if (stateTimer.milliseconds() > 200) {
+                    if (kicker.isUp() || stateTimer.milliseconds() > 500) {
                         kicker.down();
                         stateTimer.reset();
                         hardwareState = HardwareState.KICKER_DOWN;
@@ -168,7 +168,6 @@ public class MechanismThread extends Thread {
                     break;
 
                 case KICKER_DOWN: {
-                    // Wait for BOTH kicker physically down AND safety delay
                     boolean kickerPhysicallyDown = kicker.isDown();
                     boolean safetyDelayPassed = stateTimer.milliseconds() >= KICKER_SAFETY_DELAY_MS;
                     boolean timedOut = stateTimer.milliseconds() >= KICKER_TIMEOUT_MS;
@@ -198,7 +197,7 @@ public class MechanismThread extends Thread {
                     break;
 
                 case SHOOT_KICKER_UP:
-                    if (stateTimer.milliseconds() > 100) {
+                    if (kicker.isUp() || stateTimer.milliseconds() > 500) {
                         kicker.down();
                         stateTimer.reset();
                         hardwareState = HardwareState.SHOOT_KICKER_DOWN;
@@ -206,7 +205,6 @@ public class MechanismThread extends Thread {
                     break;
 
                 case SHOOT_KICKER_DOWN: {
-                    // Wait for BOTH kicker physically down AND safety delay
                     boolean kickerPhysicallyDown = kicker.isDown();
                     boolean safetyDelayPassed = stateTimer.milliseconds() >= KICKER_SAFETY_DELAY_MS;
                     boolean timedOut = stateTimer.milliseconds() >= KICKER_TIMEOUT_MS;
@@ -318,7 +316,7 @@ public class MechanismThread extends Thread {
                     int[] plan = ShootSequence.calculatePlan(ballPositions, targetOrder);
 
                     if (plan == null) {
-                        break;  // Can't build plan for given positions/order
+                        break;
                     }
 
                     intake.stop();
@@ -354,9 +352,6 @@ public class MechanismThread extends Thread {
 
     // ==================== SHOOT HELPERS ====================
 
-    /**
-     * Start the next shot in the plan: rotate if needed, otherwise kick directly.
-     */
     private void advanceToNextShot() {
         int rotation = shotPlan[currentShotIndex];
         if (rotation == 0) {
@@ -379,6 +374,16 @@ public class MechanismThread extends Thread {
     // ==================== AUTO-INDEX ====================
 
     private void updateAutoIndex() {
+        // After a carousel move, wait for I2C sensors to reflect the new carousel
+        // position before re-arming the rising-edge detector. During the cooldown
+        // we keep updating ballWasInIntake so the baseline is accurate when it expires.
+        if (postIndexCooldownTicks > 0) {
+            postIndexCooldownTicks--;
+            ballWasInIntake = false; // stay false the whole cooldown — don't peek at sensors
+//            ballWasInIntake = hasBallAtIntake();
+            return;
+        }
+
         if (!autoIndexEnabled || isFull() || !kicker.isDown()) {
             ballWasInIntake = hasBallAtIntake();
             return;
@@ -403,7 +408,6 @@ public class MechanismThread extends Thread {
             if (rotation != 0) {
                 pendingRotation = rotation;
                 if (skipKickback) {
-                    // Go straight to carousel rotation — no intake reverse
                     carousel.rotateSlots(pendingRotation);
                     autoIndexMove = true;
                     hardwareState = HardwareState.CAROUSEL_MOVING;
