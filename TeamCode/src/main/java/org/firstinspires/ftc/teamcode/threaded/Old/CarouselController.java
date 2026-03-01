@@ -12,7 +12,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  *
  * Stall detection: if the encoder moves less than STALL_TICK_THRESHOLD ticks
  * over STALL_TIME_SECONDS while the motor is actively driving, the carousel is
- * assumed to have skipped/jammed. The motor is stopped and the controller
+ * assumed to have skipped/jammed.
+ * The motor is stopped and the controller
  * force-settles so MechanismThread can react (re-issue the command, alert, etc.).
  *
  * ── TUNING ──────────────────────────────────────────────────────────────────
@@ -31,9 +32,9 @@ public class CarouselController {
     private final DcMotorEx motor;
 
     // ── Tune these ───────────────────────────────────────────────────────────
-    private static final double KP        = 0.002;   // proportional
+    private static final double KP        = 0.0012;   // proportional
     private static final double KI        = 0.00000; // integral — set to 0 initially
-    private static final double KD        = 0.0000;  // derivative — set to 0 initially
+    private static final double KD        = 0.000001;  // derivative — set to 0 initially
     private static final double MAX_POWER = .98;     // clamp output
 
     // ── Deadband ─────────────────────────────────────────────────────────────

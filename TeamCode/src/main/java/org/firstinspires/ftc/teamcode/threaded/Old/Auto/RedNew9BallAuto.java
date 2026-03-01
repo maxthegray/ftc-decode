@@ -64,7 +64,7 @@ public class RedNew9BallAuto extends OpMode {
                             new BezierCurve(
                                     new Pose(90.000, 89.000),
                                     new Pose(84.311, 66.841),
-                                    new Pose(96.5, 60.183)
+                                    new Pose(96, 60.183)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
                     .build();

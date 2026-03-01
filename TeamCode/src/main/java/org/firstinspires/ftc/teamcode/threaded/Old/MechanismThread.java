@@ -66,13 +66,18 @@ public class MechanismThread extends Thread {
     private boolean autoIndexMove = false;  // true when CAROUSEL_MOVING was triggered by auto-index
     private static final long KICKBACK_MS = 50;
 
-    // Post-index cooldown — wait for I2C sensors to reflect the new carousel position
-    // before re-arming the rising-edge detector.
-    // I2C_UPDATE_MS = 50ms, but the I2C thread sleep is not synchronized with the carousel
-    // finishing, so we need a real margin: 15 ticks × 10ms = 150ms (~3x the I2C cycle).
-    // This also covers the OpMode loop's setBallPositions() propagation lag.
-    private int postIndexCooldownTicks = 0;
-    private static final int POST_INDEX_COOLDOWN_TICKS = 15;
+    // Post-move cooldown — suppress auto-index after any carousel move so stale I2C
+    // readings don't trigger a second index before the sensors reflect the new position.
+    // I2C updates every 50ms; 6 ticks (~60ms) is enough for one fresh read.
+    // Stalls get a much longer window so the driver can correct before a retry.
+    private int postMoveCooldownTicks = 0;
+    private static final int POST_MOVE_COOLDOWN_TICKS  = 6;   // ~60ms  — normal move
+    private static final int POST_STALL_COOLDOWN_TICKS = 30;  // ~300ms — stall
+
+    // Intake debounce — ball must be present continuously for this long before indexing.
+    private final ElapsedTime intakeDebounceTimer = new ElapsedTime();
+    private boolean ballDebouncing = false;
+    private static final long INTAKE_DEBOUNCE_MS = 75;
 
     // Shoot plan (works for single shots and full sequences)
     private int[] shotPlan = null;
@@ -89,9 +94,7 @@ public class MechanismThread extends Thread {
             ShootSequence.BallColor.EMPTY,
             ShootSequence.BallColor.EMPTY
     };
-    private boolean ballWasInIntake = false;
     private boolean autoIndexEnabled = true;
-    private boolean lastMoveWasStall = false;  // true when carousel settled due to stall, not target reached
     private volatile boolean skipKickback = false;
 
     public void setSkipKickback(boolean skip) { this.skipKickback = skip; }
@@ -172,19 +175,9 @@ public class MechanismThread extends Thread {
                             : carousel.isSettled();
                     if (done) {
                         autoIndexMove = false;
-                        lastMoveWasStall = carousel.isStalled();
-                        if (lastMoveWasStall) {
-                            // Carousel stalled — ball is still at intake.
-                            // Keep ballWasInIntake = true so the rising-edge detector
-                            // does NOT treat the same ball as a fresh arrival and
-                            // immediately retry. Driver must correct manually.
-                            ballWasInIntake = true;
-                        } else {
-                            // Normal completion — reset so a ball already at intake
-                            // when we return to IDLE is treated as a fresh arrival.
-                            ballWasInIntake = false;
-                        }
-                        postIndexCooldownTicks = POST_INDEX_COOLDOWN_TICKS;
+                        postMoveCooldownTicks = carousel.isStalled()
+                                ? POST_STALL_COOLDOWN_TICKS
+                                : POST_MOVE_COOLDOWN_TICKS;
                         hardwareState = HardwareState.IDLE;
                     }
                     break;
@@ -402,68 +395,69 @@ public class MechanismThread extends Thread {
     // ==================== AUTO-INDEX ====================
 
     private void updateAutoIndex() {
-        // After a carousel move, wait for I2C sensors to reflect the new carousel
-        // position before re-arming the rising-edge detector. During the cooldown
-        // we keep updating ballWasInIntake so the baseline is accurate when it expires.
-        if (postIndexCooldownTicks > 0) {
-            postIndexCooldownTicks--;
-            if (!lastMoveWasStall) {
-                ballWasInIntake = false; // stay false the whole cooldown — don't peek at sensors
-            }
-            // If lastMoveWasStall, leave ballWasInIntake = true so the same ball
-            // doesn't re-trigger auto-index once the cooldown expires.
+        // After a stall, hold off briefly so we don't instantly retry on the same ball.
+        if (postMoveCooldownTicks > 0) {
+            postMoveCooldownTicks--;
+            ballDebouncing = false;  // don't let stale data start the debounce timer
             return;
         }
-
-        // Cooldown finished — clear the stall flag so normal indexing can resume
-        // once the ball leaves intake and a new one arrives.
-        lastMoveWasStall = false;
 
         if (!autoIndexEnabled || isFull() || !kicker.isDown()) {
-            ballWasInIntake = hasBallAtIntake();
+            ballDebouncing = false;
             return;
         }
 
-        boolean hasBall = hasBallAtIntake();
-        boolean ballJustArrived = hasBall && !ballWasInIntake;
-        ballWasInIntake = hasBall;
+        if (!hasBallAtIntake()) {
+            // Ball gone — reset debounce so a future arrival starts fresh.
+            ballDebouncing = false;
+            return;
+        }
 
-        if (ballJustArrived) {
-            // Read back-slot occupancy directly from sensorState to avoid the
-            // two-hop lag (I2C thread → sensorState → OpMode setBallPositions → ballPositions).
-            // ballPositions[0] (intake) is fine for the rising-edge check above, but
-            // [1] and [2] need to be as fresh as possible for the rotation decision.
-            ShootSequence.BallColor backLeft  = (sensorState != null)
-                    ? sensorState.getPositionColor(SensorState.POS_BACK_LEFT)
-                    : ballPositions[1];
-            ShootSequence.BallColor backRight = (sensorState != null)
-                    ? sensorState.getPositionColor(SensorState.POS_BACK_RIGHT)
-                    : ballPositions[2];
+        // Ball is present — start or continue the debounce window.
+        if (!ballDebouncing) {
+            ballDebouncing = true;
+            intakeDebounceTimer.reset();
+            return;
+        }
 
-            boolean leftEmpty  = (backLeft  == ShootSequence.BallColor.EMPTY);
-            boolean rightEmpty = (backRight == ShootSequence.BallColor.EMPTY);
+        // Still waiting for the debounce window to expire.
+        if (intakeDebounceTimer.milliseconds() < INTAKE_DEBOUNCE_MS) return;
 
-            int rotation = 0;
-            if (leftEmpty && rightEmpty) {
-                rotation = -1;                    // both empty → prefer back-right
-            } else if (!leftEmpty && rightEmpty) {
-                rotation = -1;                    // left full, right empty → back-right
-            } else if (leftEmpty) {
-                rotation = 1;                     // left empty, right full → back-left
-            }
-            // both full → rotation stays 0 → isFull() should have caught this above
+        // Debounce passed — ball has been present for at least INTAKE_DEBOUNCE_MS.
+        ballDebouncing = false;
 
-            if (rotation != 0) {
-                pendingRotation = rotation;
-                if (skipKickback) {
-                    carousel.rotateSlots(pendingRotation);
-                    autoIndexMove = true;
-                    hardwareState = HardwareState.CAROUSEL_MOVING;
-                } else {
-                    intake.reverse();
-                    stateTimer.reset();
-                    hardwareState = HardwareState.INTAKE_REVERSING;
-                }
+        // Ball is at intake and there's an open slot — figure out where to rotate.
+        // Read directly from sensorState for freshest possible back-slot data.
+        ShootSequence.BallColor backLeft  = (sensorState != null)
+                ? sensorState.getPositionColor(SensorState.POS_BACK_LEFT)
+                : ballPositions[1];
+        ShootSequence.BallColor backRight = (sensorState != null)
+                ? sensorState.getPositionColor(SensorState.POS_BACK_RIGHT)
+                : ballPositions[2];
+
+        boolean leftEmpty  = (backLeft  == ShootSequence.BallColor.EMPTY);
+        boolean rightEmpty = (backRight == ShootSequence.BallColor.EMPTY);
+
+        int rotation = 0;
+        if (leftEmpty && rightEmpty) {
+            rotation = -1;                    // both empty → prefer back-right
+        } else if (!leftEmpty && rightEmpty) {
+            rotation = -1;                    // left full, right empty → back-right
+        } else if (leftEmpty) {
+            rotation = 1;                     // left empty, right full → back-left
+        }
+        // both full → isFull() should have caught this above
+
+        if (rotation != 0) {
+            pendingRotation = rotation;
+            if (skipKickback) {
+                carousel.rotateSlots(pendingRotation);
+                autoIndexMove = true;
+                hardwareState = HardwareState.CAROUSEL_MOVING;
+            } else {
+                intake.reverse();
+                stateTimer.reset();
+                hardwareState = HardwareState.INTAKE_REVERSING;
             }
         }
     }
