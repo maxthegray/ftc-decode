@@ -22,9 +22,25 @@ import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 
-@Autonomous(name = "Red Close", group = "Auto")
+/**
+ * FULL AUTO (Red Alliance) — Mirrored from Blue9BallFar.
+ *
+ * Mirror rule: X  →  144 - X,  heading  →  180° - θ
+ *
+ * Flow:
+ *   initialreadtagandshoot: drive to shoot position, reads shoot order tag
+ *   Shoot 0:  auto-align → shoot 3
+ *   Intake 0: gotoball1position → ball3
+ *   Shoot 1:  goshoot2 → auto-align → shoot 3
+ *   Intake 1: gotoball4 → ball6 → goforwardabit  (two collection segments)
+ *   Shoot 2:  goshoot3 → auto-align → shoot 3
+ *   Done.
+ */
+@Autonomous(name = "Red Far", group = "Auto")
 @Configurable
-public class RedNew9BallAuto extends OpMode {
+public class Red9BallFar extends OpMode {
+
+    // ======================== ALLIANCE CONFIG ========================
 
     private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
 
@@ -34,120 +50,154 @@ public class RedNew9BallAuto extends OpMode {
             ShootSequence.BallColor.PURPLE
     };
 
-    // Blue start was (27.964, 128.446, 0°). Mirrored: X = 144 - 27.964 = 116.036, heading = 180°
-    private final Pose startPose = new Pose(116.036, 128.446, Math.toRadians(180));
+    // ======================== ROUTE POSES ========================
+
+    // Blue: (42.195, 9.187, 90°)  →  X: 144-42.195=101.805, heading: 180-90=90°
+    private final Pose startPose = new Pose(101.805, 9.187, Math.toRadians(90));
+
+    // ======================== PRE-BUILT PATHS ========================
 
     public static class Paths {
-        public PathChain ReadTagAndGoToShoot;
-        public PathChain GoToBall1Position;
-        public PathChain Ball3;
-        public PathChain Shoot2;
-        public PathChain GoToBall4;
-        public PathChain Ball6;
-        public PathChain GoShoot3;
+        public PathChain initialreadtagandshoot;
+        public PathChain gotoball1position;
+        public PathChain ball3;
+        public PathChain goshoot2;
+        public PathChain gotoball4;
+        public PathChain ball6;
+        public PathChain goforwardabit;
+        public PathChain goshoot3;
 
         public Paths(Follower follower) {
-            // Blue: (27.964,128.446) → (32.436,102.731) → (54.000,89.000), heading 0°→125°
-            // Red:  X mirrored (144-X), heading π-θ → 180°→55°
-            ReadTagAndGoToShoot = follower.pathBuilder().addPath(
+            // Blue: (42.195,9.187)→(56.637,17.259), heading 90°→110°
+            // Red:  X flipped,                      heading 90°→70°
+            initialreadtagandshoot = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(101.805, 9.187),
+                                    new Pose(88.363,  17.259)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(70))
+                    .build();
+
+            // Blue: (56.637,17.259)→(48.408,25.125)→(43.267,35.438), heading 110°→180°
+            // Red:                                                     heading  70°→  0°
+            gotoball1position = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(116.036, 128.446),
-                                    new Pose(111.564, 102.731),
-                                    new Pose(93.000, 89.000)
+                                    new Pose(87.363,  17.259),
+                                    new Pose(95.592,  25.125),
+                                    new Pose(100.733, 35.438)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(55))
+                    ).setLinearHeadingInterpolation(Math.toRadians(70), Math.toRadians(0))
                     .build();
 
-            // Blue: (54.000,89.000) → (59.689,66.841) → (48.175,60.183), heading 135°→180°
-            // Red:  heading 45°→0°
-            GoToBall1Position = follower.pathBuilder().addPath(
+            // Blue: (43.267,35.438)→(10.505,35.638), heading 180°→180°
+            // Red:                                   heading   0°→  0°
+            ball3 = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(100.733, 35.438),
+                                    new Pose(133.495, 35.638)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                    .build();
+
+            // Blue: (10.505,35.638)→(44.547,33.375)→(54.000,17.000), heading 180°→108°
+            // Red:                                                     heading   0°→ 72°
+            goshoot2 = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(90.000, 89.000),
-                                    new Pose(84.311, 66.841),
-                                    new Pose(96, 60.183)
+                                    new Pose(133.495, 35.638),
+                                    new Pose(99.453,  33.375),
+                                    new Pose(91.000,  17.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(72))
                     .build();
 
-            // Blue: (48.175,60.183) → (9.888,59.809), tangent
-            // Red:  tangent heading (direction is now rightward, tangent handles it)
-            Ball3 = follower.pathBuilder().addPath(
-                            new BezierLine(
-                                    new Pose(96.5, 60.183),
-                                    new Pose(134.112, 59.809)
-                            )
-                    ).setTangentHeadingInterpolation()
-                    .build();
-
-            // Blue: (9.888,59.809) → (45.000,44.000) → (58.000,83.000), heading 180°→140°
-            // Red:  heading 0°→40°
-            Shoot2 = follower.pathBuilder().addPath(
+            // Blue: (54.000,17.000)→(44.839,45.030)→(12.000,24.187), heading 120°→230°
+            // Red:                                                     heading  60°→-50°
+            gotoball4 = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(134.112, 59.809),
-                                    new Pose(99.000, 44.000),
-                                    new Pose(90.000, 83.000)
+                                    new Pose(90.000,  17.000),
+                                    new Pose(99.161,  45.030),
+                                    new Pose(132.000, 24.187)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(40))
+                    ).setLinearHeadingInterpolation(Math.toRadians(60), Math.toRadians(-50))
                     .build();
 
-            // Blue: (58.000,83.000) → (48.689,84.311), heading 140°→180°
-            // Red:  heading 40°→0°
-            GoToBall4 = follower.pathBuilder().addPath(
+            // Blue: (12.000,24.187)→(12.000,9.500), heading 230°→230°
+            // Red:                                  heading -50°→-50°
+            ball6 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(86.000, 83.000),
-                                    new Pose(95.311, 84.311)
+                                    new Pose(132.000, 24.187),
+                                    new Pose(132.000,  9.500)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(40), Math.toRadians(0))
+                    ).setLinearHeadingInterpolation(Math.toRadians(-50), Math.toRadians(-50))
                     .build();
 
-            // Blue: (48.689,84.311) → (19.139,83.749), tangent
-            Ball6 = follower.pathBuilder().addPath(
+            // Blue: (12.000,9.500)→(9.363,8.239), heading 180°→180°
+            // Red:                                 heading   0°→  0°
+            goforwardabit = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(95.311, 84.311),
-                                    new Pose(124.861, 83.749)
+                                    new Pose(132.000, 9.500),
+                                    new Pose(134.637, 8.239)
                             )
-                    ).setTangentHeadingInterpolation()
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                     .build();
 
-            // Blue: (19.139,83.749) → (58,107), heading 180°→155°
-            // Red:  heading 0°→25°
-            GoShoot3 = follower.pathBuilder().addPath(
+            // Blue: (9.363,8.239)→(57.000,15.000), heading 180°→110°
+            // Red:                                  heading   0°→ 70°
+            goshoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(124.861, 83.749),
-                                    new Pose(90, 107)
+                                    new Pose(134.637, 8.239),
+                                    new Pose(87.000,  15.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(25))
+                    ).setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(70))
                     .build();
         }
     }
+
+    // ======================== TUNABLE CONSTANTS ========================
 
     public static double DEFAULT_SHOOTER_VELOCITY  = 130;
     public static long   BALL_AREA_SETTLE_DELAY_MS = 300;
     public static long   SHOOT_SEQUENCE_TIMEOUT_MS = 15000;
     public static long   ALIGN_TIMEOUT_MS          = 700;
     public static long   BALL_LINGER_TIMEOUT_MS    = 600;
+
+    /** Max power during collection paths (ball3, ball6, goforwardabit). */
     public static double COLLECT_MAX_POWER = .3;
-    public static long   INTAKE_LINGER_DRIVING_MS = 1000;
+
+    /** How long to keep intake running at the start of DRIVE_TO_SHOOT (ms). */
+    public static long INTAKE_LINGER_DRIVING_MS = 1000;
+
+    // ======================== STATE MACHINE ========================
 
     private enum State {
+        // --- Tag reading + first drive ---
         TAG_READING_AND_DRIVE,
+
+        // --- Shoot phase (all 3 shoots) ---
         DRIVE_TO_SHOOT,
         ALIGN_AND_SPINUP,
         SHOOTING,
-        DRIVE_TO_BALL_AREA,
-        SETTLE_AT_BALL_AREA,
-        COLLECTING,
-        HOLDING,
-        LINGER_AT_END,
-        EJECTING,
+
+        // --- Intake phase (both intake cycles) ---
+        DRIVE_TO_BALL_AREA,     // Approach path — full speed, intake on
+        SETTLE_AT_BALL_AREA,    // Brief pause before starting collection
+        COLLECTING,             // Slow path, intake on, watching ramp sensor
+        HOLDING,                // Ramp fired while carousel busy: pause drive + intake
+        LINGER_AT_END,          // Path ended, holding position briefly for last ball
+        EJECTING,               // Carousel full + ball on ramp: reverse intake until ramp clears
+
         DONE
     }
 
     private State state = State.TAG_READING_AND_DRIVE;
 
-    private int shootCycle  = 0;
-    private int intakeCycle = 0;
+    // Cycle tracking
+    private int shootCycle        = 0;  // 0 = first shoot, 1 = second, 2 = third
+    private int intakeCycle       = 0;  // 0 = ball3 row, 1 = ball6/goforwardabit row
+    private int collectionSegment = 0;  // within cycle 1: 0 = ball6, 1 = goforwardabit
+
     private boolean inTeleOpMode = false;
+
     private ShootSequence.BallColor[] shootOrder = null;
 
     private Follower              follower;
@@ -166,8 +216,10 @@ public class RedNew9BallAuto extends OpMode {
 
     private boolean intakeLingeringDuringDrive = false;
 
-    private double integralSum  = 0;
-    private double lastError    = 0;
+    // ======================== AUTO-ALIGN PID ========================
+
+    private double integralSum   = 0;
+    private double lastError     = 0;
     private boolean hasLastError = false;
     private final ElapsedTime pidTimer = new ElapsedTime();
 
@@ -175,11 +227,13 @@ public class RedNew9BallAuto extends OpMode {
     private static final double OUTPUT_MIN     = -1.0;
     private static final double OUTPUT_MAX     =  1.0;
 
+    // ======================== LIFECYCLE ========================
+
     @Override
     public void init() {
-        panelsTelemetry  = PanelsTelemetry.INSTANCE.getTelemetry();
-        stateTimer       = new Timer();
-        opmodeTimer      = new Timer();
+        panelsTelemetry   = PanelsTelemetry.INSTANCE.getTelemetry();
+        stateTimer        = new Timer();
+        opmodeTimer       = new Timer();
         intakeLingerTimer = new Timer();
 
         follower = Constants.createFollower(hardwareMap);
@@ -228,14 +282,15 @@ public class RedNew9BallAuto extends OpMode {
 
         sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
 
-        shootCycle  = 0;
-        intakeCycle = 0;
-        inTeleOpMode = false;
+        shootCycle        = 0;
+        intakeCycle       = 0;
+        collectionSegment = 0;
+        inTeleOpMode      = false;
         intakeLingeringDuringDrive = false;
-        shootOrder = null;
+        shootOrder        = null;
 
         setFullSpeed();
-        follower.followPath(paths.ReadTagAndGoToShoot, true);
+        follower.followPath(paths.initialreadtagandshoot, true);
         state = State.TAG_READING_AND_DRIVE;
     }
 
@@ -251,6 +306,8 @@ public class RedNew9BallAuto extends OpMode {
 
         switch (state) {
 
+            // ==================== TAG READING + FIRST SHOOT DRIVE ====================
+
             case TAG_READING_AND_DRIVE:
                 updateShooterFromTag();
                 if (!follower.isBusy()) {
@@ -262,6 +319,8 @@ public class RedNew9BallAuto extends OpMode {
                     state = State.ALIGN_AND_SPINUP;
                 }
                 break;
+
+            // ==================== SHOOT PHASE ====================
 
             case DRIVE_TO_SHOOT:
                 updateShooterFromTag();
@@ -310,6 +369,7 @@ public class RedNew9BallAuto extends OpMode {
                     if (shootCycle > 2) {
                         state = State.DONE;
                     } else {
+                        collectionSegment = 0;
                         mechanismThread.enqueueCommand(
                                 new MechanismThread.Command(
                                         MechanismThread.Command.Type.SET_AUTO_INDEX, true));
@@ -320,6 +380,8 @@ public class RedNew9BallAuto extends OpMode {
                     }
                 }
                 break;
+
+            // ==================== INTAKE PHASE ====================
 
             case DRIVE_TO_BALL_AREA:
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
@@ -345,13 +407,13 @@ public class RedNew9BallAuto extends OpMode {
                     break;
                 }
                 if (full) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                     break;
                 }
 
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
-                if (rampTriggered && !mechIdle) {
+                if (rampTriggered && !mechIdle && intakeSlotOccupied()) {
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
                     follower.breakFollowing();
                     state = State.HOLDING;
@@ -370,20 +432,20 @@ public class RedNew9BallAuto extends OpMode {
                     break;
                 }
                 if (full) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                     break;
                 }
 
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
-                if (rampTriggered && !mechIdle) {
+                if (rampTriggered && !mechIdle && intakeSlotOccupied()) {
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
                     state = State.HOLDING;
                     break;
                 }
 
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_LINGER_TIMEOUT_MS) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                 }
                 break;
 
@@ -393,7 +455,7 @@ public class RedNew9BallAuto extends OpMode {
                     break;
                 }
                 if (full) {
-                    finishCollection();
+                    advanceCollectionOrFinish();
                     break;
                 }
 
@@ -412,7 +474,7 @@ public class RedNew9BallAuto extends OpMode {
 
                 if (!rampTriggered) {
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
-                    finishCollection();
+                    advanceCollectionOrFinish();
                 }
                 break;
 
@@ -422,9 +484,11 @@ public class RedNew9BallAuto extends OpMode {
 
         follower.update();
 
+        // ======================== TELEMETRY ========================
         panelsTelemetry.debug("State",        state.name());
         panelsTelemetry.debug("Shoot Cycle",  String.valueOf(shootCycle));
         panelsTelemetry.debug("Intake Cycle", String.valueOf(intakeCycle));
+        panelsTelemetry.debug("Collect Seg",  String.valueOf(collectionSegment));
         panelsTelemetry.debug("Balls",        String.format("%d / 3", countBalls()));
         panelsTelemetry.debug("Ramp Sensor",  rampTriggered ? "TRIGGERED" : "clear");
         panelsTelemetry.debug("Mech",         mechIdle ? "IDLE" : mechanismThread.getStateDebug());
@@ -458,19 +522,53 @@ public class RedNew9BallAuto extends OpMode {
         } catch (InterruptedException ignored) {}
     }
 
+    // ======================== SPEED HELPERS ========================
+
     private void setFullSpeed()    { follower.setMaxPower(1.0); }
     private void setCollectSpeed() { follower.setMaxPower(COLLECT_MAX_POWER); }
 
+    // ======================== PATH SELECTION ========================
+
+    /** Approach (full-speed) path for the current intake cycle. */
     private PathChain getBallAreaPath() {
-        return intakeCycle == 0 ? paths.GoToBall1Position : paths.GoToBall4;
+        return intakeCycle == 0 ? paths.gotoball1position : paths.gotoball4;
     }
 
+    /**
+     * Current collection (slow) path.
+     * Cycle 0:  seg 0 → ball3
+     * Cycle 1:  seg 0 → ball6,  seg 1 → goforwardabit
+     */
     private PathChain getCollectionPath() {
-        return intakeCycle == 0 ? paths.Ball3 : paths.Ball6;
+        if (intakeCycle == 0) return paths.ball3;
+        return collectionSegment == 0 ? paths.ball6 : paths.goforwardabit;
+    }
+
+    /** True when a second collection segment exists and hasn't been run yet. */
+    private boolean hasNextCollectionSegment() {
+        return intakeCycle == 1 && collectionSegment == 0;
     }
 
     private PathChain getShootPath() {
-        return shootCycle == 1 ? paths.Shoot2 : paths.GoShoot3;
+        return shootCycle == 1 ? paths.goshoot2 : paths.goshoot3;
+    }
+
+    // ======================== COLLECTION ADVANCE / FINISH ========================
+
+    /**
+     * Called whenever a collection phase ends (path done + linger, full, or ejected).
+     * If a second collection segment is still available (goforwardabit), rolls into it.
+     * Otherwise, arms the shooter and drives to the shoot position.
+     */
+    private void advanceCollectionOrFinish() {
+        if (hasNextCollectionSegment()) {
+            collectionSegment = 1;
+            setCollectSpeed();
+            follower.followPath(getCollectionPath(), true);
+            state = State.COLLECTING;
+        } else {
+            finishCollection();
+        }
     }
 
     private void finishCollection() {
@@ -482,6 +580,8 @@ public class RedNew9BallAuto extends OpMode {
         intakeCycle++;
         state = State.DRIVE_TO_SHOOT;
     }
+
+    // ======================== AUTO-ALIGN ========================
 
     private void enterTeleOpMode() {
         follower.startTeleOpDrive();
@@ -548,6 +648,8 @@ public class RedNew9BallAuto extends OpMode {
         return Math.max(min, Math.min(max, v));
     }
 
+    // ======================== SHOOT HELPERS ========================
+
     private void issueShootSequence() {
         mechanismThread.enqueueCommand(
                 new MechanismThread.Command(
@@ -558,7 +660,7 @@ public class RedNew9BallAuto extends OpMode {
     }
 
     private boolean isShootingDone() {
-        boolean mechIdle     = mechanismThread.isIdle();
+        boolean mechIdle     = mechanismThread.getStateDebug().contains("IDLE");
         boolean startupGrace = stateTimer.getElapsedTimeSeconds() < 0.5;
         boolean timedOut     = stateTimer.getElapsedTimeSeconds() * 1000 >= SHOOT_SEQUENCE_TIMEOUT_MS;
         return (!startupGrace && mechIdle) || timedOut;
@@ -570,10 +672,17 @@ public class RedNew9BallAuto extends OpMode {
         }
     }
 
+    // ======================== HELPERS ========================
+
+    private boolean intakeSlotOccupied() {
+        ShootSequence.BallColor c = sensorState.getPositionColor(SensorState.POS_INTAKE);
+        return c == ShootSequence.BallColor.GREEN || c == ShootSequence.BallColor.PURPLE;
+    }
+
     private int countBalls() {
         int count = 0;
         for (ShootSequence.BallColor c : sensorState.getAllPositions()) {
-            if (c != ShootSequence.BallColor.EMPTY) count++;
+            if (c == ShootSequence.BallColor.GREEN || c == ShootSequence.BallColor.PURPLE) count++;
         }
         return count;
     }

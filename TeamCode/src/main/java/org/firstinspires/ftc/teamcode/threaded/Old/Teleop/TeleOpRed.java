@@ -14,7 +14,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 
-@TeleOp(name = "TeleOp - RED", group = "TeleOp")
+@TeleOp(name = "Red", group = "TeleOp")
 public class TeleOpRed extends LinearOpMode {
 
     private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;

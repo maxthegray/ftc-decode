@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.Tests.NewCarousel;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -81,6 +82,7 @@ import java.util.List;
  *
  * ═══════════════════════════════════════════════════════════════════════════
  */
+@Disabled
 @TeleOp(name = "Trapezoidal Tuning Test", group = "Test")
 public class TrapezoidalTuningTest extends LinearOpMode {
 

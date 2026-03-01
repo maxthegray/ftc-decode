@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.threaded.Old;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -43,6 +44,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  *
  * ══════════════════════════════════════════════════════════════════════════════
  */
+@Disabled
 @TeleOp(name = "Carousel PID Tuner", group = "Tuning")
 public class CarouselPIDTuner extends LinearOpMode {
 

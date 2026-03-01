@@ -22,7 +22,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
 import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
 
-@Autonomous(name = "Blue 9 Ball Auto", group = "Auto")
+@Autonomous(name = "Blue Close", group = "Auto")
 @Configurable
 public class BlueNew9BallAuto extends OpMode {
 

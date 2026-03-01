@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.Tests;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import com.pedropathing.follower.Follower;
@@ -35,6 +36,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  *  Finishes when the path ends OR 3 balls are collected, whichever first.
  * ═══════════════════════════════════════════════════════════════════════════
  */
+@Disabled
 @Autonomous(name = "Sample Intake Auto", group = "Auto")
 public class SampleIntakeAuto extends OpMode {
 

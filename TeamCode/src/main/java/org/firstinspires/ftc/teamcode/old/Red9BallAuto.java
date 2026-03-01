@@ -10,6 +10,7 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -41,6 +42,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  * During all shoot phases, the robot uses AprilTag auto-align PID (same as teleop)
  * to hold heading on the basket target while the shooter fires.
  */
+@Disabled
 @Autonomous(name = "Red 6 Ball Auto", group = "Auto")
 @Configurable
 public class Red9BallAuto extends OpMode {

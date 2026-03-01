@@ -38,7 +38,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  * Intake cycle 1 has two segments: ball6 (seg 0) then goforwardabit (seg 1).
  * When seg 0 ends and the robot isn't full, it rolls directly into seg 1.
  */
-@Autonomous(name = "Blue 9 fa", group = "Auto")
+@Autonomous(name = "Blue Far", group = "Auto")
 @Configurable
 public class Blue9BallFar extends OpMode {
 
@@ -72,7 +72,7 @@ public class Blue9BallFar extends OpMode {
             initialreadtagandshoot = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(42.195, 9.187),
-                                    new Pose(56.637, 17.259)
+                                    new Pose(55.637, 17.259)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(110))
                     .build();
@@ -98,7 +98,7 @@ public class Blue9BallFar extends OpMode {
                             new BezierCurve(
                                     new Pose(10.505, 35.638),
                                     new Pose(44.547, 33.375),
-                                    new Pose(54.000, 17.000)
+                                    new Pose(53.000, 17.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(108))
                     .build();

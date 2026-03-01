@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.Tests;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.AnalogInput;
@@ -37,6 +38,7 @@ import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
  *    Left Trigger (GP1) — Manual intake OUT (unjam, bypasses manager while held)
  * ═══════════════════════════════════════════════════════════════════════════
  */
+@Disabled
 @TeleOp(name = "Intake Ramp Test", group = "Test")
 public class IntakeRampTest extends OpMode {
 
