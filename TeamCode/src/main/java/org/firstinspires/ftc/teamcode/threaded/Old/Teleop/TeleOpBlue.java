@@ -41,14 +41,12 @@ public class TeleOpBlue extends LinearOpMode {
     private boolean prevRBumper1 = false;
 
     // Gamepad 2 edge detection
-    private boolean prevX2 = false;
-    private boolean prevDpadLeft2 = false;
+    private boolean prevX2        = false;
+    private boolean prevDpadLeft2  = false;
     private boolean prevDpadRight2 = false;
-    private boolean prevDpadUp2 = false;
-    private boolean prevDpadDown2 = false;
-    private boolean prevLTrigger2 = false;  // Shoot green
-    private boolean prevRTrigger2 = false;  // Shoot purple
-    private boolean prevB2 = false;         // Show lights
+    private boolean prevLTrigger2  = false;  // Shoot green
+    private boolean prevRTrigger2  = false;  // Shoot purple
+    private boolean prevB2         = false;  // Show lights
 
     @Override
     public void runOpMode() {
@@ -58,10 +56,10 @@ public class TeleOpBlue extends LinearOpMode {
         // Initialize threads
         mechanismThread = new MechanismThread(hardwareMap);
         mechanismThread.setSensorState(sensorState);  // Needed for shooter-ready checks
-        driveThread = new DriveThread(sensorState, hardwareMap);
-        shooterThread = new ShooterThread(sensorState, hardwareMap);
-        cameraThread = new CameraThread(sensorState, hardwareMap, BASKET_TAG_ID);
-        controlHubI2C = new ControlHubI2CThread(sensorState, hardwareMap);
+        driveThread     = new DriveThread(sensorState, hardwareMap);
+        shooterThread   = new ShooterThread(sensorState, hardwareMap);
+        cameraThread    = new CameraThread(sensorState, hardwareMap, BASKET_TAG_ID);
+        controlHubI2C   = new ControlHubI2CThread(sensorState, hardwareMap);
         expansionHubI2C = new ExpansionHubI2CThread(sensorState, hardwareMap);
 
         telemetry.addData("Status", "Initialized");
@@ -100,7 +98,7 @@ public class TeleOpBlue extends LinearOpMode {
         sensorState.setDriveInput(
                 -gamepad1.left_stick_y,
                 -gamepad1.left_stick_x,
-                -gamepad1.right_stick_x * 0.5
+                -gamepad1.right_stick_x * 0.75
         );
 
         // LB — Toggle auto-align
@@ -115,7 +113,10 @@ public class TeleOpBlue extends LinearOpMode {
 
         // Intake control — volatile state, not queued
         // Intake takes priority over shooter — they must never run simultaneously
-        if (gamepad1.right_trigger > 0.1) {
+        // Blocked while carousel is indexing to prevent jamming
+        boolean carouselSettled = mechanismThread.isCarouselSettled();
+
+        if (gamepad1.right_trigger > 0.1 && carouselSettled) {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
             sensorState.setShooterTargetVelocity(0);  // Kill shooter when intaking
             if (currentMode != RobotMode.INTAKING) switchMode(RobotMode.INTAKING);
@@ -183,20 +184,14 @@ public class TeleOpBlue extends LinearOpMode {
         }
         prevDpadRight2 = gamepad2.dpad_right;
 
-        // D-Pad Up / Down — Nudge carousel (small adjustment)
-        if (gamepad2.dpad_up && !prevDpadUp2) {
-            mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.NUDGE,
-                            CarouselController.NUDGE_TICKS));
+        // D-Pad Up / Down — Hold to nudge carousel continuously
+        if (gamepad2.dpad_up) {
+            mechanismThread.setNudgeRequest(CarouselController.NUDGE_TICKS);
+        } else if (gamepad2.dpad_down) {
+            mechanismThread.setNudgeRequest(-CarouselController.NUDGE_TICKS);
+        } else {
+            mechanismThread.setNudgeRequest(0);
         }
-        prevDpadUp2 = gamepad2.dpad_up;
-
-        if (gamepad2.dpad_down && !prevDpadDown2) {
-            mechanismThread.enqueueCommand(
-                    new MechanismThread.Command(MechanismThread.Command.Type.NUDGE,
-                            -CarouselController.NUDGE_TICKS));
-        }
-        prevDpadDown2 = gamepad2.dpad_down;
 
         // Circle (B) — Show ball colors on lights
         if (gamepad2.circle && !prevB2) {
@@ -254,15 +249,11 @@ public class TeleOpBlue extends LinearOpMode {
 
         // Shooter diagnostics
         double current = sensorState.getShooterCurrentVelocity();
-        double target = sensorState.getShooterTargetVelocity();
-        double error = Math.abs(current - target);
-        boolean ready = sensorState.isShooterReady();
+        double target  = sensorState.getShooterTargetVelocity();
+        double error   = Math.abs(current - target);
+        boolean ready  = sensorState.isShooterReady();
         telemetry.addData("Shooter", "%.0f / %.0f RPM (err %.0f) %s",
                 current, target, error, ready ? "READY" : "NOT READY");
-
-        // Mechanism state + shoot diagnostics
-        String mechState = mechanismThread.getStateDebug();
-        telemetry.addData("MechState", mechState);
 
         // Carousel diagnostics
         boolean settled = mechanismThread.isCarouselSettled();
@@ -279,7 +270,7 @@ public class TeleOpBlue extends LinearOpMode {
     }
 
     private String shortName(ShootSequence.BallColor c) {
-        if (c == ShootSequence.BallColor.GREEN) return "G";
+        if (c == ShootSequence.BallColor.GREEN)  return "G";
         if (c == ShootSequence.BallColor.PURPLE) return "P";
         return "-";
     }
