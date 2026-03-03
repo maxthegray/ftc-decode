@@ -27,11 +27,6 @@ public class Constants {
             .mass(17.35)
             .forwardZeroPowerAcceleration(-63.2039)
             .lateralZeroPowerAcceleration(-56.000)
-
-
-
-
-// hi
             ;
     public static MecanumConstants driveConstants = new MecanumConstants()
             .maxPower(1)

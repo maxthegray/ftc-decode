@@ -10,11 +10,11 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-import org.firstinspires.ftc.teamcode.threaded.Old.ControlHubI2CThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.ExpansionHubI2CThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.MechanismThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
-import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
+import org.firstinspires.ftc.teamcode.threaded.ControlHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.ExpansionHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.MechanismThread;
+import org.firstinspires.ftc.teamcode.threaded.SensorState;
+import org.firstinspires.ftc.teamcode.threaded.ShootSequence;
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════

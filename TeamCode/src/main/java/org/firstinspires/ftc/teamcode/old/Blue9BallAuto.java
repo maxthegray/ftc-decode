@@ -15,13 +15,13 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-import org.firstinspires.ftc.teamcode.threaded.Old.CameraThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.ControlHubI2CThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.ExpansionHubI2CThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.MechanismThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.SensorState;
-import org.firstinspires.ftc.teamcode.threaded.Old.ShooterThread;
-import org.firstinspires.ftc.teamcode.threaded.Old.ShootSequence;
+import org.firstinspires.ftc.teamcode.threaded.CameraThread;
+import org.firstinspires.ftc.teamcode.threaded.ControlHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.ExpansionHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.MechanismThread;
+import org.firstinspires.ftc.teamcode.threaded.SensorState;
+import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
+import org.firstinspires.ftc.teamcode.threaded.ShootSequence;
 
 /**
  * FULL AUTO (Blue Alliance)
