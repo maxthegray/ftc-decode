@@ -1,8 +1,8 @@
-package org.firstinspires.ftc.teamcode.commandbased.commands;
+package org.firstinspires.ftc.teamcode.old.commandbased.commands;
 
 import com.arcrobotics.ftclib.command.CommandBase;
 
-import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
+import org.firstinspires.ftc.teamcode.old.commandbased.subsystems.CarouselSubsystem;
 
 /**
  * Rotates the carousel one step left or right.

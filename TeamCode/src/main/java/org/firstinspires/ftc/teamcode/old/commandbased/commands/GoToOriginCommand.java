@@ -1,8 +1,8 @@
-package org.firstinspires.ftc.teamcode.commandbased.commands;
+package org.firstinspires.ftc.teamcode.old.commandbased.commands;
 
 import com.arcrobotics.ftclib.command.CommandBase;
 
-import org.firstinspires.ftc.teamcode.commandbased.subsystems.DriveSubsystem;
+import org.firstinspires.ftc.teamcode.old.commandbased.subsystems.DriveSubsystem;
 
 public class GoToOriginCommand extends CommandBase {
 

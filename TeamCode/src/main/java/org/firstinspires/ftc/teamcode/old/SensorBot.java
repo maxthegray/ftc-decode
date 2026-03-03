@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 //import org.firstinspires.ftc.teamcode.Localization.UnifiedLocalization;
-import org.firstinspires.ftc.teamcode.Shooter.ShooterCamera;
+import org.firstinspires.ftc.teamcode.Tests.Shooter.ShooterCamera;
 
 @Disabled
 @TeleOp

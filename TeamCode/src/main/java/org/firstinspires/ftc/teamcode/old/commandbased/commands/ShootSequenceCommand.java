@@ -1,10 +1,10 @@
-package org.firstinspires.ftc.teamcode.commandbased.commands;
+package org.firstinspires.ftc.teamcode.old.commandbased.commands;
 
 import com.arcrobotics.ftclib.command.CommandBase;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem;
-import org.firstinspires.ftc.teamcode.commandbased.subsystems.CarouselSubsystem.BallColor;
+import org.firstinspires.ftc.teamcode.old.commandbased.subsystems.CarouselSubsystem;
+import org.firstinspires.ftc.teamcode.old.commandbased.subsystems.CarouselSubsystem.BallColor;
 
 /**
  * Shoots balls in a specified color sequence.

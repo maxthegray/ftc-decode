@@ -7,9 +7,7 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.teamcode.Shooter.ShooterCamera;
-import com.qualcomm.robotcore.hardware.PIDCoefficients;
-import com.qualcomm.robotcore.hardware.configuration.annotations.DigitalIoDeviceType;
+import org.firstinspires.ftc.teamcode.Tests.Shooter.ShooterCamera;
 
 @Disabled
 class DriveTrain {
