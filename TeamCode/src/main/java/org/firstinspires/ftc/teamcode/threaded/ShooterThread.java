@@ -16,9 +16,12 @@ public class ShooterThread extends Thread {
     private final SensorState state;
     private final DcMotorEx motor;
 
-    private static final double SHOOTER_P = 200.0;
-    private static final double SHOOTER_I = 0.9;
-    private static final double SHOOTER_D = 0.1;
+    private static final double SHOOTER_P = 350.0;
+    private static final double SHOOTER_I = 0.0;
+    private static final double SHOOTER_D = 0.0;
+
+    // Feedforward — tuned via ShooterPIDFTuner
+    private static final double SHOOTER_F = 12.0;
 
     public ShooterThread(SensorState state, HardwareMap hardwareMap) {
         this.state = state;
@@ -31,7 +34,7 @@ public class ShooterThread extends Thread {
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         motor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,
-                new PIDFCoefficients(SHOOTER_P, SHOOTER_I, SHOOTER_D, 0));
+                new PIDFCoefficients(SHOOTER_P, SHOOTER_I, SHOOTER_D, SHOOTER_F));
     }
 
     @Override

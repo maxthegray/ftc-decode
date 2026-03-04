@@ -18,7 +18,7 @@ import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
 public class TeleOpBlue extends LinearOpMode {
 
     private static final int BASKET_TAG_ID = CameraThread.TAG_BLUE_BASKET;
-    private static final double DEFAULT_VELOCITY = 150;
+    private static final double DEFAULT_VELOCITY = 110;
 
     public enum RobotMode {
         INTAKING,
@@ -45,6 +45,14 @@ public class TeleOpBlue extends LinearOpMode {
     private boolean prevLTrigger2 = false;
     private boolean prevRTrigger2 = false;
     private boolean prevB2 = false;
+    private boolean prevY2 = false;
+
+    // Intake power ramp — starts at BASE, ramps to MAX over RAMP_TIME seconds
+    private static final double INTAKE_BASE_POWER = 0.55;
+    private static final double INTAKE_MAX_POWER  = 1.0;
+    private static final double INTAKE_RAMP_SECONDS = 6.0;
+    private final ElapsedTime intakeHoldTimer = new ElapsedTime();
+    private boolean wasIntaking = false;
 
     @Override
     public void runOpMode() {
@@ -88,14 +96,29 @@ public class TeleOpBlue extends LinearOpMode {
         joinAllThreads();
     }
 
+    /**
+     * Nonlinear curve for stick input.
+     * Small deflections get finer control, full deflection still reaches max speed.
+     */
+    private static final double STICK_EXPONENT = 2.0;
+
+    private double applyCurve(double input) {
+        return Math.copySign(Math.pow(Math.abs(input), STICK_EXPONENT), input);
+    }
+
     private void handleDriverControls() {
         sensorState.setDriveInput(
-                -gamepad1.left_stick_y,
-                -gamepad1.left_stick_x,
-                -gamepad1.right_stick_x * 0.75
+                applyCurve(-gamepad1.left_stick_y),
+                applyCurve(-gamepad1.left_stick_x),
+                applyCurve(-gamepad1.right_stick_x) * 0.75
         );
 
-        if (gamepad1.left_bumper && !prevLBumper1) sensorState.toggleAutoAlign();
+        if (gamepad1.left_bumper && !prevLBumper1) {
+            sensorState.toggleAutoAlign();
+            if (sensorState.isAutoAlignEnabled()) {
+                driveThread.requestPidReset();
+            }
+        }
         prevLBumper1 = gamepad1.left_bumper;
 
         if (gamepad1.right_bumper && !prevRBumper1) {
@@ -105,12 +128,23 @@ public class TeleOpBlue extends LinearOpMode {
 
         boolean carouselSettled = mechanismThread.isCarouselSettled();
 
+        boolean triggerHeld = gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1;
+
+        if (!wasIntaking && triggerHeld) {
+            intakeHoldTimer.reset();
+        }
+        wasIntaking = triggerHeld;
+
+        double intakePower = INTAKE_BASE_POWER
+                + (INTAKE_MAX_POWER - INTAKE_BASE_POWER)
+                * Math.min(1.0, intakeHoldTimer.seconds() / INTAKE_RAMP_SECONDS);
+
         if (gamepad1.right_trigger > 0.1 && carouselSettled) {
-            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN, intakePower);
             sensorState.setShooterTargetVelocity(0);
             if (currentMode != RobotMode.INTAKING) switchMode(RobotMode.INTAKING);
         } else if (gamepad1.left_trigger > 0.1) {
-            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.OUT);
+            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.OUT, intakePower);
             sensorState.setShooterTargetVelocity(0);
         } else {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
@@ -166,13 +200,24 @@ public class TeleOpBlue extends LinearOpMode {
         }
         prevDpadRight2 = gamepad2.dpad_right;
 
-        if (gamepad2.dpad_up) {
-            mechanismThread.setNudgeRequest(CarouselController.NUDGE_TICKS);
-        } else if (gamepad2.dpad_down) {
-            mechanismThread.setNudgeRequest(-CarouselController.NUDGE_TICKS);
+
+        // Left stick Y — Analog nudge carousel (curved for fine control)
+        double nudgeInput = applyCurve(gamepad2.left_stick_x);
+        if (Math.abs(nudgeInput) > 0) {
+            int nudgeTicks = (int)(nudgeInput * CarouselController.NUDGE_TICKS);
+            mechanismThread.setNudgeRequest(nudgeTicks);
         } else {
             mechanismThread.setNudgeRequest(0);
         }
+
+        // Triangle (Y) — Toggle auto-align
+        if (gamepad2.y && !prevY2) {
+            sensorState.toggleAutoAlign();
+            if (sensorState.isAutoAlignEnabled()) {
+                driveThread.requestPidReset();
+            }
+        }
+        prevY2 = gamepad2.y;
 
         if (gamepad2.circle && !prevB2) {
             mechanismThread.enqueueCommand(
@@ -180,8 +225,12 @@ public class TeleOpBlue extends LinearOpMode {
         }
         prevB2 = gamepad2.circle;
 
-        if (!intakeActive && sensorState.getShooterTargetVelocity() > 0 && sensorState.isBasketTagVisible()) {
-            sensorState.setVelocityFromDistance(sensorState.getTagRange());
+        if (!intakeActive && sensorState.getShooterTargetVelocity() > 0) {
+            if (sensorState.isBasketTagVisible()) {
+                sensorState.setVelocityFromDistance(sensorState.getTagRange());
+            } else {
+                sensorState.setShooterTargetVelocity(130);
+            }
         }
     }
 
@@ -200,6 +249,11 @@ public class TeleOpBlue extends LinearOpMode {
 
         if (ballCount >= 3 && currentMode == RobotMode.INTAKING) {
             switchMode(RobotMode.SHOOTING);
+            // Auto-spin the shooter so it's at speed by the time the gunner fires
+            boolean intakeActive = gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1;
+            if (!intakeActive) {
+                sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
+            }
         }
     }
 

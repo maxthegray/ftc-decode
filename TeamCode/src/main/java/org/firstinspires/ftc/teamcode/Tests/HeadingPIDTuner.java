@@ -5,429 +5,416 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.threaded.CameraThread;
+import org.firstinspires.ftc.teamcode.threaded.CarouselController;
 import org.firstinspires.ftc.teamcode.threaded.ControlHubI2CThread;
 import org.firstinspires.ftc.teamcode.threaded.DriveThread;
 import org.firstinspires.ftc.teamcode.threaded.ExpansionHubI2CThread;
+import org.firstinspires.ftc.teamcode.threaded.MechanismThread;
 import org.firstinspires.ftc.teamcode.threaded.SensorState;
+import org.firstinspires.ftc.teamcode.threaded.ShootSequence;
+import org.firstinspires.ftc.teamcode.threaded.ShooterThread;
 
 /**
- * Heading PID Tuner with IMU-compensated bearing.
+ * ══════════════════════════════════════════════════════════════════════════════
+ *  AUTO-ALIGN PID TUNER — mirrors TeleOp loop exactly
+ * ══════════════════════════════════════════════════════════════════════════════
  *
- * The core problem: the camera only updates every ~30ms, so the PID reacts
- * to stale data and overshoots. This version uses the IMU (via currentPose
- * heading) to interpolate the bearing between camera frames, giving the PID
- * a fresh estimate every single loop (~10ms).
+ *  Main loop mirrors TeleOpBlue/Red exactly (handleDriverControls,
+ *  handleGunnerControls, handleAutoModeSwitching, same telemetry volume)
+ *  so the CPU load and loop rate match real match conditions.
  *
- * ── CONTROLS ─────────────────────────────────────────────────────────────
+ *  PID tuning controls are layered on top via A/B on GP1 and d-pad on GP2.
+ *  These don't conflict with the TeleOp controls because:
+ *    - GP1 A/B are unused in TeleOp driver controls
+ *    - GP2 d-pad left/right ARE used for carousel in TeleOp (and here too),
+ *      so tuning adjustments use GP2 d-pad up/down + A/B instead.
  *
- *   Gamepad 1 (Driver):
- *     Left stick     — Drive (forward / strafe)
- *     Right stick X  — Manual rotate (when auto-align is OFF)
- *     Left bumper    — Toggle auto-align ON/OFF
+ *  ── TUNING OVERLAY ──────────────────────────────────────────────────────────
  *
- *   Gamepad 2 (Tuner):
- *     D-Pad Up/Down  — Select coefficient (P / I / D / Deadband / Filter / MaxOut / Slew)
- *     Right bumper   — Increase selected coefficient
- *     Left bumper    — Decrease selected coefficient
- *     Right trigger  — Fine increase (hold)
- *     Left trigger   — Fine decrease (hold)
- *     A              — Reset I accumulator
- *     X              — Save current values to SensorState statics
- *     Y              — Toggle input filter ON/OFF
- *     B              — Toggle squared-P (non-linear) ON/OFF
+ *  GP1 A             — Toggle auto-align ON / OFF (with PID reset)
+ *  GP1 B             — Toggle RAW / INTERPOLATED bearing
+ *  GP2 A             — Cycle selected term (P → I → D → DEADBAND)
+ *  GP2 B             — Increase selected term
+ *  GP2 Y (hold)      — Also toggles auto-align (same as TeleOp)
+ *  GP2 RB + B        — 10× step (coarse)
+ *  GP2 LB + B        — 0.1× step (fine)
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
  */
-@TeleOp(name = "Align PID Tuner v2", group = "Tuning")
+@TeleOp(name = "Auto-Align Tuner (Threaded)", group = "Tuning")
 public class HeadingPIDTuner extends LinearOpMode {
 
     private static final int BASKET_TAG_ID = CameraThread.TAG_RED_BASKET;
+    private static final double DEFAULT_VELOCITY = 150;
+    private static final double STICK_EXPONENT = 2.0;
 
-    // ── Tunable PID coefficients ─────────────────────────────────────────
-    private double kP       = SensorState.ALIGN_P;
-    private double kI       = SensorState.ALIGN_I;
-    private double kD       = SensorState.ALIGN_D;
-    private double deadband = SensorState.ALIGN_DEADBAND;
+    // ── Robot mode (mirrors TeleOp) ───────────────────────────────────────
+    public enum RobotMode { INTAKING, SHOOTING }
+    private RobotMode currentMode = RobotMode.INTAKING;
 
-    // ── Input filter ─────────────────────────────────────────────────────
-    private boolean filterEnabled = true;
-    private double filterAlpha    = 0.15;   // lower = more smoothing
-    private double filteredBearing = 0;
-
-    // ── Output limits ────────────────────────────────────────────────────
-    private double maxOutput = 0.25;        // cap rotation power
-    private double maxSlew   = 0.05;        // max output change per loop
-    private double lastOutput = 0;
-
-    // ── Non-linear P ─────────────────────────────────────────────────────
-    private boolean squaredP = false;
-
-    // ── PID state ────────────────────────────────────────────────────────
-    private double integralSum = 0;
-    private double lastError   = 0;
-    private boolean hasLast    = false;
-    private final ElapsedTime pidTimer = new ElapsedTime();
-
-    // ── IMU compensation state ───────────────────────────────────────────
-    //  Tracks the IMU heading at the moment the camera last updated,
-    //  so we can compute how much the robot has rotated since then
-    //  and adjust the stale camera bearing accordingly.
-    private double lastRawBearing = Double.NaN;
-    private double bearingAtLastCameraUpdate = 0;
-    private double imuHeadingAtLastCameraUpdate = 0;
-
-    // ── Tuner UI ─────────────────────────────────────────────────────────
-    private enum TuneParam { P, I, D, DEADBAND, FILTER_ALPHA, MAX_OUTPUT, MAX_SLEW }
-    private TuneParam selectedParam = TuneParam.P;
-
-    private static final double STEP_P        = 0.001;
-    private static final double STEP_I        = 0.0001;
-    private static final double STEP_D        = 0.005;   // bigger steps since no /dt
-    private static final double STEP_DEADBAND = 0.5;
-    private static final double STEP_FILTER   = 0.05;
-    private static final double STEP_MAXOUT   = 0.05;
-    private static final double STEP_SLEW     = 0.01;
-    private static final double FINE_DIVISOR  = 5.0;
-
-    // Edge detection for button presses
-    private boolean prevDpadUp2  = false, prevDpadDown2 = false;
-    private boolean prevRB2 = false, prevLB2 = false;
-    private boolean prevA2 = false, prevX2 = false, prevY2 = false, prevB2 = false;
-    private boolean prevLB1 = false;
-
-    // Error history for text graph
-    private static final int GRAPH_WIDTH = 30;
-    private final double[] errorHistory = new double[GRAPH_WIDTH];
-    private int historyIndex = 0;
-
-    // ── Threads ──────────────────────────────────────────────────────────
+    // ── Threads ───────────────────────────────────────────────────────────
     private SensorState sensorState;
     private DriveThread driveThread;
-    private CameraThread cameraThread;
+    private  CameraThread cameraThread;
+    private MechanismThread mechanismThread;
+    private ShooterThread shooterThread;
     private ControlHubI2CThread controlHubI2C;
     private ExpansionHubI2CThread expansionHubI2C;
 
+    private ElapsedTime runtime;
+
+    // ── GP1 edge detection (mirrors TeleOp + tuning extras) ───────────────
+    private boolean prevLBumper1 = false;
+    private boolean prevRBumper1 = false;
+    private boolean prevA1 = false;
+    private boolean prevB1 = false;
+
+    // ── GP2 edge detection (mirrors TeleOp + tuning extras) ───────────────
+    private boolean prevX2 = false;
+    private boolean prevDpadLeft2 = false;
+    private boolean prevDpadRight2 = false;
+    private boolean prevLTrigger2 = false;
+    private boolean prevRTrigger2 = false;
+    private boolean prevB2 = false;
+    private boolean prevY2 = false;
+    private boolean prevA2 = false;
+
+    // ── PID tuning state ──────────────────────────────────────────────────
+    private enum SelectedTerm { P, I, D, DEADBAND, D_ALPHA }
+    private SelectedTerm selected = SelectedTerm.P;
+
     @Override
     public void runOpMode() {
+        runtime = new ElapsedTime();
         sensorState = new SensorState(SensorState.Alliance.RED);
 
-        driveThread     = new DriveThread(sensorState, hardwareMap);
-        cameraThread    = new CameraThread(sensorState, hardwareMap, BASKET_TAG_ID);
-        controlHubI2C   = new ControlHubI2CThread(sensorState, hardwareMap);
+        mechanismThread = new MechanismThread(hardwareMap);
+        mechanismThread.setSensorState(sensorState);
+        mechanismThread.setSkipKickback(true);
+        driveThread = new DriveThread(sensorState, hardwareMap);
+        shooterThread = new ShooterThread(sensorState, hardwareMap);
+        cameraThread = new CameraThread(sensorState, hardwareMap, BASKET_TAG_ID);
+        controlHubI2C = new ControlHubI2CThread(sensorState, hardwareMap);
         expansionHubI2C = new ExpansionHubI2CThread(sensorState, hardwareMap);
 
-        // Disable DriveThread's built-in auto-align — we control rotation here
-        sensorState.setAutoAlignEnabled(false);
-
-        telemetry.addLine("=== ALIGN PID TUNER v2 ===");
-        telemetry.addLine("IMU-compensated bearing");
-        telemetry.addLine("");
-        telemetry.addLine("GP1 LB: toggle align");
-        telemetry.addLine("GP2 D-Pad: select param");
-        telemetry.addLine("GP2 Bumpers/Triggers: adjust");
-        telemetry.addLine("GP2 Y: filter | B: squared-P");
+        telemetry.addData("Status", "Initialized");
         telemetry.update();
 
         waitForStart();
+        runtime.reset();
 
+        mechanismThread.start();
         driveThread.start();
+        shooterThread.start();
         cameraThread.start();
         controlHubI2C.start();
         expansionHubI2C.start();
-        pidTimer.reset();
-
-        boolean localAlignEnabled = false;
 
         while (opModeIsActive()) {
+            mechanismThread.setBallPositions(sensorState.getAllPositions());
 
-            // ── Gamepad 1: Drive + toggle ────────────────────────────────
-            double forward = -gamepad1.left_stick_y;
-            double strafe  = -gamepad1.left_stick_x;
-            double rotate  = -gamepad1.right_stick_x * 0.75;
+            // ── Identical TeleOp processing ───────────────────────────────
+            handleDriverControls();
+            handleGunnerControls();
+            handleAutoModeSwitching();
 
-            if (gamepad1.left_bumper && !prevLB1) {
-                localAlignEnabled = !localAlignEnabled;
-                if (!localAlignEnabled) {
-                    resetPID();
-                    lastOutput = 0;
-                }
-            }
-            prevLB1 = gamepad1.left_bumper;
+            // ── Tuning overlay (GP1 A/B, GP2 A/B) ────────────────────────
+            handleTuningControls();
 
-            // ── Get raw camera bearing and current IMU heading ───────────
-            double rawBearing = sensorState.getTargetBearing();
-            boolean tagVisible = sensorState.isBasketTagVisible();
-            double imuHeading = Math.toDegrees(sensorState.getCurrentPose().getHeading());
-
-            // ── IMU-compensated bearing ──────────────────────────────────
-            //  When camera publishes a new bearing, we snapshot both the
-            //  bearing and the IMU heading at that instant. Between camera
-            //  frames, we use IMU delta to keep the bearing estimate fresh.
-            double compensatedBearing = rawBearing;
-
-            if (tagVisible) {
-                // Detect new camera frame by checking if rawBearing changed
-                if (Double.isNaN(lastRawBearing) || rawBearing != lastRawBearing) {
-                    // New camera frame arrived — snapshot
-                    bearingAtLastCameraUpdate = rawBearing;
-                    imuHeadingAtLastCameraUpdate = imuHeading;
-                    lastRawBearing = rawBearing;
-                }
-
-                // Compensate: if the robot has rotated since the last camera
-                // frame, the real bearing has changed by that amount
-                double imuDelta = imuHeading - imuHeadingAtLastCameraUpdate;
-                compensatedBearing = bearingAtLastCameraUpdate - imuDelta;
-            } else {
-                // Tag lost — reset so next sighting is treated as fresh
-                lastRawBearing = Double.NaN;
-            }
-
-            // ── Low-pass filter on the compensated bearing ───────────────
-            double pidInput;
-            if (filterEnabled && tagVisible) {
-                filteredBearing = filteredBearing + filterAlpha * (compensatedBearing - filteredBearing);
-                pidInput = filteredBearing;
-            } else {
-                filteredBearing = compensatedBearing;
-                pidInput = compensatedBearing;
-            }
-
-            // ── Run PID ──────────────────────────────────────────────────
-            double pidOutput = 0;
-            if (localAlignEnabled && tagVisible) {
-                pidOutput = runPID(pidInput);
-                rotate = pidOutput;
-            } else if (!tagVisible) {
-                resetPID();
-                lastOutput = 0;
-            }
-
-            sensorState.setDriveInput(forward, strafe, rotate);
-
-            // ── Gamepad 2: Tuning controls ───────────────────────────────
-            handleTunerInput();
-
-            // ── Error history ────────────────────────────────────────────
-            errorHistory[historyIndex] = tagVisible ? pidInput : 0;
-            historyIndex = (historyIndex + 1) % GRAPH_WIDTH;
-
-            // ── Telemetry ────────────────────────────────────────────────
-            telemetry.addLine("=== ALIGN PID TUNER v2 (IMU comp) ===");
-            telemetry.addData("Auto-Align", localAlignEnabled ? "ON" : "OFF");
-            telemetry.addData("Tag Visible", tagVisible);
-            telemetry.addLine("");
-
-            telemetry.addData("Raw Bearing",        "%.2f°", rawBearing);
-            telemetry.addData("Compensated Bearing", "%.2f°", compensatedBearing);
-            telemetry.addData("Filtered (PID in)",   "%.2f°", pidInput);
-            telemetry.addData("PID Output",          "%.4f", pidOutput);
-            telemetry.addData("Range",               "%.1f in", sensorState.getTagRange());
-            telemetry.addData("IMU Heading",         "%.2f°", imuHeading);
-            telemetry.addLine("");
-
-            telemetry.addData(paramLabel(TuneParam.P),            "%.6f", kP);
-            telemetry.addData(paramLabel(TuneParam.I),            "%.6f", kI);
-            telemetry.addData(paramLabel(TuneParam.D),            "%.6f", kD);
-            telemetry.addData(paramLabel(TuneParam.DEADBAND),     "%.2f°", deadband);
-            telemetry.addData(paramLabel(TuneParam.FILTER_ALPHA), "%.3f %s",
-                    filterAlpha, filterEnabled ? "(ON)" : "(OFF)");
-            telemetry.addData(paramLabel(TuneParam.MAX_OUTPUT),   "%.3f", maxOutput);
-            telemetry.addData(paramLabel(TuneParam.MAX_SLEW),     "%.3f", maxSlew);
-            telemetry.addLine("");
-                telemetry.addData("Squared-P", squaredP ? "ON" : "OFF");
-            telemetry.addLine("");
-
-            telemetry.addLine(buildErrorGraph());
-            telemetry.update();
+            updateTelemetry();
         }
 
+        mechanismThread.kill();
         sensorState.kill();
-        joinAll();
+        joinAllThreads();
     }
 
-    // ── PID (no /dt on D term, with output cap and slew limiter) ─────────
+    // ══════════════════════════════════════════════════════════════════════
+    //  DRIVER CONTROLS — copied from TeleOpBlue/Red
+    // ══════════════════════════════════════════════════════════════════════
 
-    private double runPID(double error) {
-        double dt = pidTimer.seconds();
-        pidTimer.reset();
+    private double applyCurve(double input) {
+        return Math.copySign(Math.pow(Math.abs(input), STICK_EXPONENT), input);
+    }
 
-        // Inside deadband — stop and clear integral
-        if (Math.abs(error) < deadband) {
-            integralSum = 0;
-            lastError = error;
-            lastOutput = 0;
-            return 0.0;
+    private void handleDriverControls() {
+        sensorState.setDriveInput(
+                applyCurve(-gamepad1.left_stick_y),
+                applyCurve(-gamepad1.left_stick_x),
+                applyCurve(-gamepad1.right_stick_x) * 0.75
+        );
+
+        // LB — Toggle auto-align (same as TeleOp)
+        if (gamepad1.left_bumper && !prevLBumper1) {
+            sensorState.toggleAutoAlign();
+            if (sensorState.isAutoAlignEnabled()) {
+                driveThread.requestPidReset();
+            }
         }
+        prevLBumper1 = gamepad1.left_bumper;
 
-        // ── P term ───────────────────────────────────────────────────────
-        double p;
-        if (squaredP) {
-            // Non-linear: aggressive far away, gentle near setpoint
-            p = kP * error * Math.abs(error);
+        // RB — Reset Pose from AprilTag
+        if (gamepad1.right_bumper && !prevRBumper1) {
+            if (sensorState.isBasketTagVisible()) sensorState.requestPoseUpdate();
+        }
+        prevRBumper1 = gamepad1.right_bumper;
+
+        // Intake control
+        boolean carouselSettled = mechanismThread.isCarouselSettled();
+
+        if (gamepad1.right_trigger > 0.1 && carouselSettled) {
+            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+            sensorState.setShooterTargetVelocity(0);
+            if (currentMode != RobotMode.INTAKING) switchMode(RobotMode.INTAKING);
+        } else if (gamepad1.left_trigger > 0.1) {
+            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.OUT);
+            sensorState.setShooterTargetVelocity(0);
         } else {
-            p = kP * error;
+            mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
         }
-
-        // ── I term ───────────────────────────────────────────────────────
-        if (dt > 0 && dt < 1.0) {
-            integralSum += error * dt;
-            integralSum = clamp(integralSum, -0.3, 0.3);
-        }
-        double i = kI * integralSum;
-
-        // ── D term (no /dt — just delta error) ──────────────────────────
-        double d = 0;
-        if (hasLast) {
-            d = kD * (error - lastError);
-        }
-
-        lastError = error;
-        hasLast = true;
-
-        // ── Output cap ───────────────────────────────────────────────────
-        double raw = clamp(p + i + d, -maxOutput, maxOutput);
-
-        // ── Slew rate limiter ────────────────────────────────────────────
-        //  Prevents sudden jumps in motor power that cause mechanical jerk
-        //  and make stale-data oscillation worse.
-        double limited = clamp(raw, lastOutput - maxSlew, lastOutput + maxSlew);
-        lastOutput = limited;
-
-        return limited;
     }
 
-    private void resetPID() {
-        integralSum = 0;
-        lastError = 0;
-        hasLast = false;
-        pidTimer.reset();
-    }
+    // ══════════════════════════════════════════════════════════════════════
+    //  GUNNER CONTROLS — copied from TeleOpBlue/Red
+    // ══════════════════════════════════════════════════════════════════════
 
-    // ── Tuner input handling ─────────────────────────────────────────────
+    private void handleGunnerControls() {
+        boolean intakeActive = gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1;
 
-    private void handleTunerInput() {
-        // Select parameter
-        if (gamepad2.dpad_up && !prevDpadUp2) selectedParam = prevParam(selectedParam);
-        prevDpadUp2 = gamepad2.dpad_up;
+        if (gamepad2.right_bumper && !intakeActive) {
+            sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
+        } else if (gamepad2.left_bumper || intakeActive) {
+            sensorState.setShooterTargetVelocity(0);
+        }
 
-        if (gamepad2.dpad_down && !prevDpadDown2) selectedParam = nextParam(selectedParam);
-        prevDpadDown2 = gamepad2.dpad_down;
-
-        // Coarse adjust
-        if (gamepad2.right_bumper && !prevRB2) adjustParam(selectedParam, +1, false);
-        prevRB2 = gamepad2.right_bumper;
-
-        if (gamepad2.left_bumper && !prevLB2) adjustParam(selectedParam, -1, false);
-        prevLB2 = gamepad2.left_bumper;
-
-        // Fine adjust (held)
-        if (gamepad2.right_trigger > 0.3) adjustParam(selectedParam, +1, true);
-        if (gamepad2.left_trigger > 0.3)  adjustParam(selectedParam, -1, true);
-
-        // A — reset integral
-        if (gamepad2.a && !prevA2) integralSum = 0;
-        prevA2 = gamepad2.a;
-
-        // X — save to statics
         if (gamepad2.x && !prevX2) {
-            SensorState.ALIGN_P = kP;
-            SensorState.ALIGN_I = kI;
-            SensorState.ALIGN_D = kD;
-            SensorState.ALIGN_DEADBAND = deadband;
+            switchMode(RobotMode.SHOOTING);
+            ensureShooterSpinning();
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.KICK));
         }
         prevX2 = gamepad2.x;
 
-        // Y — toggle filter
-        if (gamepad2.y && !prevY2) filterEnabled = !filterEnabled;
+        boolean ltPressed = gamepad2.left_trigger > 0.1;
+        if (ltPressed && !prevLTrigger2) {
+            switchMode(RobotMode.SHOOTING);
+            ensureShooterSpinning();
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SINGLE,
+                            ShootSequence.BallColor.GREEN));
+        }
+        prevLTrigger2 = ltPressed;
+
+        boolean rtPressed = gamepad2.right_trigger > 0.1;
+        if (rtPressed && !prevRTrigger2) {
+            switchMode(RobotMode.SHOOTING);
+            ensureShooterSpinning();
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOOT_SINGLE,
+                            ShootSequence.BallColor.PURPLE));
+        }
+        prevRTrigger2 = rtPressed;
+
+        if (gamepad2.dpad_left && !prevDpadLeft2) {
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.ROTATE_LEFT));
+        }
+        prevDpadLeft2 = gamepad2.dpad_left;
+
+        if (gamepad2.dpad_right && !prevDpadRight2) {
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.ROTATE_RIGHT));
+        }
+        prevDpadRight2 = gamepad2.dpad_right;
+
+        // Left stick Y — Analog nudge carousel
+        double nudgeInput = applyCurve(-gamepad2.left_stick_y);
+        if (Math.abs(nudgeInput) > 0.05) {
+            int nudgeTicks = (int)(nudgeInput * CarouselController.NUDGE_TICKS);
+            mechanismThread.setNudgeRequest(nudgeTicks);
+        } else {
+            mechanismThread.setNudgeRequest(0);
+        }
+
+        // Triangle (Y) — Toggle auto-align (same as TeleOp)
+        if (gamepad2.y && !prevY2) {
+            sensorState.toggleAutoAlign();
+            if (sensorState.isAutoAlignEnabled()) {
+                driveThread.requestPidReset();
+            }
+        }
         prevY2 = gamepad2.y;
 
-        // B — toggle squared P
-        if (gamepad2.b && !prevB2) squaredP = !squaredP;
-        prevB2 = gamepad2.b;
-    }
+        if (gamepad2.circle && !prevB2) {
+            mechanismThread.enqueueCommand(
+                    new MechanismThread.Command(MechanismThread.Command.Type.SHOW_LIGHTS));
+        }
+        prevB2 = gamepad2.circle;
 
-    private void adjustParam(TuneParam param, int dir, boolean fine) {
-        double div = fine ? FINE_DIVISOR : 1.0;
-        switch (param) {
-            case P:
-                kP = Math.max(0, kP + dir * STEP_P / div);
-                break;
-            case I:
-                kI = Math.max(0, kI + dir * STEP_I / div);
-                break;
-            case D:
-                kD = Math.max(0, kD + dir * STEP_D / div);
-                break;
-            case DEADBAND:
-                deadband = Math.max(0, deadband + dir * STEP_DEADBAND / div);
-                break;
-            case FILTER_ALPHA:
-                filterAlpha = clamp(filterAlpha + dir * STEP_FILTER / div, 0.05, 1.0);
-                break;
-            case MAX_OUTPUT:
-                maxOutput = clamp(maxOutput + dir * STEP_MAXOUT / div, 0.05, 1.0);
-                break;
-            case MAX_SLEW:
-                maxSlew = clamp(maxSlew + dir * STEP_SLEW / div, 0.005, 0.5);
-                break;
+        if (!intakeActive && sensorState.getShooterTargetVelocity() > 0) {
+            if (sensorState.isBasketTagVisible()) {
+                sensorState.setVelocityFromDistance(sensorState.getTagRange());
+            } else {
+                sensorState.setVelocityFromDistance(sensorState.getOdometryDistanceToBasket());
+            }
         }
     }
 
-    // ── UI helpers ───────────────────────────────────────────────────────
-
-    private String paramLabel(TuneParam param) {
-        String prefix = (param == selectedParam) ? ">> " : "   ";
-        switch (param) {
-            case P:            return prefix + "kP";
-            case I:            return prefix + "kI";
-            case D:            return prefix + "kD";
-            case DEADBAND:     return prefix + "Deadband";
-            case FILTER_ALPHA: return prefix + "Filter α";
-            case MAX_OUTPUT:   return prefix + "Max Output";
-            case MAX_SLEW:     return prefix + "Max Slew";
-            default:           return prefix + "?";
+    private void ensureShooterSpinning() {
+        boolean intakeActive = gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1;
+        if (!intakeActive && sensorState.getShooterTargetVelocity() <= 0) {
+            sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
         }
     }
 
-    private String buildErrorGraph() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Error History (±20°):\n");
-        double scale = 20.0;
-        int barHalf = 10;
+    // ══════════════════════════════════════════════════════════════════════
+    //  AUTO MODE SWITCHING — copied from TeleOpBlue/Red
+    // ══════════════════════════════════════════════════════════════════════
 
-        for (int i = 0; i < GRAPH_WIDTH; i++) {
-            int idx = (historyIndex + i) % GRAPH_WIDTH;
-            double err = errorHistory[idx];
-            int offset = (int) Math.round((err / scale) * barHalf);
-            offset = Math.max(-barHalf, Math.min(barHalf, offset));
-
-            char[] bar = new char[barHalf * 2 + 1];
-            for (int j = 0; j < bar.length; j++) bar[j] = ' ';
-            bar[barHalf] = '|';
-            if (offset != 0) bar[barHalf + offset] = '*';
-
-            sb.append(new String(bar));
-            if (i < GRAPH_WIDTH - 1) sb.append('\n');
+    private void handleAutoModeSwitching() {
+        int ballCount = 0;
+        for (ShootSequence.BallColor c : sensorState.getAllPositions()) {
+            if (c != ShootSequence.BallColor.EMPTY) ballCount++;
         }
-        return sb.toString();
+
+        if (ballCount >= 3 && currentMode == RobotMode.INTAKING) {
+            switchMode(RobotMode.SHOOTING);
+            boolean intakeActive = gamepad1.right_trigger > 0.1 || gamepad1.left_trigger > 0.1;
+            if (!intakeActive) {
+                sensorState.setShooterTargetVelocity(DEFAULT_VELOCITY);
+            }
+        }
     }
 
-    private TuneParam nextParam(TuneParam p) {
-        TuneParam[] v = TuneParam.values();
-        return v[(p.ordinal() + 1) % v.length];
+    private void switchMode(RobotMode mode) {
+        currentMode = mode;
+        boolean enableAuto = (mode == RobotMode.INTAKING);
+        mechanismThread.enqueueCommand(
+                new MechanismThread.Command(MechanismThread.Command.Type.SET_AUTO_INDEX, enableAuto));
     }
 
-    private TuneParam prevParam(TuneParam p) {
-        TuneParam[] v = TuneParam.values();
-        return v[(p.ordinal() - 1 + v.length) % v.length];
+    // ══════════════════════════════════════════════════════════════════════
+    //  TUNING OVERLAY — extra controls on GP1 A/B, GP2 A/B
+    // ══════════════════════════════════════════════════════════════════════
+
+    private void handleTuningControls() {
+        // GP1 A — Toggle auto-align with PID reset (dedicated tuning button)
+        if (gamepad1.a && !prevA1) {
+            sensorState.toggleAutoAlign();
+            if (sensorState.isAutoAlignEnabled()) {
+                driveThread.requestPidReset();
+            }
+        }
+        prevA1 = gamepad1.a;
+
+        // GP1 B — Toggle raw / interpolated bearing
+        if (gamepad1.b && !prevB1) {
+            driveThread.setUseRawBearing(!driveThread.getUseRawBearing());
+            driveThread.requestPidReset();
+        }
+        prevB1 = gamepad1.b;
+
+        // GP2 A — Cycle selected PID term
+        if (gamepad2.a && !prevA2) {
+            selected = nextTerm(selected);
+        }
+        prevA2 = gamepad2.a;
+
+        // GP2 dpad_up — Increase selected term
+        // GP2 dpad_down — Decrease selected term
+        // (dpad_left/right are used by carousel, so we use up/down for tuning)
+        double step = getStep();
+        if (gamepad2.right_bumper) step *= 10.0;
+        if (gamepad2.left_bumper) step *= 0.1;
+
+        if (gamepad2.dpad_up) adjustSelected(step * 0.05);   // held = continuous
+        if (gamepad2.dpad_down) adjustSelected(-step * 0.05); // held = continuous
     }
 
-    private double clamp(double v, double min, double max) {
-        return Math.max(min, Math.min(max, v));
+    // ══════════════════════════════════════════════════════════════════════
+    //  TELEMETRY — matches TeleOp volume, with PID info added
+    // ══════════════════════════════════════════════════════════════════════
+
+    private void updateTelemetry() {
+        telemetry.addData("Mode", currentMode);
+        telemetry.addData("Balls", "%s|%s|%s",
+                shortName(sensorState.getPositionColor(0)),
+                shortName(sensorState.getPositionColor(1)),
+                shortName(sensorState.getPositionColor(2)));
+
+        double current = sensorState.getShooterCurrentVelocity();
+        double target = sensorState.getShooterTargetVelocity();
+        double error = Math.abs(current - target);
+        boolean ready = sensorState.isShooterReady();
+        telemetry.addData("Shooter", "%.0f / %.0f RPM (err %.0f) %s",
+                current, target, error, ready ? "READY" : "NOT READY");
+
+        boolean settled = mechanismThread.isCarouselSettled();
+        telemetry.addData("Carousel", "curr: %d / target: %d | %s",
+                mechanismThread.getCarouselCurrentTicks(),
+                mechanismThread.getCarouselTargetTicks(),
+                settled ? "SETTLED" : "MOVING");
+
+        // PID tuning info (replaces CmdReady line — same telemetry item count)
+        telemetry.addData("Align", "%s | %s | PID=%.3f",
+                sensorState.isAutoAlignEnabled() ? "ON" : "off",
+                driveThread.getUseRawBearing() ? "RAW" : "INTERP",
+                driveThread.getDiagPidOutput());
+        telemetry.addData("Tune",
+                "%s P=%.4f I=%.4f D=%.4f DB=%.1f A=%.2f",
+                selected.name(),
+                SensorState.ALIGN_P, SensorState.ALIGN_I,
+                SensorState.ALIGN_D, SensorState.ALIGN_DEADBAND,
+                SensorState.ALIGN_D_ALPHA);
+
+        telemetry.update();
     }
 
-    private void joinAll() {
+    private String shortName(ShootSequence.BallColor c) {
+        if (c == ShootSequence.BallColor.GREEN) return "G";
+        if (c == ShootSequence.BallColor.PURPLE) return "P";
+        return "-";
+    }
+
+    // ── Tuning helpers ────────────────────────────────────────────────────
+
+    private double getStep() {
+        switch (selected) {
+            case P: return 0.001;
+            case I: return 0.0005;
+            case D: return 0.0002;
+            case DEADBAND: return 0.1;
+            case D_ALPHA: return 0.05;
+            default: return 0.001;
+        }
+    }
+
+    private void adjustSelected(double delta) {
+        switch (selected) {
+            case P: SensorState.ALIGN_P = Math.max(0, SensorState.ALIGN_P + delta); break;
+            case I: SensorState.ALIGN_I = Math.max(0, SensorState.ALIGN_I + delta); break;
+            case D: SensorState.ALIGN_D = Math.max(0, SensorState.ALIGN_D + delta); break;
+            case DEADBAND: SensorState.ALIGN_DEADBAND = Math.max(0, SensorState.ALIGN_DEADBAND + delta); break;
+            case D_ALPHA: SensorState.ALIGN_D_ALPHA = Math.max(0, Math.min(1.0, SensorState.ALIGN_D_ALPHA + delta)); break;
+        }
+    }
+
+    private SelectedTerm nextTerm(SelectedTerm t) {
+        switch (t) {
+            case P: return SelectedTerm.I;
+            case I: return SelectedTerm.D;
+            case D: return SelectedTerm.DEADBAND;
+            case DEADBAND: return SelectedTerm.D_ALPHA;
+            case D_ALPHA: return SelectedTerm.P;
+            default: return SelectedTerm.P;
+        }
+    }
+
+    private void joinAllThreads() {
         try {
+            mechanismThread.join(200);
             driveThread.join(200);
+            shooterThread.join(200);
             cameraThread.join(200);
             controlHubI2C.join(200);
             expansionHubI2C.join(200);

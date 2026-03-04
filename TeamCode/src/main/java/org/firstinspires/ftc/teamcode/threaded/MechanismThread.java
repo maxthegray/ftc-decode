@@ -31,9 +31,15 @@ public class MechanismThread extends Thread {
     // --- Intake Request (volatile field – never queued) ---
     public enum IntakeRequest { STOP, IN, OUT }
     private volatile IntakeRequest intakeRequest = IntakeRequest.STOP;
+    private volatile double intakePower = 1.0;
 
     public void setIntakeRequest(IntakeRequest req) {
         this.intakeRequest = req;
+    }
+
+    public void setIntakeRequest(IntakeRequest req, double power) {
+        this.intakeRequest = req;
+        this.intakePower = power;
     }
 
     // --- Hardware State Machine ---
@@ -44,10 +50,12 @@ public class MechanismThread extends Thread {
     //    │                                                 │
     //    ├──► KICKER_UP ──► KICKER_DOWN ──────────────────┤  (manual kick)
     //    │                                                 │
-    //    └──► SHOOT_WAIT_SHOOTER ──► SHOOT_ROTATING ──►   │  (single OR multi-shot)
-    //         (or skip rotate)       SHOOT_KICKER_UP      │
-    //                                 ──► SHOOT_KICKER_DOWN┘
-    //                                      (loops back for next shot, or → IDLE)
+    //    └──► SHOOT_ROTATING ──────────────────────────►   │  (rotation needed: carousel
+    //         (waits for carousel AND shooter)              │   + shooter spin up in parallel)
+    //         ──► SHOOT_KICKER_UP ──► SHOOT_KICKER_DOWN ──┤
+    //                                                      │
+    //    └──► SHOOT_WAIT_SHOOTER ─────────────────────►    │  (no rotation: wait shooter only)
+    //         ──► SHOOT_KICKER_UP ──► SHOOT_KICKER_DOWN ──┘
     //
     private enum HardwareState {
         IDLE,
@@ -96,6 +104,20 @@ public class MechanismThread extends Thread {
     // Kicker safety delays
     private static final long KICKER_SAFETY_DELAY_MS = 200;  // Minimum time after commanding down
     private static final long KICKER_TIMEOUT_MS = 500;       // Maximum time to wait (failsafe)
+
+    // ── Shot timing diagnostics ──────────────────────────────────────────────
+    // Records how long each phase of the last shot took (ms).
+    // Read from TeleOp for telemetry — volatile so they're visible cross-thread.
+    private final ElapsedTime shotPhaseTimer = new ElapsedTime();
+    private volatile long lastRotateMs       = 0;
+    private volatile long lastWaitShooterMs  = 0;  // extra wait AFTER carousel settled
+    private volatile long lastKickerUpMs     = 0;
+    private volatile long lastKickerDownMs   = 0;
+
+    public long getLastRotateMs()      { return lastRotateMs; }
+    public long getLastWaitShooterMs() { return lastWaitShooterMs; }
+    public long getLastKickerUpMs()    { return lastKickerUpMs; }
+    public long getLastKickerDownMs()  { return lastKickerDownMs; }
 
     // Robot State
     private volatile ShootSequence.BallColor[] ballPositions = {
@@ -163,7 +185,7 @@ public class MechanismThread extends Thread {
     // Hold-to-nudge (bypasses command queue, overrides CAROUSEL_MOVING)
     private volatile int nudgeRequest = 0;
     private final ElapsedTime nudgeTimer = new ElapsedTime();
-    private static final long NUDGE_INTERVAL_MS = 80;
+    private static final long NUDGE_INTERVAL_MS = 20;
 
     // Pipeline logging — ramp sensor edge detection + voltage sampling
     private boolean prevRamp1Hit = false;
@@ -307,25 +329,48 @@ public class MechanismThread extends Thread {
                 }
 
                 // ---- SHOOT (single or sequence) ----
+                // SHOOT_WAIT_SHOOTER is now only entered when rotation == 0
+                // (ball already at intake, just waiting on shooter speed).
                 case SHOOT_WAIT_SHOOTER: {
                     boolean shooterReady = sensorState != null && sensorState.isShooterReady();
 
                     if (shooterReady) {
-                        advanceToNextShot();
-                    }
-                    break;
-                }
-
-                case SHOOT_ROTATING:
-                    if (carousel.isSettled()) {
+                        lastWaitShooterMs = (long) shotPhaseTimer.milliseconds();
+                        lastRotateMs = 0;  // no rotation was needed
+                        shotPhaseTimer.reset();
                         kicker.up();
                         stateTimer.reset();
                         hardwareState = HardwareState.SHOOT_KICKER_UP;
                     }
                     break;
+                }
+
+                case SHOOT_ROTATING: {
+                    boolean settled = carousel.isSettled();
+                    boolean shooterReady = sensorState != null && sensorState.isShooterReady();
+
+                    if (settled && shooterReady) {
+                        // Both ready — record timing and kick
+                        lastRotateMs = (long) shotPhaseTimer.milliseconds();
+                        lastWaitShooterMs = 0;  // shooter was ready by the time carousel finished (or vice versa)
+                        shotPhaseTimer.reset();
+                        kicker.up();
+                        stateTimer.reset();
+                        hardwareState = HardwareState.SHOOT_KICKER_UP;
+                    } else if (settled && !shooterReady) {
+                        // Carousel done but shooter still spinning up — record rotate time,
+                        // stay here and keep waiting (don't transition to a separate state).
+                        // lastRotateMs will be overwritten with the total when both are ready,
+                        // but we track the split for telemetry.
+                    }
+                    // If !settled, keep waiting for carousel (shooter spinning up in parallel)
+                    break;
+                }
 
                 case SHOOT_KICKER_UP:
                     if (kicker.isUp() || stateTimer.milliseconds() > 500) {
+                        lastKickerUpMs = (long) shotPhaseTimer.milliseconds();
+                        shotPhaseTimer.reset();
                         kicker.down();
                         stateTimer.reset();
                         hardwareState = HardwareState.SHOOT_KICKER_DOWN;
@@ -338,6 +383,7 @@ public class MechanismThread extends Thread {
                     boolean timedOut = stateTimer.milliseconds() >= KICKER_TIMEOUT_MS;
 
                     if ((kickerPhysicallyDown && safetyDelayPassed) || timedOut) {
+                        lastKickerDownMs = (long) shotPhaseTimer.milliseconds();
                         currentShotIndex++;
                         if (shotPlan == null || currentShotIndex >= shotPlan.length) {
                             // All shots fired
@@ -345,7 +391,8 @@ public class MechanismThread extends Thread {
                             currentShotIndex = 0;
                             hardwareState = HardwareState.IDLE;
                         } else {
-                            // Next shot — shooter already spinning, go straight to rotate/kick
+                            // Next shot — start rotating immediately
+                            shotPhaseTimer.reset();
                             advanceToNextShot();
                         }
                     }
@@ -382,9 +429,9 @@ public class MechanismThread extends Thread {
         }
 
         switch (intakeRequest) {
-            case IN:    intake.forward(); break;
-            case OUT:   intake.reverse(); break;
-            case STOP:  intake.stop();    break;
+            case IN:    intake.forward(intakePower); break;
+            case OUT:   intake.reverse(intakePower); break;
+            case STOP:  intake.stop();               break;
         }
     }
 
@@ -443,7 +490,9 @@ public class MechanismThread extends Thread {
                     shotPlan = new int[] { rotation };
                     currentShotIndex = 0;
                     stateTimer.reset();
-                    hardwareState = HardwareState.SHOOT_WAIT_SHOOTER;
+                    shotPhaseTimer.reset();
+                    // Start rotating immediately — shooter spins up in parallel
+                    advanceToNextShot();
                 }
                 break;
 
@@ -463,7 +512,9 @@ public class MechanismThread extends Thread {
                     shotPlan = plan;
                     currentShotIndex = 0;
                     stateTimer.reset();
-                    hardwareState = HardwareState.SHOOT_WAIT_SHOOTER;
+                    shotPhaseTimer.reset();
+                    // Start rotating immediately — shooter spins up in parallel
+                    advanceToNextShot();
                 }
                 break;
 
@@ -495,10 +546,21 @@ public class MechanismThread extends Thread {
     private void advanceToNextShot() {
         int rotation = shotPlan[currentShotIndex];
         if (rotation == 0) {
-            kicker.up();
-            stateTimer.reset();
-            hardwareState = HardwareState.SHOOT_KICKER_UP;
+            // Ball already at intake — just need to wait for shooter speed
+            boolean shooterReady = sensorState != null && sensorState.isShooterReady();
+            if (shooterReady) {
+                // Shooter already at speed — kick immediately
+                lastWaitShooterMs = 0;
+                lastRotateMs = 0;
+                shotPhaseTimer.reset();
+                kicker.up();
+                stateTimer.reset();
+                hardwareState = HardwareState.SHOOT_KICKER_UP;
+            } else {
+                hardwareState = HardwareState.SHOOT_WAIT_SHOOTER;
+            }
         } else {
+            // Start carousel rotation — shooter spins up in parallel
             carousel.rotateSlots(rotation);
             hardwareState = HardwareState.SHOOT_ROTATING;
         }
@@ -629,6 +691,12 @@ public class MechanismThread extends Thread {
             boolean shooterReady = sensorState != null && sensorState.isShooterReady();
             return String.format("SHOOT_WAIT_SHOOTER | waiting %.0fms | ready=%b",
                     stateTimer.milliseconds(), shooterReady);
+        }
+        if (hardwareState == HardwareState.SHOOT_ROTATING) {
+            boolean settled = carousel.isSettled();
+            boolean shooterReady = sensorState != null && sensorState.isShooterReady();
+            return String.format("SHOOT_ROTATING | %.0fms | car=%b shtr=%b",
+                    shotPhaseTimer.milliseconds(), settled, shooterReady);
         }
         if (isInShootState() && shotPlan != null && shotPlan.length > 1) {
             return String.format("%s | Shot %d/%d | Plan: %s",

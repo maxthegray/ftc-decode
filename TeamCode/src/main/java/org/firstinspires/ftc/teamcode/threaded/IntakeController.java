@@ -14,7 +14,7 @@ public class IntakeController {
     private final DcMotorEx rightMotor;
     private final CRServo servo;
 
-    private static final double MOTOR_POWER = 0.55;
+    private static final double MOTOR_POWER = 1.0;
     private static final double SERVO_POWER = 1.0;
 
     private boolean running = false;
@@ -28,17 +28,23 @@ public class IntakeController {
         rightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
     }
 
-    public void forward() {
-        leftMotor.setPower(-MOTOR_POWER);
-        rightMotor.setPower(-MOTOR_POWER);
-        servo.setPower(-SERVO_POWER);
+    public void forward() { forward(0.55); }
+
+    public void forward(double scale) {
+        double s = Math.max(0, Math.min(1, scale));
+        leftMotor.setPower(-MOTOR_POWER * s);
+        rightMotor.setPower(-MOTOR_POWER * s);
+        servo.setPower(-SERVO_POWER * s);
         running = true;
     }
 
-    public void reverse() {
-        leftMotor.setPower(MOTOR_POWER);
-        rightMotor.setPower(MOTOR_POWER);
-        servo.setPower(SERVO_POWER);
+    public void reverse() { reverse(0.55); }
+
+    public void reverse(double scale) {
+        double s = Math.max(0, Math.min(1, scale));
+        leftMotor.setPower(MOTOR_POWER * s);
+        rightMotor.setPower(MOTOR_POWER * s);
+        servo.setPower(SERVO_POWER * s);
         running = true;
     }
 

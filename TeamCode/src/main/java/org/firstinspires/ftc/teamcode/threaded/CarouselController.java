@@ -31,14 +31,12 @@ public class CarouselController {
 
     private final DcMotorEx motor;
 
-    // ── Tune these ───────────────────────────────────────────────────────────
-    private static final double KP        = 0.0012;   // proportional
-    private static final double KI        = 0.00000; // integral — set to 0 initially
-    private static final double KD        = 0.000001;  // derivative — set to 0 initially
-    private static final double MAX_POWER = .98;     // clamp output
-
-    // ── Deadband ─────────────────────────────────────────────────────────────
-    private static final int TOLERANCE = 50;  // ticks — power cuts off inside this
+    // ── Tune these (public + non-final so the tuner can adjust live) ────────
+    public static double KP        = 0.0012;   // proportional
+    public static double KI        = 0.00000;  // integral
+    public static double KD        = 0.000001; // derivative
+    public static double MAX_POWER = 0.98;     // clamp output
+    public static int    TOLERANCE = 50;       // ticks — power cuts off inside this
 
     // ── Movement presets ─────────────────────────────────────────────────────
     public static final int TICKS_PER_SLOT = 2731;

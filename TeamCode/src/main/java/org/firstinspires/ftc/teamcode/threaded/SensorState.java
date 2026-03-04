@@ -27,7 +27,7 @@ public class SensorState {
     public boolean shouldKillThreads() { return killThreads; }
 
     // ==================== UPDATE RATES ====================
-    public static final long DRIVE_UPDATE_MS = 10;
+    public static final long DRIVE_UPDATE_MS = 1;
     public static final long SHOOTER_UPDATE_MS = 50;
     public static final long CAMERA_UPDATE_MS = 30;
     public static final long I2C_UPDATE_MS = 50;
@@ -187,12 +187,23 @@ public class SensorState {
 
     public static final double TARGET_OFFSET_INCHES = 45.5 / 2.54;
 
+    // ── Bearing interpolation ────────────────────────────────────────────────
+    // Snapshot the robot heading (radians) at the moment each camera frame
+    // arrives. Between frames, DriveThread can predict the current bearing by
+    // compensating for heading change since the snapshot.
+    private volatile double headingAtLastFrame = 0;        // radians
+    private volatile double targetBearingAtLastFrame = 0;  // degrees (computed)
+
     public void setTagData(int id, double bearing, double range, double yaw) {
         this.tagId = id;
         this.tagBearing = bearing;
         this.tagRange = range;
         this.tagYaw = yaw;
         this.basketTagVisible = true;
+
+        // Snapshot heading and pre-compute target bearing at this frame
+        this.headingAtLastFrame = currentPose.getHeading();
+        this.targetBearingAtLastFrame = computeTargetBearing(bearing, range, yaw);
     }
 
     public void clearTagData() {
@@ -207,10 +218,43 @@ public class SensorState {
 
     public double getTargetBearing() {
         if (!basketTagVisible) return 0;
+        return computeTargetBearing(tagBearing, tagRange, tagYaw);
+    }
 
-        double r = tagRange;
-        double d = TARGET_OFFSET_INCHES;  // Peak is directly behind tag center for both goals
-        double yawRad = Math.toRadians(tagYaw);
+    /**
+     * Predict the current target bearing by compensating for heading change
+     * since the last camera frame.
+     *
+     * Between frames the robot may have rotated, which shifts the tag's
+     * apparent bearing by the opposite amount. The gyro/odometry heading
+     * is accurate over 30ms windows, so this prediction is essentially exact.
+     *
+     * @param currentHeadingRad current robot heading in radians (from Pose)
+     * @return predicted target bearing in degrees
+     */
+    public double getInterpolatedBearing(double currentHeadingRad) {
+        if (!basketTagVisible) return 0;
+        double headingDeltaDeg = Math.toDegrees(currentHeadingRad - headingAtLastFrame);
+        return targetBearingAtLastFrame - headingDeltaDeg;
+    }
+
+    /** Raw (non-interpolated) target bearing from last camera frame, for telemetry comparison. */
+    public double getRawTargetBearing() {
+        return targetBearingAtLastFrame;
+    }
+
+    public double getHeadingAtLastFrame() {
+        return headingAtLastFrame;
+    }
+
+    /**
+     * Compute the adjusted target bearing accounting for the offset between
+     * the tag center and the actual target point.
+     */
+    private double computeTargetBearing(double bearing, double range, double yaw) {
+        double r = range;
+        double d = TARGET_OFFSET_INCHES;
+        double yawRad = Math.toRadians(yaw);
 
         double rtSquared = r*r + d*d + 2*r*d*Math.cos(yawRad);
         double rt = Math.sqrt(rtSquared);
@@ -219,7 +263,7 @@ public class SensorState {
         sinBeta = Math.max(-1.0, Math.min(1.0, sinBeta));
         double beta = Math.toDegrees(Math.asin(sinBeta));
 
-        return tagBearing + beta;
+        return bearing + beta;
     }
 
     public void setTagCalculatedPose(Pose pose) { this.tagCalculatedPose = pose; }
@@ -232,9 +276,33 @@ public class SensorState {
     // Auto-align
     private volatile boolean autoAlignEnabled = false;
     public static double ALIGN_P = 0.006;
-    public static double ALIGN_I = 0.001;
-    public static double ALIGN_D = 0.0008;
+    public static double ALIGN_I = 0.0005;
+    public static double ALIGN_D = 0.0002;
     public static double ALIGN_DEADBAND = 1.0;
+    public static double ALIGN_D_ALPHA = 0.19;  // D low-pass filter: 0=raw, 1=max smoothing
+
+    // ==================== BASKET POSITIONS (for odometry fallback) ====================
+    // These match CameraThread's tag positions.
+    // Blue basket (tag 20):
+    private static final double BLUE_BASKET_X = 58.35 + 72;   // 130.35
+    private static final double BLUE_BASKET_Y = 55.63 - 72;   // -16.37
+
+    // Red basket (tag 24):
+    private static final double RED_BASKET_X = -58.35 - 72;   // -130.35
+    private static final double RED_BASKET_Y = 55.63 - 72;    // -16.37
+
+    /**
+     * Estimate distance to basket using odometry pose.
+     * Less accurate than AprilTag range but always available.
+     */
+    public double getOdometryDistanceToBasket() {
+        Pose pose = currentPose;
+        double bx = (alliance == Alliance.BLUE) ? BLUE_BASKET_X : RED_BASKET_X;
+        double by = (alliance == Alliance.BLUE) ? BLUE_BASKET_Y : RED_BASKET_Y;
+        double dx = pose.getX() - bx;
+        double dy = pose.getY() - by;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
 
     public void setAutoAlignEnabled(boolean enabled) { this.autoAlignEnabled = enabled; }
     public boolean isAutoAlignEnabled() { return autoAlignEnabled; }
