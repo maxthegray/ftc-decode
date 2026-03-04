@@ -88,6 +88,11 @@ public class TeleOpBlue extends LinearOpMode {
             handleGunnerControls();
             handleAutoModeSwitching();
 
+            if (sensorState.isAutoAlignEnabled()) {
+                gamepad1.rumble(100);
+                gamepad2.rumble(100);
+            }
+
             updateTelemetry();
         }
 

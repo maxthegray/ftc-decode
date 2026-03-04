@@ -35,6 +35,7 @@ public class MechanismThread extends Thread {
 
     public void setIntakeRequest(IntakeRequest req) {
         this.intakeRequest = req;
+        this.intakePower = -1;
     }
 
     public void setIntakeRequest(IntakeRequest req, double power) {
@@ -429,9 +430,15 @@ public class MechanismThread extends Thread {
         }
 
         switch (intakeRequest) {
-            case IN:    intake.forward(intakePower); break;
-            case OUT:   intake.reverse(intakePower); break;
-            case STOP:  intake.stop();               break;
+            case IN:
+                if (intakePower < 0) intake.forward();
+                else intake.forward(intakePower);
+                break;
+            case OUT:
+                if (intakePower < 0) intake.reverse();
+                else intake.reverse(intakePower);
+                break;
+            case STOP:  intake.stop(); break;
         }
     }
 

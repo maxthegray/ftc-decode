@@ -40,6 +40,7 @@ public class Blue9Close extends OpMode {
         public PathChain ReadTagAndGoToShoot;
         public PathChain GoToBall1Position;
         public PathChain Ball3;
+        public PathChain clearchute;
         public PathChain Shoot2;
         public PathChain GoToBall4;
         public PathChain Ball6;
@@ -57,7 +58,7 @@ public class Blue9Close extends OpMode {
 
             GoToBall1Position = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(54.000, 89.000),
+                                    new Pose(53.000, 89.000),
                                     new Pose(59.689, 66.841),
                                     new Pose(48.175, 60.183)
                             )
@@ -67,23 +68,33 @@ public class Blue9Close extends OpMode {
             Ball3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(48.175, 60.183),
-                                    new Pose(9.888, 59.809)
+                                    new Pose(13.446, 60.184)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
+            clearchute = follower.pathBuilder().addPath(
+                            new BezierCurve(
+                                    new Pose(13.446, 60.184),
+                                    new Pose(22.759, 54.409),
+                                    new Pose(27.152, 73.404),
+                                    new Pose(15.730, 70.783)
+                            )
+                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-90))
+                    .build();
+
             Shoot2 = follower.pathBuilder().addPath(
                             new BezierCurve(
-                                    new Pose(9.888, 59.809),
+                                    new Pose(15.730, 70.783),
                                     new Pose(45.000, 44.000),
                                     new Pose(54.000, 83.000)
                             )
-                    ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(140))
+                    ).setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(140))
                     .build();
 
             GoToBall4 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(58.000, 83.000),
+                                    new Pose(54.000, 83.000),
                                     new Pose(48.689, 84.311)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(140), Math.toRadians(180))
@@ -95,13 +106,12 @@ public class Blue9Close extends OpMode {
                                     new Pose(19.139, 83.749)
                             )
                     ).setTangentHeadingInterpolation()
-                    .setNoDeceleration() //added this
                     .build();
 
             GoShoot3 = follower.pathBuilder().addPath(
                             new BezierLine(
                                     new Pose(19.139, 83.749),
-                                    new Pose(54, 107)
+                                    new Pose(54.000, 107.000)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(155))
                     .build();
@@ -119,6 +129,7 @@ public class Blue9Close extends OpMode {
     private enum State {
         TAG_READING_AND_DRIVE,
         DRIVE_TO_SHOOT,
+        CLEAR_CHUTE,
         ALIGN_AND_SPINUP,
         SHOOTING,
         DRIVE_TO_BALL_AREA,
@@ -267,6 +278,24 @@ public class Blue9Close extends OpMode {
                     enterTeleOpMode();
                     stateTimer.resetTimer();
                     state = State.ALIGN_AND_SPINUP;
+                }
+                break;
+
+            case CLEAR_CHUTE:
+                updateShooterFromTag();
+
+                if (intakeLingeringDuringDrive) {
+                    mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
+                    if (intakeLingerTimer.getElapsedTimeSeconds() * 1000 >= INTAKE_LINGER_DRIVING_MS) {
+                        mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
+                        intakeLingeringDuringDrive = false;
+                    }
+                }
+
+                if (!follower.isBusy()) {
+                    setFullSpeed();
+                    follower.followPath(paths.Shoot2, true);
+                    state = State.DRIVE_TO_SHOOT;
                 }
                 break;
 
@@ -464,10 +493,18 @@ public class Blue9Close extends OpMode {
         sensorState.setShooterTargetVelocity(DEFAULT_SHOOTER_VELOCITY);
         intakeLingeringDuringDrive = true;
         intakeLingerTimer.resetTimer();
-        setFullSpeed();
-        follower.followPath(getShootPath(), true);
-        intakeCycle++;
-        state = State.DRIVE_TO_SHOOT;
+
+        if (intakeCycle == 0) {
+            setFullSpeed();
+            follower.followPath(paths.clearchute, true);
+            intakeCycle++;
+            state = State.CLEAR_CHUTE;
+        } else {
+            setFullSpeed();
+            follower.followPath(getShootPath(), true);
+            intakeCycle++;
+            state = State.DRIVE_TO_SHOOT;
+        }
     }
 
     private void enterTeleOpMode() {
