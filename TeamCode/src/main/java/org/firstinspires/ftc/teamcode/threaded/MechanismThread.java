@@ -95,7 +95,7 @@ public class MechanismThread extends Thread {
     // Intake debounce — ball must be present continuously for this long before indexing.
     private final ElapsedTime intakeDebounceTimer = new ElapsedTime();
     private boolean ballDebouncing = false;
-    private static final long INTAKE_DEBOUNCE_MS = 15;
+    private static final long INTAKE_DEBOUNCE_MS = 100;
 
     // Shoot plan (works for single shots and full sequences)
     private int[] shotPlan = null;

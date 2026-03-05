@@ -95,7 +95,6 @@ public class Red9Close extends OpMode {
                                     new Pose(19.139, 60.251)
                             )
                     ).setTangentHeadingInterpolation()
-                    .setNoDeceleration() //added this
                     .build();
 
             GoShoot3 = follower.pathBuilder().addPath(
@@ -115,6 +114,7 @@ public class Red9Close extends OpMode {
     public static long   BALL_LINGER_TIMEOUT_MS    = 600;
     public static double COLLECT_MAX_POWER = .3;
     public static long   INTAKE_LINGER_DRIVING_MS = 1000;
+    public static long   BALL6_COLLECT_TIMEOUT_MS  = 3000;
 
     private enum State {
         TAG_READING_AND_DRIVE,
@@ -149,6 +149,7 @@ public class Red9Close extends OpMode {
     private Timer stateTimer;
     private Timer opmodeTimer;
     private Timer intakeLingerTimer;
+    private Timer collectTimer;
     private TelemetryManager panelsTelemetry;
 
     private boolean intakeLingeringDuringDrive = false;
@@ -157,6 +158,9 @@ public class Red9Close extends OpMode {
     private double lastError    = 0;
     private boolean hasLastError = false;
     private final ElapsedTime pidTimer = new ElapsedTime();
+    private final ElapsedTime fullDebounceTimer = new ElapsedTime();
+    private boolean fullDebouncing = false;
+    public static long FULL_DEBOUNCE_MS = 500;
 
     private static final double INTEGRAL_LIMIT = 0.3;
     private static final double OUTPUT_MIN     = -1.0;
@@ -168,6 +172,7 @@ public class Red9Close extends OpMode {
         stateTimer       = new Timer();
         opmodeTimer      = new Timer();
         intakeLingerTimer = new Timer();
+        collectTimer     = new Timer();
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
@@ -234,7 +239,13 @@ public class Red9Close extends OpMode {
 
         boolean rampTriggered = sensorState.isRampTriggered();
         boolean mechIdle      = mechanismThread.isIdle();
-        boolean full          = countBalls() >= 3;
+        boolean rawFull = countBalls() >= 3;
+        if (rawFull) {
+            if (!fullDebouncing) { fullDebouncing = true; fullDebounceTimer.reset(); }
+        } else {
+            fullDebouncing = false;
+        }
+        boolean full = fullDebouncing && fullDebounceTimer.milliseconds() >= FULL_DEBOUNCE_MS;
 
         switch (state) {
 
@@ -321,6 +332,7 @@ public class Red9Close extends OpMode {
                 if (stateTimer.getElapsedTimeSeconds() * 1000 >= BALL_AREA_SETTLE_DELAY_MS) {
                     setCollectSpeed();
                     follower.followPath(getCollectionPath(), true);
+                    collectTimer.resetTimer();
                     state = State.COLLECTING;
                 }
                 break;
@@ -332,6 +344,13 @@ public class Red9Close extends OpMode {
                     break;
                 }
                 if (full) {
+                    finishCollection();
+                    break;
+                }
+
+                if (intakeCycle == 1
+                        && collectTimer.getElapsedTimeSeconds() * 1000 >= BALL6_COLLECT_TIMEOUT_MS) {
+                    follower.breakFollowing();
                     finishCollection();
                     break;
                 }
@@ -361,6 +380,12 @@ public class Red9Close extends OpMode {
                     break;
                 }
 
+                if (intakeCycle == 1
+                        && collectTimer.getElapsedTimeSeconds() * 1000 >= BALL6_COLLECT_TIMEOUT_MS) {
+                    finishCollection();
+                    break;
+                }
+
                 mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.IN);
 
                 if (rampTriggered && !mechIdle) {
@@ -380,6 +405,12 @@ public class Red9Close extends OpMode {
                     break;
                 }
                 if (full) {
+                    finishCollection();
+                    break;
+                }
+
+                if (intakeCycle == 1
+                        && collectTimer.getElapsedTimeSeconds() * 1000 >= BALL6_COLLECT_TIMEOUT_MS) {
                     finishCollection();
                     break;
                 }

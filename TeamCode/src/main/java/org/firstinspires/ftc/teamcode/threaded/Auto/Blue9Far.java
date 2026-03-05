@@ -159,6 +159,9 @@ public class Blue9Far extends OpMode {
     private double lastError    = 0;
     private boolean hasLastError = false;
     private final ElapsedTime pidTimer = new ElapsedTime();
+    private final ElapsedTime fullDebounceTimer = new ElapsedTime();
+    private boolean fullDebouncing = false;
+    public static long FULL_DEBOUNCE_MS = 500;
 
     private static final double INTEGRAL_LIMIT = 0.3;
     private static final double OUTPUT_MIN     = -1.0;
@@ -237,7 +240,13 @@ public class Blue9Far extends OpMode {
 
         boolean rampTriggered = sensorState.isRampTriggered();
         boolean mechIdle      = mechanismThread.isIdle();
-        boolean full          = countBalls() >= 3;
+        boolean rawFull = countBalls() >= 3;
+        if (rawFull) {
+            if (!fullDebouncing) { fullDebouncing = true; fullDebounceTimer.reset(); }
+        } else {
+            fullDebouncing = false;
+        }
+        boolean full = fullDebouncing && fullDebounceTimer.milliseconds() >= FULL_DEBOUNCE_MS;
 
         switch (state) {
 
