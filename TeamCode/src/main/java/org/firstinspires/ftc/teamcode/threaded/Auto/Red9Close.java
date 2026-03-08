@@ -114,7 +114,7 @@ public class Red9Close extends OpMode {
     public static long   BALL_LINGER_TIMEOUT_MS    = 600;
     public static double COLLECT_MAX_POWER = .3;
     public static long   INTAKE_LINGER_DRIVING_MS = 1000;
-    public static long   BALL6_COLLECT_TIMEOUT_MS  = 3000;
+    public static long   BALL6_COLLECT_TIMEOUT_MS  = 10000;
 
     private enum State {
         TAG_READING_AND_DRIVE,

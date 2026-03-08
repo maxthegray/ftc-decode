@@ -44,6 +44,7 @@ public class Blue9Far extends OpMode {
         public PathChain gotoball3;
         public PathChain ball6;
         public PathChain shoot3;
+        public PathChain park;
 
         public Paths(Follower follower) {
             initialShoot = follower.pathBuilder().addPath(
@@ -115,7 +116,7 @@ public class Blue9Far extends OpMode {
     public static long   BALL_LINGER_TIMEOUT_MS    = 600;
     public static double COLLECT_MAX_POWER = .3;
     public static long   INTAKE_LINGER_DRIVING_MS = 1000;
-    public static long   BALL6_COLLECT_TIMEOUT_MS  = 3000;
+    public static long   BALL6_COLLECT_TIMEOUT_MS  = 4000;
 
     private enum State {
         TAG_READING_AND_DRIVE,

@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode.threaded.Teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.threaded.CameraThread;
@@ -49,6 +51,12 @@ public class TeleOpRed extends LinearOpMode {
     private boolean prevB2 = false;         // Show lights
     private boolean prevY2 = false;         // Toggle auto-align
 
+    // Lift servos
+    private CRServo lift1, lift2, lift3;
+    private static final double LIFT1_POWER = 0.2;
+    private static final double LIFT2_POWER = 0.5;
+    private static final double LIFT3_POWER = 0.4;
+
     // Intake power ramp — starts at BASE, ramps to MAX over RAMP_TIME seconds
     private static final double INTAKE_BASE_POWER = 0.55;
     private static final double INTAKE_MAX_POWER  = 1.0;
@@ -62,6 +70,13 @@ public class TeleOpRed extends LinearOpMode {
         sensorState = new SensorState(SensorState.Alliance.RED);
 
         // Initialize threads
+        lift1 = hardwareMap.get(CRServo.class, "lift1");
+        lift1.setDirection(DcMotorSimple.Direction.REVERSE);
+        lift2 = hardwareMap.get(CRServo.class, "lift2");
+        lift2.setDirection(DcMotorSimple.Direction.REVERSE);
+        lift3 = hardwareMap.get(CRServo.class, "lift3");
+        lift3.setDirection(DcMotorSimple.Direction.FORWARD);
+
         mechanismThread = new MechanismThread(hardwareMap);
         mechanismThread.setSensorState(sensorState);  // Needed for shooter-ready checks
         mechanismThread.setSkipKickback(true);
@@ -169,6 +184,12 @@ public class TeleOpRed extends LinearOpMode {
         } else {
             mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
         }
+
+        // Lift controls (dpad_down must be held as a safety gate)
+        boolean liftEnabled = gamepad1.dpad_down;
+        lift1.setPower(liftEnabled && gamepad1.triangle ? LIFT1_POWER : 0);
+        lift2.setPower(liftEnabled && gamepad1.square   ? LIFT2_POWER : 0);
+        lift3.setPower(liftEnabled && gamepad1.circle   ? LIFT3_POWER : 0);
     }
 
     // ======================== GUNNER (Gamepad 2) ========================

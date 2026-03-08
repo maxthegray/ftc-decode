@@ -26,13 +26,13 @@ public class LiftTest extends OpMode {
     @Override
     public void loop() {
         boolean all = gamepad1.dpad_up;
-        lift1.setPower(all || gamepad1.triangle ? 0.2 : 0);
-        lift2.setPower(all || gamepad1.square   ? 0.5 : 0);
-        lift3.setPower(all || gamepad1.circle   ? 0.4 : 0);
+        lift1.setPower(all || gamepad1.triangle ? 0.15 : 0);
+        lift2.setPower(all || gamepad1.square   ? .9 : 0);
+        lift3.setPower(all || gamepad1.circle   ? .9 : 0);
 
         telemetry.addData("lift1 (triangle)", gamepad1.triangle);
         telemetry.addData("lift2 (square)",   gamepad1.square);
-        telemetry.addData("lift3 (circle)",   gamepad1.circle);
+        telemetry.addData("lift3 (kcircle)",   gamepad1.circle);
         telemetry.update();
     }
 
