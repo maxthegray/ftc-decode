@@ -44,6 +44,7 @@ public class Red9Far extends OpMode {
         public PathChain gotoball3;
         public PathChain ball6;
         public PathChain shoot3;
+        public PathChain park;
 
         public Paths(Follower follower) {
             initialShoot = follower.pathBuilder().addPath(
@@ -105,6 +106,14 @@ public class Red9Far extends OpMode {
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(155), Math.toRadians(-115))
                     .build();
+
+            park = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(50.237, 124.338),
+                                    new Pose(21.73211963589076, 105.00390117035112)
+                            )
+                    ).setTangentHeadingInterpolation()
+                    .build();
         }
     }
 
@@ -128,6 +137,7 @@ public class Red9Far extends OpMode {
         HOLDING,
         LINGER_AT_END,
         EJECTING,
+        PARKING,
         DONE
     }
 
@@ -307,7 +317,9 @@ public class Red9Far extends OpMode {
                     shootCycle++;
 
                     if (shootCycle > 2) {
-                        state = State.DONE;
+                        setFullSpeed();
+                        follower.followPath(paths.park, true);
+                        state = State.PARKING;
                     } else {
                         mechanismThread.enqueueCommand(
                                 new MechanismThread.Command(
@@ -432,6 +444,12 @@ public class Red9Far extends OpMode {
                 if (!rampTriggered) {
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
                     finishCollection();
+                }
+                break;
+
+            case PARKING:
+                if (!follower.isBusy()) {
+                    state = State.DONE;
                 }
                 break;
 

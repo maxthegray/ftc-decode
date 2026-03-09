@@ -85,14 +85,14 @@ public class Blue9Far extends OpMode {
                             new BezierCurve(
                                     new Pose(56.177, 17.415),
                                     new Pose(37.609, 27.778),
-                                    new Pose(13, 22)
+                                    new Pose(13, 26)
                             )
                     ).setTangentHeadingInterpolation()
                     .build();
 
             ball6 = follower.pathBuilder().addPath(
                             new BezierLine(
-                                    new Pose(11.048, 15.542),
+                                    new Pose(13, 26),
                                     new Pose(13, 6)
                             )
                     ).setConstantHeadingInterpolation(Math.toRadians(-155))
@@ -105,6 +105,14 @@ public class Blue9Far extends OpMode {
                                     new Pose(50.237, 19.662)
                             )
                     ).setLinearHeadingInterpolation(Math.toRadians(-155), Math.toRadians(115))
+                    .build();
+
+            park = follower.pathBuilder().addPath(
+                            new BezierLine(
+                                    new Pose(50.237, 19.662),
+                                    new Pose(21.73211963589076, 38.99609882964888)
+                            )
+                    ).setTangentHeadingInterpolation()
                     .build();
         }
     }
@@ -129,6 +137,7 @@ public class Blue9Far extends OpMode {
         HOLDING,
         LINGER_AT_END,
         EJECTING,
+        PARKING,
         DONE
     }
 
@@ -308,7 +317,9 @@ public class Blue9Far extends OpMode {
                     shootCycle++;
 
                     if (shootCycle > 2) {
-                        state = State.DONE;
+                        setFullSpeed();
+                        follower.followPath(paths.park, true);
+                        state = State.PARKING;
                     } else {
                         mechanismThread.enqueueCommand(
                                 new MechanismThread.Command(
@@ -433,6 +444,12 @@ public class Blue9Far extends OpMode {
                 if (!rampTriggered) {
                     mechanismThread.setIntakeRequest(MechanismThread.IntakeRequest.STOP);
                     finishCollection();
+                }
+                break;
+
+            case PARKING:
+                if (!follower.isBusy()) {
+                    state = State.DONE;
                 }
                 break;
 
